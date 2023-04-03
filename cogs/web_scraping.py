@@ -1,0 +1,275 @@
+# nextcord
+import nextcord
+from nextcord import Embed, Interaction, SlashOption
+from nextcord.ext import commands, tasks, application_checks
+
+# default modules
+import json
+from urllib.request import urlopen
+import datetime
+import html
+import pytz
+from contextlib import suppress
+
+import googleapiclient.discovery
+import googleapiclient.errors
+
+from pytube import Search
+
+# views
+from views.scraping_views import WeatherView, PersistentWeatherView, VideoView, Video
+
+
+class WebScraping(commands.Cog, name="Web Scraping"):
+    COG_EMOJI = "📶"
+
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self._last_member = None
+
+        response = urlopen("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json").read().decode("utf-8")
+        response: dict[dict] = json.loads(response).get("DYN_DAT_MINDS_RHRREAD")
+        self.location_list = {}
+        for k, v in response.items():
+            if "LocationName" in k:
+                if not v["Val_Eng"] or not v["Val_Chi"]:
+                    self.location_list[k.replace("LocationName", "")] = k.replace("LocationName", "")
+                else:
+                    self.location_list[html.unescape(f"{v['Val_Eng']} - {v['Val_Chi']}")] = k.replace(
+                        "LocationName", ""
+                    )
+        self.location_list = dict(sorted(self.location_list.items()))
+        self.announce_temp.start()
+
+    def get_temperature(self, location: str, language="Val_Eng"):
+        response = urlopen("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json").read().decode("utf-8")
+        temp_list: dict[dict] = json.loads(response).get("DYN_DAT_MINDS_RHRREAD")
+
+        date = temp_list.get("BulletinDate")[language]
+        time = temp_list.get("BulletinTime")[language]
+        hk_tz = pytz.timezone("Asia/Hong_Kong")
+        temp_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(tzinfo=hk_tz)
+        if not location:
+            location_name = "Hong Kong Observatory"
+            temp = temp_list.get("HongKongObservatoryTemperature")[language]
+        else:
+            try:
+                location_name = temp_list.get(f"{location}LocationName")[language]
+                temp = temp_list.get(f"{location}Temperature")[language]
+            except TypeError:
+                return temp_time, location_name
+
+        humidty = temp_list.get("HongKongObservatoryRelativeHumidity")[language]
+
+        return temp_time, location_name, float(temp), float(humidty)
+
+    def get_weather_forecast(self, language="Val_Eng"):
+        response = urlopen("https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json").read().decode("utf-8")
+        response: dict[dict] = json.loads(response).get("DYN_DAT_MINDS_FLW")
+        date = response.get("BulletinDate")[language]
+        time = response.get("BulletinTime")[language]
+        hk_tz = pytz.timezone("Asia/Hong_Kong")
+        forecast_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(tzinfo=hk_tz)
+
+        situation = response.get("FLW_WxForecastGeneralSituation")[language]
+        situation += "\n\n"
+        situation += response.get("FLW_WxForecastWxDesc")[language]
+
+        outlook = response.get("FLW_WxOutlookContent")[language]
+
+        return forecast_time, situation, outlook
+
+    def get_weather_embed(self, temp, icon):
+        embed = Embed()
+        embed.set_author(
+            name=f"Information fetched from HK Observatory",
+            url="https://www.hko.gov.hk/en/",
+        )
+
+        if len(temp) > 2:  # fetching info succeeded
+            embed.add_field(name=f"Temperature", value=f"{temp[1]} - {temp[2]}°C", inline=True)
+            embed.add_field(name=f"Humidty", value=f"{temp[3]}%", inline=True)
+            if temp[2] > 12:
+                embed.colour = 0xFF4365
+            elif temp[2] > 9:
+                embed.colour = 0xEEF36A
+            else:
+                embed.colour = 0x6BA368
+        else:
+            embed.add_field(
+                name="Unavailable",
+                value=f"Required information is not available for the location `{temp[1]}`",
+            )
+
+        # embed.set_thumbnail(url=icon if icon else "https://i.imgur.com/rd3C63y.png") # image unavailable image
+        embed.timestamp = temp[0]
+
+        return embed
+
+    async def choose_location_autocomplete(self, interaction: Interaction, data: str):
+        if not data:
+            # return full list
+            await interaction.response.send_autocomplete(dict(sorted(self.location_list.items())[:25]))
+        else:
+            # send a list of nearest matches from the list of item
+            near_locations = {
+                k: v for k, v in self.location_list.items() if data.lower() in k.lower() or data.lower() in v.lower()
+            }
+            await interaction.response.send_autocomplete(dict(sorted(near_locations.items())[:25]))
+
+    @nextcord.slash_command(name="weather", description="Fetches the latest temperature from HK observatory")
+    async def fetch_forecast(
+        self,
+        interaction: Interaction,
+        location: str = SlashOption(
+            description="Choose a specific location",
+            required=False,
+            default=None,
+            autocomplete_callback=choose_location_autocomplete,
+        ),
+        language: str = SlashOption(
+            description="Language to display the forecasts in",
+            required=False,
+            default="Val_Eng",
+            choices={"English": "Val_Eng", "Chinese": "Val_Chi"},
+        ),
+    ):
+        if location and location not in self.location_list.keys() and location not in self.location_list.values():
+            await interaction.send(f"District not found\n`{location=}`\n", ephemeral=True)
+            return
+
+        temp = self.get_temperature(location, language)
+        forecast = self.get_weather_forecast(language)
+        # icon_src = self.get_weather_icon()
+
+        embed = self.get_weather_embed(temp, None)
+        view = WeatherView(forecast)
+
+        view.msg = await interaction.send(embed=embed, view=view)
+
+    @tasks.loop(time=datetime.time(23, 5))  # 07:05 am
+    # @tasks.loop(minutes=2)
+    async def announce_temp(self):
+        guild: nextcord.Guild = await self.bot.fetch_guild(827537903634612235)
+        channel = await guild.fetch_channel(1056236722654031903)
+
+        temp = self.get_temperature("TseungKwanO", "Val_Eng")
+        forecast = self.get_weather_forecast("Val_Eng")
+        # icon_src = self.get_weather_icon()
+
+        embed = self.get_weather_embed(temp, None)
+        view = PersistentWeatherView(forecast)
+
+        await channel.send(embed=embed, view=view)
+
+    async def search_yt_autocomplete(self, interaction: Interaction, data):
+        if not data:
+            await interaction.response.send_autocomplete(["Searching..."])
+            return
+
+        s = Search(data)
+        results = None
+
+        with suppress(KeyError):
+            # the pytube library sometimes raises
+
+            # self._completion_suggestions = self._initial_results['refinements']
+            #                                    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+            # KeyError: 'refinements'
+
+            # when there are no errors, so we suppress it here
+
+            results = s.completion_suggestions
+
+        if results is None:
+            await interaction.response.send_autocomplete([data])
+        else:
+            await interaction.response.send_autocomplete([data] + results[:24])
+
+    @nextcord.slash_command(name="search-channel", description="Finds the newest videos of a channel")
+    @application_checks.is_owner()
+    async def find_yt_channel(
+        self,
+        interaction: Interaction,
+        channel: str = SlashOption(
+            description="The name of the channel to search for",
+            autocomplete_callback=search_yt_autocomplete,
+        ),
+    ):
+        api_service_name = "youtube"
+        api_version = "v3"
+        dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
+
+        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+        search_response = (
+            youtube.search().list(part="snippet", type="channel", q=channel, maxResults=1).execute()["items"][0]
+        )
+
+        channel_response = (
+            youtube.channels()
+            .list(
+                part="snippet,contentDetails",
+                id=search_response["snippet"]["channelId"],
+                maxResults=25,
+            )
+            .execute()["items"][0]
+        )
+
+        playlist = channel_response["contentDetails"]["relatedPlaylists"]["uploads"]
+
+        playlist_response = (
+            youtube.playlistItems().list(part="contentDetails", playlistId=playlist, maxResults=25).execute()["items"]
+        )
+
+        videos_response = (
+            youtube.videos()
+            .list(
+                part="snippet,contentDetails,statistics",
+                id=",".join([video["contentDetails"]["videoId"] for video in playlist_response]),
+            )
+            .execute()["items"]
+        )
+
+        videos = [Video.from_api_response(video) for video in videos_response]
+        view = VideoView(interaction, videos)
+
+        embed = view.get_embed()
+
+        view.msg = await interaction.send(embed=embed, view=view)
+
+    @nextcord.slash_command(name="search-youtube", description="Searches for videos on Youtube")
+    @application_checks.is_owner()
+    async def search_youtube(
+        self,
+        interaction: Interaction,
+        query: str = SlashOption(
+            description="Search query",
+            autocomplete_callback=search_yt_autocomplete,
+            required=True,
+            min_length=3,
+        ),
+    ):
+        s = Search(query)
+
+        video_ids = [video.video_id for video in s.results][:25]
+
+        api_service_name = "youtube"
+        api_version = "v3"
+        dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
+
+        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+
+        videos_response = (
+            youtube.videos().list(part="snippet,contentDetails,statistics", id=",".join(video_ids)).execute()["items"]
+        )
+
+        videos = [Video.from_api_response(video) for video in videos_response]
+        view = VideoView(interaction, videos)
+
+        embed = view.get_embed()
+
+        view.msg = await interaction.send(embed=embed, view=view)
+
+
+def setup(bot: commands.Bot):
+    bot.add_cog(WebScraping(bot))
