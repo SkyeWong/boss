@@ -7,17 +7,14 @@ from nextcord import Interaction, Embed, SlashOption
 import cooldowns
 from cooldowns import SlashBucket
 
-import texttable
-
-# default modules
-import random
-
 # database
 from utils.postgres_db import Database
 
 # my modules and constants
 from utils.player import Player
 from views.template_views import ConfirmView
+
+# default modules
 
 
 class Currency(commands.Cog, name="Currency"):
