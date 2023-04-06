@@ -9,10 +9,11 @@ google-api-python-client
 
 pytz
 parsedatetime
+
 numerize
-Pillow
 pytube
+Pillow
+
 asyncpg
-mysql-connector-python
 
 git+https://github.com/john-science/mazelib/

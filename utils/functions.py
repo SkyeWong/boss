@@ -4,9 +4,6 @@ from nextcord import Embed, Interaction
 from nextcord.ui import View, Button
 import nextcord
 
-# database pool
-from database import boss_pool
-
 # constants
 from utils import constants
 
@@ -93,17 +90,6 @@ def get_mapping(interaction: Interaction, bot: commands.Bot):
         if len(commands) != 0:
             mapping[cog_name] = (cog, commands)
     return mapping
-
-
-def get_all_item_names():
-    sql = """
-        SELECT name
-        FROM items
-        ORDER BY name
-    """
-    result = boss_pool.execute(sql)
-    return [i[0] for i in result]
-
 
 def get_error_message():
     embed = Embed()
