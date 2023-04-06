@@ -10,13 +10,8 @@ google-api-python-client
 pytz
 parsedatetime
 numerize
-
 Pillow
-matplotlib
-
-aiohttp
-bs4
-
+pytube
 asyncpg
 mysql-connector-python
 

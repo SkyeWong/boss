@@ -17,11 +17,6 @@ from views.base_views import FarmView
 from maze.maze import Maze
 
 # default modules
-import pytz
-from PIL import Image
-from io import BytesIO
-import math
-from datetime import datetime
 
 
 class Base(commands.Cog, name="Base"):
