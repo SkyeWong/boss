@@ -133,7 +133,7 @@ def cd_embed(interaction: Interaction, error: CallableOnCooldown):
         "Woah, chill.",
         "Spamming ain't good bro",
         "Stop.",
-        "Calm down and relax. You need it.",
+        "Calm down and relax. You need to.",
         "It's better if you pause.",
         "Touch grass, my man.",
     ]

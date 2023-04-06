@@ -76,16 +76,15 @@ def sec_to_txt(seconds):
 
 def get_mapping(interaction: Interaction, bot: commands.Bot):
     mapping = {}
+
     for cog_name, cog in bot.cogs.items():
         commands = []
         for application_cmd in cog.application_commands:
             cmd_in_guild = False
             if isinstance(application_cmd, nextcord.SlashApplicationCommand):
-                if application_cmd.is_global:
+                if application_cmd.is_global or interaction.guild_id in application_cmd.guild_ids:
                     cmd_in_guild = True
-                elif interaction.guild_id in application_cmd.guild_ids:
-                    cmd_in_guild = True
-                if cmd_in_guild == True:
+                if cmd_in_guild:
                     commands.append(application_cmd)
         if len(commands) != 0:
             mapping[cog_name] = (cog, commands)
@@ -161,6 +160,8 @@ class BossException(Exception):
         super().__init__(*args)
         self.text = text
 
+class CommandNotFound(BossException):
+    pass
 
 class MoveItemException(BossException):
     pass

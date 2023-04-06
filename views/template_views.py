@@ -7,7 +7,7 @@ from nextcord.ui import View, Button, button
 import random
 
 # my modules and constants
-from utils import constants
+from utils import constants, functions
 
 
 class BaseView(View):
@@ -25,11 +25,12 @@ class BaseView(View):
 
     async def interaction_check(self, interaction: Interaction) -> bool:
         if interaction.user != self.interaction.user:
-            command = self.interaction.application_command
+            msg = "This is not for you, sorry."
+
+            if command := self.interaction.application_command:
+                msg += f"\nUse </{command.qualified_name}:{list(command.command_ids.values())[0]}>"
             await interaction.send(
-                embed=Embed(
-                    description=f"This is not for you, sorry.\nUse </{command.qualified_name}:{list(command.command_ids.values())[0]}>",
-                ),
+                embed=functions.format_with_embed(msg),
                 ephemeral=True,
             )
             return False

@@ -28,20 +28,24 @@ class Utility(commands.Cog, name="Utility"):
         self._last_member = None
 
     def search_subcommand(self, cmd: nextcord.SlashApplicationCommand, cmd_name):
+        """Search for a subcommand with its name."""
         cmd_found = False
         subcommands = cmd.children.values()
-        if len(subcommands) > 0:
-            for x in subcommands:
-                if x.qualified_name in cmd_name:
-                    if cmd_name == x.qualified_name:
-                        cmd_found = True
-                        cmd = x
-                        break
-                    if len(x.children) > 0:
-                        return self.search_subcommand(x, cmd_name)
-        return cmd_found, cmd
+        for x in subcommands:
+            if x.qualified_name in cmd_name:
+                if cmd_name == x.qualified_name:
+                    cmd_found = True
+                    cmd = x
+                    break
+                elif x.children:
+                    return self.search_subcommand(x, cmd_name)
+
+        if not cmd_found:
+            raise functions.CommandNotFound()
+        return cmd
 
     def get_all_subcmd_names(self, guild_id: int, cmd):
+        """Get all subcommand names of a command."""
         cmd_names = []
         for subcmd in cmd.children.values():
             base_cmd = cmd
@@ -59,6 +63,10 @@ class Utility(commands.Cog, name="Utility"):
         return cmd_names
 
     async def choose_command_autocomplete(self, interaction: Interaction, data: str):
+        """
+        Return every command and subcommand in the bot. 
+        Returns command that match `data` if it is provided.
+        """
         base_cmds = interaction.client.get_all_application_commands()
         cmd_names = []
         for base_cmd in base_cmds:
@@ -85,7 +93,8 @@ class Utility(commands.Cog, name="Utility"):
     async def help(
         self,
         interaction: Interaction,
-        command: str = SlashOption(
+        cmd_name: str = SlashOption(
+            name="command",
             description="Get extra info for this command",
             default=None,
             required=False,
@@ -94,78 +103,91 @@ class Utility(commands.Cog, name="Utility"):
     ):
         """Get a list of commands or info of a specific command."""
         mapping = functions.get_mapping(interaction, self.bot)
-        if not command:
+
+        if not cmd_name:  # send full command list
             view = HelpView(interaction, mapping)
             embed = view.help_embed()
             view.btn_disable()
             await interaction.send(embed=embed, view=view)
-        else:
-            command = command.strip()
-            cmd_found = False
-            for cog, commands in mapping.values():
-                for i in commands:
-                    cmd_in_guild = False
-                    if i.is_global:
-                        cmd_in_guild = True
-                    elif interaction.guild_id in i.guild_ids:
-                        cmd_in_guild = True
-                    if cmd_in_guild:
-                        if i.name == command:
-                            cmd_found = True
-                            cmd = i
-                            break
-                        else:
-                            if hasattr(i, "children") and len(i.children) > 0:
-                                cmd_found, cmd = self.search_subcommand(i, command)
-                                if cmd_found:
-                                    break
-                if cmd_found:
+            return
+        
+        # find a specific command
+        cmd_name = cmd_name.strip()
+        cmd = None
+
+        client: nextcord.Client = interaction.client
+
+        for i in client.get_all_application_commands():
+            # search for the command name
+            if i.is_global or interaction.guild_id in i.guild_ids:  # command is available to user
+                if i.name == cmd_name:  # matched exact command
+                    cmd = i
                     break
-            if cmd_found:
-                embed = Embed()
-                name = cmd.qualified_name
-                embed.title = f"Info of </{name}:{list(cmd.command_ids.values())[0]}>"
-                embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
-                if len(cmd.children) > 0:
-                    view = HelpView(interaction, mapping)
-                    view.cmd_list = cmd.children.values()
-                    embed = view.help_embed(
-                        description=f">>> {cmd.description}",
-                        author_name=f"Subcommands of /{name}",
-                    )
-                    view.btn_disable()
-                    select = [i for i in view.children if i.custom_id == "cog_select"][0]
-                    view.remove_item(select)
-                    await interaction.send(embed=embed, view=view)
+                elif i.children and i.qualified_name in cmd_name:  # subcommand
+                    try:
+                        cmd = self.search_subcommand(i, cmd_name)
+                    except functions.CommandNotFound:
+                        continue
+                    else:
+                        break
+
+        if cmd is None:
+            await interaction.send(embed=functions.format_with_embed("The command is not found! Use </help:964753444164501505> for a list of available commands"))
+            return
+        
+        embed = Embed()
+        name = cmd.qualified_name
+        embed.title = f"Info of </{name}:{list(cmd.command_ids.values())[0]}>"
+        embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
+
+        if len(cmd.children) > 0:
+            # this command has subcommands, send a list of the subcommands
+            view = HelpView(interaction, mapping)
+            view.cmd_list = cmd.children.values()
+            embed = view.help_embed(
+                description=f">>> {cmd.description}",
+                author_name=f"Subcommands of /{name}",
+            )
+
+            # disable some paginating buttons
+            view.btn_disable()
+
+            # remove the select menu to choose between cogs
+            select = [i for i in view.children if i.custom_id == "cog_select"][0]
+            view.remove_item(select)
+            await interaction.send(embed=embed, view=view)
+        else:
+            # this command does not have subcommands,
+            # send values of the command itself
+            embed.description = cmd.description
+
+            cmd_options = [i for i in list(cmd.options.values())]
+            usage = f"`/{name} "
+
+            options_txt = ""
+            for option in cmd_options:
+
+                if option.required == True:
+                    usage += f"<{option.name}> "
                 else:
-                    embed.description = cmd.description
-                    cmd_options = [i for i in list(cmd.options.values())]
-                    usage = f"`/{name} "
-                    options = ""
-                    for option in cmd_options:
-                        if option.required == True:
-                            usage += f"<{option.name}> "
-                        else:
-                            usage += f"[{option.name}] "
-                        options += (
-                            f"**`{option.name}`**: {option.description}\n"
-                            if option.description != "No description provided."
-                            else ""
-                        )
-                    usage = usage[:-1]
-                    usage += "`"
-                    embed.add_field(name="Usage", value=usage, inline=False)
-                    if options != "":
-                        embed.add_field(name="Options", value=options, inline=False)
-                    embed.set_footer(text="Syntax: <required> [optional]")
-                    embed.colour = random.choice(constants.EMBED_COLOURS)
-                    await interaction.send(embed=embed)
-            else:
-                await interaction.send(
-                    embed=Embed(
-                        description="The command is not found! Use </help:964753444164501505> for a list of available commands"
-                    )
+                    usage += f"[{option.name}] "
+
+                options_txt += (
+                    f"**`{option.name}`**: {option.description}\n"
+                    if option.description != "No description provided."
+                    else ""
                 )
+
+            usage = usage[:-1]  # remove the last space
+            usage += "`"  # make it monospace
+
+            embed.add_field(name="Usage", value=usage, inline=False)
+            if options_txt != "":
+                embed.add_field(name="Options", value=options_txt, inline=False)
+                
+            embed.set_footer(text="Syntax: <required> [optional]")
+            embed.colour = random.choice(constants.EMBED_COLOURS)
+            await interaction.send(embed=embed)
 
     async def choose_item_autocomplete(self, interaction: Interaction, data: str):
         sql = """
