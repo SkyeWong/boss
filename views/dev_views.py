@@ -21,20 +21,23 @@ from views.template_views import BaseView, ConfirmView
 def _get_item_embed(item: Record):
     embed = Embed()
     embed.colour = random.choice(constants.EMBED_COLOURS)
-    embed.title = "Current values of "
-    embed.title += item["name"]
-    embed.description = item["description"]
-    embed.description += "\n>>> "
+    embed.title = item["name"]
+    embed.description = f">>> _{item['description']}_"
+
     prices = {
         "buy": item["buy_price"],
         "sell": item["sell_price"],
         "trade": item["trade_price"],
     }
+
+    prices_txt = ""
     for k, price in prices.items():
         if not price or price == 0:
-            embed.description += f"**{k.upper()}** - Unknown\n"
+            prices_txt += f"**{k.upper()}** - Unknown\n"
         else:
-            embed.description += f"**{k.upper()}** - 🪙 {int(price):,}\n"
+            prices_txt += f"**{k.upper()}** - ◎ {int(price):,}\n"
+    embed.add_field(name="Prices", value=prices_txt, inline=False)
+
     # **rarity**
     # 0 - common
     # 1 - uncommon
@@ -44,6 +47,7 @@ def _get_item_embed(item: Record):
     # 5 - godly
     rarity = ["common", "uncommon", "rare", "epic", "legendary", "godly"]
     embed.add_field(name="Rarity", value=rarity[item["rarity"]], inline=True)
+
     # **type**
     # 0 - tool
     # 1 - collectable
@@ -52,9 +56,10 @@ def _get_item_embed(item: Record):
     # 4 - bundle
     types = ["tool", "collectable", "power-up", "sellable", "bundle"]
     embed.add_field(name="Type", value=types[item["type"]], inline=True)
+
     embed.add_field(
         name="Emoji",
-        value=f"\<\:{item['emoji_name']}:{item['emoji_id']}>",
+        value=f"\<:{item['emoji_name']}:{item['emoji_id']}>",
         inline=False,
     )
     embed.add_field(name="ID (cannot be edited)", value=item["item_id"], inline=False)
@@ -268,12 +273,14 @@ class ConfirmItemDelete(ConfirmView):
     def __init__(self, slash_interaction: Interaction, item: Record):
         self.item = item
         embed = _get_item_embed(item)
+        embed.title = f"Delete `{item['name']}`?"
+
         super().__init__(
             slash_interaction=slash_interaction,
             confirm_func=self.delete_item,
-            embed_content=embed.description,
-            embed_fields=((field.name, field.value, field.inline) for field in embed.fields),
-            embed_thumbnail=embed.thumbnail.url,
+            embed=embed,
+
+            confirmed_title="Item deleted!",
         )
 
     async def delete_item(self, button: Button, interaction: Interaction):
@@ -302,14 +309,20 @@ class ConfirmChangelogSend(ConfirmView):
         bot: commands.Bot = None,
     ):
         self.ping_role = ping_role
-        self.embed = embed
+        self.changelog_embed = embed
         self.bot = bot
         self.msg: nextcord.Message = None
+
+        embed = Embed(title="Pending Confirmation", description="Send the message to <#1020660847321808930>?")
+        if self.ping_role:
+            embed.add_field(name="Role to ping", value=f"{self.ping_role.name} ({self.ping_role.id})")
+        else:
+            embed.add_field(name="Role to ping", value="No roles will be pinged")
+
         super().__init__(
             slash_interaction=slash_interaction,
             confirm_func=self.send_changelog,
-            embed_content="Send the message to <#1020660847321808930>?",
-            embed_fields=self.get_embed_fields(),
+            embed=embed
         )
 
     async def send_edit_changelog(self, interaction: Interaction):
@@ -332,9 +345,9 @@ class ConfirmChangelogSend(ConfirmView):
         client: nextcord.Client = interaction.client
         changelog_channel = await client.fetch_channel(constants.CHANGELOG_CHANNEL_ID)
         if self.ping_role:
-            self.msg = await changelog_channel.send(self.ping_role.mention, embed=self.embed)
+            self.msg = await changelog_channel.send(self.ping_role.mention, embed=self.changelog_embed)
         else:
-            self.msg = await changelog_channel.send(embed=self.embed)
+            self.msg = await changelog_channel.send(embed=self.changelog_embed)
         view = View(timeout=None)
         jump_btn = Button(label="Jump", url=self.msg.jump_url)
         view.add_item(jump_btn)
@@ -347,34 +360,28 @@ class ConfirmChangelogSend(ConfirmView):
             view.add_item(delete_btn)
         await interaction.send(f"Sent message, the ID is `{self.msg.id}`", view=view, ephemeral=True)
 
-    def get_embed_fields(self):
-        if self.ping_role:
-            fields = (("Role to ping", f"{self.ping_role.name} ({self.ping_role.id})"),)
-        else:
-            fields = (("Role to ping", "No roles will be pinged"),)
-        return fields
-
     @button(label="View", row=1, style=ButtonStyle.grey)
     async def view_new_embed(self, button: Button, interaction: Interaction):
-        await interaction.send("The message looks like this:", embed=self.embed, ephemeral=True)
+        await interaction.send("The message looks like this:", embed=self.changelog_embed, ephemeral=True)
 
 
 class ConfirmChangelogDelete(ConfirmView):
     """Asks the user to confirm deleting the message to changelog, then deletes it (or not)."""
 
     def __init__(self, slash_interaction: Interaction, message: nextcord.Message):
+        embed = Embed(title="Pending Confirmation", description="Delete the message?")
         if message.edited_at:
-            fields = (("Last edited at", f"<t:{int(message.edited_at.timestamp())}:f>"),)
+            embed.add_field(name="Last edited at", value=f"<t:{int(message.edited_at.timestamp())}:f>")
         else:
-            fields = (("Sent at", f"<t:{int(message.created_at.timestamp())}:f>"),)
+            embed.add_field(name="Sent at", value=f"<t:{int(message.created_at.timestamp())}:f>")
+
         super().__init__(
             slash_interaction=slash_interaction,
             confirm_func=self.delete_changelog,
-            embed_content="Delete the message?",
-            embed_fields=fields,
+            embed=embed
         )
         self.message = message
-        self.embed = message.embeds[0]
+        self.changelog_embed = message.embeds[0]
         jump_btn = Button(label="Jump", url=message.jump_url)
         self.add_item(jump_btn)
 
@@ -384,8 +391,8 @@ class ConfirmChangelogDelete(ConfirmView):
         await self.message.delete()
 
     @button(label="View Message", row=1, style=ButtonStyle.grey)
-    async def view_embed(self, button: Button, interaction: Interaction):
-        await interaction.send("The message looks like this:", embed=self.embed, ephemeral=True)
+    async def view_msg(self, button: Button, interaction: Interaction):
+        await interaction.send("The message looks like this:", embed=self.changelog_embed, ephemeral=True)
 
 
 class ConfirmChangelogEdit(ConfirmView):
@@ -402,27 +409,23 @@ class ConfirmChangelogEdit(ConfirmView):
         self.message = message
         self.old_embed = message.embeds[0]
         self.new_embed = new_embed
+        
+        embed = Embed(title="Editing message...")
+        if self.message.edited_at:
+            embed.add_field(name="Last edited at", value=f"<t:{int(self.message.edited_at.timestamp())}:f>")
+        else:
+            embed.add_field("Sent at", f"<t:{int(self.message.created_at.timestamp())}:f>")
+
+        embed.add_field("ID", f"`{self.message.id}`")
 
         super().__init__(
             slash_interaction=slash_interaction,
             confirm_func=self.edit_changelog,
-            embed_fields=self.get_embed_fields(),
+            embed=embed,
         )
 
         jump_btn = Button(label="Jump", url=message.jump_url, row=1)
         self.add_item(jump_btn)
-
-    def get_embed_fields(self):
-        if self.message.edited_at:
-            fields = [
-                ("Last edited at", f"<t:{int(self.message.edited_at.timestamp())}:f>"),
-            ]
-        else:
-            fields = [
-                ("Sent at", f"<t:{int(self.message.created_at.timestamp())}:f>"),
-            ]
-        fields.append(("ID", f"`{self.message.id}`"))
-        return tuple(fields)
 
     async def edit_changelog(
         self, button: Button, interaction: Interaction
@@ -444,11 +447,7 @@ class ConfirmChangelogEdit(ConfirmView):
 
     @button(label="Old", row=1, style=ButtonStyle.grey)
     async def view_old_embed(self, button: Button, interaction: Interaction):
-        await interaction.send(
-            "The original message looks like this:",
-            embed=self.old_embed,
-            ephemeral=True,
-        )
+        await interaction.send("The original message looks like this:", embed=self.old_embed, ephemeral=True)
 
     @button(label="New", row=1, style=ButtonStyle.grey)
     async def view_new_embed(self, button: Button, interaction: Interaction):

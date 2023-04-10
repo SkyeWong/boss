@@ -463,8 +463,8 @@ class DevOnly(commands.Cog, name="Dev Only"):
         else:
             view = ConfirmItemDelete(interaction, item)
             await interaction.send(
-                embed=view.get_embed(title=f"Pending Confirmation: Delete `{item['name']}`?"),
-                view=view,
+                embed=view.embed,
+                view=view
             )
 
     @nextcord.slash_command(name="changelog", guild_ids=[constants.DEVS_SERVER_ID])
@@ -555,8 +555,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
         elif image_link:
             log_embed.set_image(image_link)
         view = ConfirmChangelogSend(interaction, log_embed, ping_role if ping_role else None, self.bot)
-        embed = view.get_embed()
-        await interaction.send(embed=embed, view=view)
+        await interaction.send(embed=view.embed, view=view)
 
     @changelog.subcommand(name="delete", description="Deletes a changelog message", inherit_hooks=True)
     async def delete_changelog(
@@ -595,8 +594,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
                 await interaction.send(embed=embed, view=view, ephemeral=True)
             return
         view = ConfirmChangelogDelete(interaction, message)
-        embed = view.get_embed()
-        await interaction.send(embed=embed, view=view)
+        await interaction.send(embed=view.embed, view=view)
 
     @changelog.subcommand(
         name="edit",
@@ -643,8 +641,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
                 await interaction.send(embed=embed, view=view, ephemeral=True)
             return
         view = ConfirmChangelogEdit(interaction, message, embed)
-        embed = view.get_embed(title="Editing message...")
-        await interaction.send(embed=embed, view=view)
+        await interaction.send(embed=view.embed, view=view)
 
     def get_all_subcmd_names(
         self,

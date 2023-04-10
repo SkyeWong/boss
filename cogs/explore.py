@@ -82,7 +82,7 @@ class Exploring(commands.Cog, name="Exploring"):
         items = {
             90: (  # --fail--
                 None,  # nothing
-                28,  # dirt
+                31,  # dirt
             ),
             10: (27,),  # --common--  # Anicient Coin
         }
@@ -193,21 +193,24 @@ class Exploring(commands.Cog, name="Exploring"):
                 ),
             }
             outcome = random.choices(list(outcomes.values()), list(outcomes.keys()))[0]
+
+            embed = Embed(title="Adventure time!", description=outcome[0])
+
             view = ConfirmView(
                 slash_interaction=interaction,
                 confirm_func=outcome[1],
-                embed_content=outcome[0],
+                embed=embed
             )
-            embed = view.get_embed(title="Adventure time!")
-            await interaction.send(embed=embed, view=view)
+            await interaction.send(embed=view.embed, view=view)
         else:
             # 40% fail
-            msg = [
+            msg = (
                 "You don't see anything in sight, so you just went home.",
-                "It's getting dark. Feeling scared, you rushed back to your little hut and slept with a cute little plush.",
+                "It's getting dark. Feeling scared, you rushed back to your little hut and slept with a cute little plushie.",
                 "You found out that you actually don't have enough courage to explore on your own.",
                 "After getting scared by a rock that seems to [move by itself](https://www.youtube.com/watch?v=iu8vnVz5cYQ), you fled towards your shack.",
-            ]
+                "What's happening? You wanted to move, but your body just doesn't seem to obey your mind.",
+            )
             await interaction.send(embed=Embed(description=random.choice(msg)))
             cooldowns.reset_cooldown("adventure")
 

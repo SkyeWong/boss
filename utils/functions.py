@@ -90,6 +90,7 @@ def get_mapping(interaction: Interaction, bot: commands.Bot):
             mapping[cog_name] = (cog, commands)
     return mapping
 
+
 def get_error_message():
     embed = Embed()
     embed.title = "An error occurred. Try again in a few seconds."
@@ -107,19 +108,22 @@ def get_item_embed(item, owned_quantity: int = None):
     embed.title = f"{item['name']}"
     if owned_quantity:
         embed.title += f" (you own {owned_quantity})"
-    embed.description = item["description"]
-    embed.description += "\n>>> "
+    embed.description = f">>> _{item['description']}_"
 
     prices = {
         "buy": item["buy_price"],
         "sell": item["sell_price"],
         "trade": item["trade_price"],
     }
+
+    prices_txt = ""
     for k, price in prices.items():
         if not price or price == 0:
-            embed.description += f"**{k.upper()}** - Unknown\n"
+            prices_txt += f"**{k.upper()}** - Unknown\n"
         else:
-            embed.description += f"**{k.upper()}** - 🪙 {int(price):,}\n"
+            prices_txt += f"**{k.upper()}** - ◎ {int(price):,}\n"
+    embed.add_field(name="Prices", value=prices_txt, inline=False)
+
     # **rarity**
     # 0 - common
     # 1 - uncommon
@@ -160,8 +164,10 @@ class BossException(Exception):
         super().__init__(*args)
         self.text = text
 
+
 class CommandNotFound(BossException):
     pass
+
 
 class MoveItemException(BossException):
     pass

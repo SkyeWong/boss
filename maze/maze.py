@@ -181,8 +181,9 @@ class MazeButton(Button["Maze"]):
             inv_view = InvView(view)
             inv_view.msg = await interaction.send(embed=embed, view=inv_view, ephemeral=True)
         elif "compass" in self.custom_id:
-            embed = Embed(title="Deleting in 3 seconds...")
+            embed = Embed()
             embed.set_image(self.emoji.url)
+            embed.set_footer(text="Deleting in 3 seconds...")
             await interaction.send(embed=embed, ephemeral=True, delete_after=3)
 
     def get_cooldown_embed(self, seconds: float, action: str = "Ability"):

@@ -15,5 +15,6 @@ pytube
 Pillow
 
 asyncpg
+aiohttp
 
 git+https://github.com/john-science/mazelib/

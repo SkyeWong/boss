@@ -164,15 +164,13 @@ class Currency(commands.Cog, name="Currency"):
 
         view = ConfirmView(
             slash_interaction=interaction,
-            embed_content=self.get_sell_item_embed(sellable_items, total_price).description,
+            embed=self.get_sell_item_embed(sellable_items, total_price),
             confirm_func=self.sell_all_player_items,
             confirmed_title="BOSS Cash Receipt",
-            cancelled_title="Looks like you're not selling anything today...",
             exclude_items=exclude_items,
         )
-        embed = view.get_embed("Do you want to sell the items?")
 
-        await interaction.send(embed=embed, view=view)
+        await interaction.send(embed=view.embed, view=view)
 
     @sell.subcommand(name="item")
     @cooldowns.shared_cooldown("sell_items")

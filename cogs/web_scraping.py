@@ -3,31 +3,31 @@ import nextcord
 from nextcord import Embed, Interaction, SlashOption
 from nextcord.ext import commands, tasks, application_checks
 
-# default modules
-import json
-from urllib.request import urlopen
-import datetime
-import html
-import pytz
-from contextlib import suppress
+import aiohttp, requests
 
 import googleapiclient.discovery
-import googleapiclient.errors
-
 from pytube import Search
 
 # views
 from views.scraping_views import WeatherView, PersistentWeatherView, VideoView, Video
 
+# default modules
+import json
+import datetime
+import html
+import pytz
+from contextlib import suppress
+
 
 class WebScraping(commands.Cog, name="Web Scraping"):
+
     COG_EMOJI = "📶"
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self._last_member = None
 
-        response = urlopen("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json").read().decode("utf-8")
+        response = requests.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json").content.decode("utf-8")
         response: dict[dict] = json.loads(response).get("DYN_DAT_MINDS_RHRREAD")
         self.location_list = {}
         for k, v in response.items():
@@ -41,9 +41,12 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         self.location_list = dict(sorted(self.location_list.items()))
         self.announce_temp.start()
 
-    def get_temperature(self, location: str, language="Val_Eng"):
-        response = urlopen("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json").read().decode("utf-8")
-        temp_list: dict[dict] = json.loads(response).get("DYN_DAT_MINDS_RHRREAD")
+    async def get_temperature(self, location: str, language="Val_Eng"):
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json") as response:
+                html = await response.text()
+
+        temp_list: dict[dict] = json.loads(html).get("DYN_DAT_MINDS_RHRREAD")
 
         date = temp_list.get("BulletinDate")[language]
         time = temp_list.get("BulletinTime")[language]
@@ -63,9 +66,12 @@ class WebScraping(commands.Cog, name="Web Scraping"):
 
         return temp_time, location_name, float(temp), float(humidty)
 
-    def get_weather_forecast(self, language="Val_Eng"):
-        response = urlopen("https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json").read().decode("utf-8")
-        response: dict[dict] = json.loads(response).get("DYN_DAT_MINDS_FLW")
+    async def get_weather_forecast(self, language="Val_Eng"):
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json") as response:
+                html = await response.text()
+
+        response: dict[dict] = json.loads(html).get("DYN_DAT_MINDS_FLW")
         date = response.get("BulletinDate")[language]
         time = response.get("BulletinTime")[language]
         hk_tz = pytz.timezone("Asia/Hong_Kong")
@@ -79,7 +85,7 @@ class WebScraping(commands.Cog, name="Web Scraping"):
 
         return forecast_time, situation, outlook
 
-    def get_weather_embed(self, temp, icon):
+    def get_weather_embed(self, temp):
         embed = Embed()
         embed.set_author(
             name=f"Information fetched from HK Observatory",
@@ -101,7 +107,6 @@ class WebScraping(commands.Cog, name="Web Scraping"):
                 value=f"Required information is not available for the location `{temp[1]}`",
             )
 
-        # embed.set_thumbnail(url=icon if icon else "https://i.imgur.com/rd3C63y.png") # image unavailable image
         embed.timestamp = temp[0]
 
         return embed
@@ -138,26 +143,24 @@ class WebScraping(commands.Cog, name="Web Scraping"):
             await interaction.send(f"District not found\n`{location=}`\n", ephemeral=True)
             return
 
-        temp = self.get_temperature(location, language)
-        forecast = self.get_weather_forecast(language)
+        temp = await self.get_temperature(location, language)
+        forecast = await self.get_weather_forecast(language)
         # icon_src = self.get_weather_icon()
 
-        embed = self.get_weather_embed(temp, None)
+        embed = self.get_weather_embed(temp)
         view = WeatherView(forecast)
 
         view.msg = await interaction.send(embed=embed, view=view)
 
     @tasks.loop(time=datetime.time(23, 5))  # 07:05 am
-    # @tasks.loop(minutes=2)
     async def announce_temp(self):
         guild: nextcord.Guild = await self.bot.fetch_guild(827537903634612235)
         channel = await guild.fetch_channel(1056236722654031903)
 
-        temp = self.get_temperature("TseungKwanO", "Val_Eng")
-        forecast = self.get_weather_forecast("Val_Eng")
-        # icon_src = self.get_weather_icon()
+        temp = await self.get_temperature("TseungKwanO", "Val_Eng")
+        forecast = await self.get_weather_forecast("Val_Eng")
 
-        embed = self.get_weather_embed(temp, None)
+        embed = self.get_weather_embed(temp)
         view = PersistentWeatherView(forecast)
 
         await channel.send(embed=embed, view=view)
@@ -269,6 +272,79 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         embed = view.get_embed()
 
         view.msg = await interaction.send(embed=embed, view=view)
+
+    @nextcord.slash_command(
+        name="upload-imgur",
+        description="Uploads an image to imgur anonymously and returns the link",
+    )
+    async def upload_imgur_cmd(
+        self,
+        interaction: Interaction,
+        image: nextcord.Attachment = SlashOption(
+            description="Image to upload", required=True
+        ),
+        title: str = SlashOption(
+            description="Title of image (optional)", required=False
+        ),
+        description: str = SlashOption(
+            description="Description of image (optional)", required=False
+        ),
+    ):
+        payload = {
+            "image": image.url,
+            "type": "url",
+            "title": title,
+            "description": description,
+        }
+
+        headers = {"Authorization": "Client-ID 826be6012a5dd28"}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post("https://api.imgur.com/3/image", headers=headers, data=payload) as response:
+                html = await response.json()
+
+        if not html.get("success"):
+            embed = Embed(
+                title="Uploading image failed!", description="Please try again."
+            )
+            embed.add_field(
+                name="Causes",
+                value="`-` an incompatible file format is uploaded; or\n`-` an internal error has occured",
+            )
+            embed.add_field(
+                name="Error",
+                value=f"```py\n{html['data']['error']}```",
+                inline=False,
+            )
+            await interaction.send(embed=embed, ephemeral=True)
+            return
+
+        data = html["data"]
+        link = data["link"]
+
+        embed = Embed()
+
+        embed.set_author(name="Uploading image successful!", url=link)
+        embed.set_image(url=link)
+
+        embed.description = f"`LINK` - **{link}**"
+        embed.add_field(
+            name="Post",
+            value=(
+                f"**`TITLE`** - {title if title else '_n/a_'}\n"
+                f"**`DESCRIPTION`** - {description if description else '_n/a_'}\n"
+                f"**`UPLOADED AT`** - <t:{data['datetime']}:R> | <t:{data['datetime']}:f>"
+            ),
+        )
+        embed.add_field(
+            name="Image",
+            value=(
+                f"**`WIDTH`** - {data['width']}\n"
+                f"**`HEIGHT`** - {data['height']}\n"
+                f"**`TYPE`** - `{data['type']}`"
+            ),
+        )
+        await interaction.send(embed=embed)
 
 
 def setup(bot: commands.Bot):

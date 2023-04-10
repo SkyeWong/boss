@@ -77,11 +77,11 @@ class Player:
         """
         Fetches the player's farm.
 
-        Returns a `tuple` containing the crops and the farm_width."""
+        Returns a `tuple` containing the crops, farm_width, and farm_height."""
         if await self.is_present():
             return await self.db.fetchrow(
                 """
-                SELECT farm, width
+                SELECT farm, width, height
                 FROM players.farm
                 WHERE player_id = $1
                 """,

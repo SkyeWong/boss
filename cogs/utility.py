@@ -64,7 +64,7 @@ class Utility(commands.Cog, name="Utility"):
 
     async def choose_command_autocomplete(self, interaction: Interaction, data: str):
         """
-        Return every command and subcommand in the bot. 
+        Return every command and subcommand in the bot.
         Returns command that match `data` if it is provided.
         """
         base_cmds = interaction.client.get_all_application_commands()
@@ -110,7 +110,7 @@ class Utility(commands.Cog, name="Utility"):
             view.btn_disable()
             await interaction.send(embed=embed, view=view)
             return
-        
+
         # find a specific command
         cmd_name = cmd_name.strip()
         cmd = None
@@ -132,9 +132,13 @@ class Utility(commands.Cog, name="Utility"):
                         break
 
         if cmd is None:
-            await interaction.send(embed=functions.format_with_embed("The command is not found! Use </help:964753444164501505> for a list of available commands"))
+            await interaction.send(
+                embed=functions.format_with_embed(
+                    "The command is not found! Use </help:964753444164501505> for a list of available commands"
+                )
+            )
             return
-        
+
         embed = Embed()
         name = cmd.qualified_name
         embed.title = f"Info of </{name}:{list(cmd.command_ids.values())[0]}>"
@@ -166,7 +170,6 @@ class Utility(commands.Cog, name="Utility"):
 
             options_txt = ""
             for option in cmd_options:
-
                 if option.required == True:
                     usage += f"<{option.name}> "
                 else:
@@ -184,7 +187,7 @@ class Utility(commands.Cog, name="Utility"):
             embed.add_field(name="Usage", value=usage, inline=False)
             if options_txt != "":
                 embed.add_field(name="Options", value=options_txt, inline=False)
-                
+
             embed.set_footer(text="Syntax: <required> [optional]")
             embed.colour = random.choice(constants.EMBED_COLOURS)
             await interaction.send(embed=embed)

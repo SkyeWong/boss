@@ -42,7 +42,7 @@ class Base(commands.Cog, name="Base"):
             ON CONFLICT(player_id) DO NOTHING
             """,
             interaction.user.id,
-            [None] * 9,
+            [None] * 4,
         )
 
     @farm.subcommand(name="view", inherit_hooks=True)

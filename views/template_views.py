@@ -45,16 +45,15 @@ class ConfirmView(BaseView):
         slash_interaction: Interaction,
         confirm_func=None,
         cancel_func=None,
-        embed_content: str = "",
-        embed_fields: tuple = (),
-        confirmed_title="Action confirmed!",
-        cancelled_title="Action cancelled!",
+        embed: Embed,
+        confirmed_title: str="Action confirmed!",
+        cancelled_title: str="Action cancelled!",
         **kwargs,
     ):
         super().__init__(interaction=slash_interaction)
-        self.embed_content = embed_content
-        self.embed_fields = embed_fields
 
+        self.embed = embed
+        
         self.confirm_func = confirm_func
         self.cancel_func = cancel_func
 
@@ -65,40 +64,22 @@ class ConfirmView(BaseView):
         self.interaction.attached.__dict__.update(**kwargs)
 
     async def confirm(self, button: Button, interaction: Interaction):
-        embed = self.get_embed(self.confirmed_title)
+        embed = interaction.message.embeds[0]
+        embed.title = self.confirmed_title
+
         button.style = ButtonStyle.green
         for item in self.children:
             item.disabled = True
         await interaction.response.edit_message(embed=embed, view=self)
 
     async def cancel(self, button: Button, interaction: Interaction):
-        embed = self.get_embed(self.cancelled_title)
+        embed = interaction.message.embeds[0]
+        embed.title = self.cancelled_title
+
         button.style = ButtonStyle.red
         for item in self.children:
             item.disabled = True
         await interaction.response.edit_message(embed=embed, view=self)
-
-    def get_embed(self, title="Pending Confirmation", content=None, fields=None):
-        embed = Embed()
-        embed.title = title
-        if not content:
-            if self.embed_content:
-                embed.description = self.embed_content
-        if not fields:
-            if self.embed_fields:
-                for field in self.embed_fields:
-                    inline = True
-                    if len(field) == 3:
-                        name, value, inline = field
-                    else:
-                        name, value = field
-                    embed.add_field(name=name, value=value, inline=inline)
-        embed.colour = random.choice(constants.EMBED_COLOURS)
-        if image := self.kwargs.get("embed_image"):
-            embed.set_image(image)
-        if thumbnail := self.kwargs.get("embed_thumbnail"):
-            embed.set_thumbnail(thumbnail)
-        return embed
 
     @button(emoji="✅", style=ButtonStyle.blurple)
     async def confirm_callback(self, button: Button, interaction: Interaction):

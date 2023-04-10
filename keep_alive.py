@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from threading import Thread
 
 app = Flask("")
@@ -19,3 +19,4 @@ def run():
 def keep_alive():
     t = Thread(target=run)
     t.start()
+    print("Flask app is now running")
