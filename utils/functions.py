@@ -124,23 +124,9 @@ def get_item_embed(item, owned_quantity: int = None):
             prices_txt += f"**{k.upper()}** - ◎ {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
 
-    # **rarity**
-    # 0 - common
-    # 1 - uncommon
-    # 2 - rare
-    # 3 - epic
-    # 4 - legendary
-    # 5 - godly
-    rarity = ["common", "uncommon", "rare", "epic", "legendary", "godly"]
-    embed.add_field(name="Rarity", value=rarity[item["rarity"]], inline=True)
-    # **type**
-    # 0 - tool
-    # 1 - collectable
-    # 2 - power-up
-    # 3 - sellable
-    # 4 - bundle
-    types = [i for i in constants.ITEM_TYPES]
-    embed.add_field(name="Type", value=types[item["type"]], inline=True)
+    embed.add_field(name="Rarity", value=[i.name for i in constants.ItemRarity if i.value == item['rarity']][0], inline=True)
+
+    embed.add_field(name="Type", value=[i.name for i in constants.ItemType if i.value == item['type']][0], inline=True)
     embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
     return embed
 

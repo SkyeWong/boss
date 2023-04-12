@@ -104,7 +104,13 @@ class EditItemModal(Modal):
         )
         self.inputs = {}
 
-    async def popuplate_inputs(self, *, include: tuple[str] = [], exclude: tuple[str] = []):
+    async def popuplate_inputs(self, *, include: tuple[str] = None, exclude: tuple[str] = None):
+        # type-cast the parameters
+        if not include:
+            include = tuple()
+        if not exclude:
+            exclude = tuple()
+
         db: Database = self.slash_interaction.client.db
         res = await db.fetch(
             """
@@ -115,23 +121,29 @@ class EditItemModal(Modal):
         )
         for column in res:
             column_name = column[0]
-            if not include or column_name in include:
-                if not exclude or column_name not in exclude:
-                    if column_name == "rarity":
-                        value = str([k for k, v in constants.RARITIES.items() if v == self.item[column_name]][0])
-                    elif column_name == "type":
-                        value = str([k for k, v in constants.ITEM_TYPES.items() if v == self.item[column_name]][0])
-                    else:
-                        value = str(self.item[column_name])
-                    input = TextInput(
-                        label=column_name,
-                        style=nextcord.TextInputStyle.paragraph
-                        if column_name == "description"
-                        else nextcord.TextInputStyle.short,
-                        default_value=value,
-                    )
-                    self.inputs[column_name] = input
-                    self.add_item(input)
+            # check if the column is included, and not excluded
+            if column_name in include and column_name not in exclude:
+
+                if column_name == "rarity":
+                    value = [i.name for i in constants.ItemRarity if i.value == self.item[column_name]][0]
+                elif column_name == "type":
+                    value = [i.name for i in constants.ItemType if i.value == self.item[column_name]][0]
+                else:
+                    value = self.item[column_name]
+                value = str(value)
+
+                input = TextInput(
+                    label=column_name,
+                    # if the column is description set the style to `paragraph`
+                    style=nextcord.TextInputStyle.paragraph
+                    if column_name == "description"
+                    else nextcord.TextInputStyle.short,
+                    default_value=value,
+                )
+
+                # add the input to list of children of `nextcord.ui.Modal`
+                self.inputs[column_name] = input
+                self.add_item(input)
 
     async def callback(self, interaction: Interaction):
         errors = []
@@ -164,51 +176,36 @@ class EditItemModal(Modal):
                 else:
                     values[column] = int(inputted_value)
 
-            # **rarity**
-            # 0 - common
-            # 1 - uncommon
-            # 2 - rare
-            # 3 - epic
-            # 4 - legendary
-            # 5 - godly
-            rarity = [i for i in constants.RARITIES]
             if column == "rarity":
                 inputted_value = inputted_value.lower().strip()
                 if inputted_value.isnumeric():
-                    if 0 <= int(inputted_value) <= 5:
-                        values[column] = int(inputted_value)
-                    else:
+                    try:
+                        values[column] = constants.ItemRarity(inputted_value).value
+                    except:
                         errors.append(
                             "use numbers 0-5 respectively representing `common`, `uncommon`, `rare`, `epic`, `legendary`, `epic` only"
                         )
                 else:
-                    if inputted_value in rarity:
-                        values[column] = rarity.index(inputted_value)
-                    else:
+                    try:
+                        values[column] = constants.ItemRarity[inputted_value].value
+                    except KeyError:
                         errors.append(
                             "The rarity must be one of these: `common`, `uncommon`, `rare`, `epic`, `legendary`, `epic`"
                         )
 
-            # **type**
-            # 0 - tool
-            # 1 - collectable
-            # 2 - power-up
-            # 3 - sellable
-            # 4 - bundle
-            type = [i for i in constants.ITEM_TYPES]
             if column == "type":
                 inputted_value = inputted_value.lower().strip()
                 if inputted_value.isnumeric():
-                    if 0 <= int(inputted_value) <= 4:
-                        values[column] = int(inputted_value)
-                    else:
+                    try:
+                        values[column] = constants.ItemRarity(inputted_value).value
+                    except:
                         errors.append(
                             "use numbers 0-4 respectively representing the types: `tool`, `collectable`, `power-up`, `sellable`, `bundle` only"
                         )
                 else:
-                    if inputted_value in type:
-                        values[column] = type.index(inputted_value)
-                    else:
+                    try:
+                        values[column] = constants.ItemType[inputted_value].value
+                    except KeyError:
                         errors.append(
                             "The type must be one of these: `tool`, `collectable`, `power-up`, `sellable`, `bundle`"
                         )
@@ -306,11 +303,9 @@ class ConfirmChangelogSend(ConfirmView):
         slash_interaction: Interaction,
         embed: Embed,
         ping_role: nextcord.Role = None,
-        bot: commands.Bot = None,
     ):
         self.ping_role = ping_role
         self.changelog_embed = embed
-        self.bot = bot
         self.msg: nextcord.Message = None
 
         embed = Embed(title="Pending Confirmation", description="Send the message to <#1020660847321808930>?")
@@ -344,14 +339,17 @@ class ConfirmChangelogSend(ConfirmView):
     ):  # the confirm button will perform this action
         client: nextcord.Client = interaction.client
         changelog_channel = await client.fetch_channel(constants.CHANGELOG_CHANNEL_ID)
+        # if content is set, it must not be empty (i.e. "")
+        # therefore we use if_else
         if self.ping_role:
             self.msg = await changelog_channel.send(self.ping_role.mention, embed=self.changelog_embed)
         else:
             self.msg = await changelog_channel.send(embed=self.changelog_embed)
+
         view = View(timeout=None)
         jump_btn = Button(label="Jump", url=self.msg.jump_url)
         view.add_item(jump_btn)
-        if self.bot:
+        if client:
             edit_btn = Button(label="Edit", style=ButtonStyle.blurple)
             edit_btn.callback = self.send_edit_changelog
             view.add_item(edit_btn)
@@ -414,9 +412,9 @@ class ConfirmChangelogEdit(ConfirmView):
         if self.message.edited_at:
             embed.add_field(name="Last edited at", value=f"<t:{int(self.message.edited_at.timestamp())}:f>")
         else:
-            embed.add_field("Sent at", f"<t:{int(self.message.created_at.timestamp())}:f>")
+            embed.add_field(name="Sent at", value=f"<t:{int(self.message.created_at.timestamp())}:f>")
 
-        embed.add_field("ID", f"`{self.message.id}`")
+        embed.add_field(name="ID", value=f"`{self.message.id}`")
 
         super().__init__(
             slash_interaction=slash_interaction,
@@ -427,14 +425,26 @@ class ConfirmChangelogEdit(ConfirmView):
         jump_btn = Button(label="Jump", url=message.jump_url, row=1)
         self.add_item(jump_btn)
 
+    async def send_edit_changelog(self, interaction: Interaction):
+        client: nextcord.Client = interaction.client
+        cmds = client.get_all_application_commands()
+        changelog_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "changelog"][0]
+        edit_changelog_cmd = changelog_cmd.children["edit"]
+        await edit_changelog_cmd.invoke_callback(interaction, message_id=str(self.message.id))
+
     async def edit_changelog(
         self, button: Button, interaction: Interaction
     ):  # the confirm button will perform this action
         await self.message.edit(embed=self.new_embed)
 
         view = View(timeout=None)
-        jump_btn = Button(label="Jump", url=self.message.jump_url, row=1)
+        jump_btn = Button(label="Jump", url=self.message.jump_url)
         view.add_item(jump_btn)
+
+        edit_btn = Button(label="Edit again...", style=ButtonStyle.blurple)
+        edit_btn.callback = self.send_edit_changelog
+        view.add_item(edit_btn)
+
         await interaction.send("The message has successfully been edited!", view=view, ephemeral=True)
 
     @button(label="Edit", row=1, style=ButtonStyle.blurple)
@@ -511,6 +521,7 @@ class EditChangelogModal(Modal):
             new_embed.title = title
         if image:
             new_embed.set_image(url=image)
+
         view = ConfirmChangelogEdit(self.slash_interaction, self.message, new_embed)
-        confirm_embed = view.get_embed(title="Editing message...")
+        confirm_embed = view.embed
         await self.slash_interaction.edit_original_message(embed=confirm_embed, view=view)

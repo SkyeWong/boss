@@ -205,7 +205,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
             name="inventory-type",
             description="The type of inventory to edit",
             required=True,
-            choices=constants.INV_TYPES,
+            choices=constants.InventoryType.to_dict(),
         ),
         item_name: str = SlashOption(
             name="item",
@@ -303,7 +303,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
             await interaction.send(embed=Embed(description=e.text), ephemeral=True)
             return
 
-        inv_type_str = [k for k, v in constants.INV_TYPES.items() if v == inv_type][0]
+        inv_type_str = [k for k, v in constants.InventoryType.items() if v == inv_type][0]
         embed = Embed(
             title=f"{interaction.user.name} **UPDATED** `{player.name}#{player.discriminator}'s {inv_type_str}`"
         )
@@ -331,11 +331,11 @@ class DevOnly(commands.Cog, name="Dev Only"):
         emoji_name: str = SlashOption(required=True),
         emoji_id: str = SlashOption(required=True),
         rarity: int = SlashOption(
-            choices=constants.RARITIES,
+            choices=constants.ItemRarity.to_dict(),
             required=False,
             default=0,
         ),
-        item_type: int = SlashOption(choices=constants.ITEM_TYPES, required=False, default=0),
+        item_type: int = SlashOption(choices=constants.ItemType.to_dict(), required=False, default=0),
         buy_price: str = SlashOption(required=False, default="0", description="0 --> unable to be bought"),
         sell_price: str = SlashOption(required=False, default="0", description="0 --> unable to be sold"),
         trade_price: str = SlashOption(required=False, default="0", description="0 --> unknown value"),
@@ -487,16 +487,16 @@ class DevOnly(commands.Cog, name="Dev Only"):
         ),
         title: str = SlashOption(description="Title of the changelog", required=False, max_length=256),
         image: nextcord.Attachment = SlashOption(
-            description="Image of the changelog-will disappear after a while",
+            description="Image of the changelog • will disappear after a few days",
             required=False,
         ),
         image_link: str = SlashOption(
-            description="*LINK* of the changelog image-ignored if an image is uploaded-doesn't disappear-use /upload-imgur",
+            description="LINK of the changelog image • ignored if an image is uploaded • doesn't disappear",
             required=False,
         ),
         ping_role_id: str = SlashOption(
             name="ping-role-id",
-            description="The id of the role to ping. Defaults to @Bot Changelog Ping. Type 'None' to NOT ping a role.",
+            description="The id of the role to ping. Defaults to @Bot Changelog Ping. Type 'none' to NOT ping a role.",
             required=False,
         ),
         content_message_id: str = SlashOption(
@@ -554,7 +554,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
             log_embed.set_image(url=image.url)
         elif image_link:
             log_embed.set_image(image_link)
-        view = ConfirmChangelogSend(interaction, log_embed, ping_role if ping_role else None, self.bot)
+        view = ConfirmChangelogSend(interaction, log_embed, ping_role if ping_role else None)
         await interaction.send(embed=view.embed, view=view)
 
     @changelog.subcommand(name="delete", description="Deletes a changelog message", inherit_hooks=True)
@@ -991,6 +991,14 @@ class DevOnly(commands.Cog, name="Dev Only"):
             await interaction.send(embed=embed)
         else:
             await interaction.send(embed=Embed("The command is not found!"))
+
+    @nextcord.slash_command(name="multiple-images")
+    async def multiple_images(self, interaction: Interaction):
+        embeds = [Embed(url="www.google.com") for i in range(3)]
+        links = ["https://i.imgur.com/ljn0XJF.jpeg", "https://i.imgur.com/Ymw5Ncd.jpeg", "https://i.imgur.com/htM04Ug.jpeg"]
+        for link, embed in zip(links, embeds):
+            embed.set_image(link)
+        await interaction.send(embeds=embeds)
 
 
 def setup(bot: commands.Bot):

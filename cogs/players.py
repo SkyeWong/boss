@@ -139,9 +139,9 @@ class Players(commands.Cog, name="Players"):
         if user == None:
             user = interaction.user
         view = InventoryView(
-            slash_interaction=interaction,
+            interaction=interaction,
             user=user,
-            inv_type=0,  # inv_type:0 = backpack
+            inv_type=constants.InventoryType.backpack.value
         )
         await view.get_inv_content()
         view.disable_buttons()
@@ -163,7 +163,11 @@ class Players(commands.Cog, name="Players"):
         """Check the chest of your own or others."""
         if user == None:
             user = interaction.user
-        view = InventoryView(slash_interaction=interaction, user=user, inv_type=1)  # inv_type:1 = chest
+        view = InventoryView(
+            interaction=interaction, 
+            user=user, 
+            inv_type=constants.InventoryType.chest.value
+        )
         await view.get_inv_content()
         view.disable_buttons()
         embed = view.get_inv_embed()
@@ -174,7 +178,11 @@ class Players(commands.Cog, name="Players"):
     async def vault(self, interaction: Interaction):
         """Check the vault of your own."""
         user = interaction.user
-        view = InventoryView(slash_interaction=interaction, user=user, inv_type=2)  # inv_type:2 = vault
+        view = InventoryView(
+            interaction=interaction, 
+            user=user, 
+            inv_type=constants.InventoryType.vault.value
+        )
         await view.get_inv_content()
         view.disable_buttons()
         embed = view.get_inv_embed()
@@ -299,13 +307,13 @@ class Players(commands.Cog, name="Players"):
             name="from",
             description="Where are you going to move the items from?",
             required=True,
-            choices=constants.INV_TYPES,
+            choices=constants.InventoryType.to_dict(),
         ),
         item_to: int = SlashOption(
             name="to",
             description="Where are you going to move the item to?",
             required=True,
-            choices=constants.INV_TYPES,
+            choices=constants.InventoryType.to_dict(),
         ),
         quantity: int = SlashOption(
             description="How many of the item do you want to move? DEFAULTS to 1",
@@ -360,8 +368,8 @@ class Players(commands.Cog, name="Players"):
             icon_url=interaction.user.display_avatar.url,
         )
         embed.description = f">>> Item: **{item['name']}**"
-        embed.description += f"\nQuantity in {[k for k, v in constants.INV_TYPES.items() if v == item_from][0]}: `{quantities_after['from']}`"
-        embed.description += f"\nQuantity in {[k for k, v in constants.INV_TYPES.items() if v == item_to][0]}: `{quantities_after['to']}`"
+        embed.description += f"\nQuantity in {[inv.name for inv in constants.InventoryType if inv.value == item_from][0]}: `{quantities_after['from']}`"
+        embed.description += f"\nQuantity in {[inv.name for inv in constants.InventoryType if inv.value == item_to][0]}: `{quantities_after['to']}`"
         embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
         await interaction.send(embed=embed)
 

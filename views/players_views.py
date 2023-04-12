@@ -16,8 +16,8 @@ from views.template_views import BaseView
 
 
 class InventoryView(BaseView):
-    def __init__(self, slash_interaction: Interaction, user: nextcord.User, inv_type: int):
-        super().__init__(slash_interaction, timeout=60)
+    def __init__(self, interaction: Interaction, user: nextcord.User, inv_type: int):
+        super().__init__(interaction, timeout=60)
         self.user = user
         self.inv_type = inv_type
         self.page = 1
@@ -43,14 +43,12 @@ class InventoryView(BaseView):
     def get_inv_embed(self):
         user = self.user
         inv = self.inv
-        # INVENTORY TYPES
-        #   0 --> backpack (when die lose all stuff, only 32 slots)
-        #   1 --> chest (when players attack base and lose lose some stuff, infinite slots)
-        #   2 --> vault (will never be lost, only 5 slots)
-        inv_types = [i for i in constants.INV_TYPES]
+
+        inv_type = [i.name for i in constants.InventoryType if i.value == self.inv_type][0]
+
         embed = Embed()
         embed.set_author(
-            name=f"{user.name}'s {inv_types[self.inv_type]}",
+            name=f"{user.name}'s {inv_type}",
             icon_url=user.display_avatar.url,
         )
         embed.colour = random.choice(constants.EMBED_COLOURS)
@@ -60,20 +58,16 @@ class InventoryView(BaseView):
             "https://i.imgur.com/9bQT9Vt.png",  # vault
         ]
         embed.set_thumbnail(url=storage_emojis_url[self.inv_type])
+
         if len(inv) == 0:
             embed.description = "Empty"
             return embed
-        # ITEM TYPES
-        #   0 - tool
-        #   1 - collectable
-        #   2 - power-up
-        #   3 - sellable
-        #   4 - bundles
-        types = [i for i in constants.ITEM_TYPES]
+
         for item in inv[self.get_page_start_index() : self.get_page_end_index() + 1]:
+            item_type = [i.name for i in constants.ItemType if i.value == item['type']][0]
             embed.add_field(
                 name=f"<:{item['emoji_name']}:{item['emoji_id']}>  {item['name']} ─ {item['quantity']}\n",
-                value=f"─ {types[item['type']]}",
+                value=f"─ {item_type}",
                 inline=False,
             )
         embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.inv) / self.items_per_page)}")
@@ -106,32 +100,41 @@ class InventoryView(BaseView):
             last_btn.disabled = False
 
     @button(emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True)
-    async def first(self, button: Button, btn_interaction: Interaction):
-        await btn_interaction.response.defer()
+    async def first(self, button: Button, interaction: Interaction):
+        await interaction.response.defer()
         self.page = 1
         self.disable_buttons()
         embed = self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back")
-    async def back(self, button: Button, btn_interaction: Interaction):
-        await btn_interaction.response.defer()
+    async def back(self, button: Button, interaction: Interaction):
+        await interaction.response.defer()
         self.page -= 1
         self.disable_buttons()
         embed = self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)
 
+    @button(emoji="🔄", style=nextcord.ButtonStyle.blurple, custom_id="refresh_msg")
+    async def refresh_msg(self, button: Button, interaction: Interaction):
+        await interaction.response.defer()
+        self.disable_buttons()
+        
+        await self.get_inv_content()
+        embed = self.get_inv_embed()
+        await self.message.edit(embed=embed, view=self)
+
     @button(emoji="▶️", style=nextcord.ButtonStyle.blurple, custom_id="next")
-    async def next(self, button: Button, btn_interaction: Interaction):
-        await btn_interaction.response.defer()
+    async def next(self, button: Button, interaction: Interaction):
+        await interaction.response.defer()
         self.page += 1
         self.disable_buttons()
         embed = self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="⏭️", style=nextcord.ButtonStyle.blurple, custom_id="last")
-    async def last(self, button: Button, btn_interaction: Interaction):
-        await btn_interaction.response.defer()
+    async def last(self, button: Button, interaction: Interaction):
+        await interaction.response.defer()
         self.page = math.ceil(len(self.inv) / self.items_per_page)
         self.disable_buttons()
         embed = self.get_inv_embed()
