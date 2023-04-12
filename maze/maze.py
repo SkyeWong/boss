@@ -266,7 +266,7 @@ class Maze(BaseView):
 
         # initalise enemies
         self.enemies = []
-        MAX_NUM_OF_ENEMIES = 10
+        MAX_NUM_OF_ENEMIES = 16
 
         self.items = []
         MAX_NUM_OF_ITEMS = 25
@@ -302,7 +302,7 @@ class Maze(BaseView):
             enemy.x = random.randint(1, len(self.maze_map[0])) - 1
             enemy.y = random.randint(1, len(self.maze_map)) - 1
             distance_with_player = math.sqrt((self.player.x - enemy.x) ** 2 + (self.player.y - enemy.y) ** 2)
-            if (self.maze_map[enemy.y][enemy.x] not in enemy.unwalkable_cells) and (distance_with_player > 10):
+            if (self.maze_map[enemy.y][enemy.x] not in enemy.unwalkable_cells) and (distance_with_player > 8):
                 break
         enemy.move.start()
         self.enemies.append(enemy)

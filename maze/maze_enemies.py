@@ -114,7 +114,7 @@ class MazeEnemy:
                     player.hp -= random.randint(7, 12)
 
                 view = self.view
-                await view.perform_event_results(view.slash_interaction)
+                await view.perform_event_results(view.interaction)
                 # get the embed and edit the message
                 embed = view.get_embed()
                 await view.update_msg(embed=embed)

@@ -74,7 +74,7 @@ class Pill(MazeItem):
     name = "pill"
     description = "Restores 12-20 points of health."
     emoji = "💊"
-    max_use = 5
+    max_use = 3
     spawn_chance = 25
 
     def __init__(self, view, x, y) -> None:
