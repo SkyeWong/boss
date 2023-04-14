@@ -28,7 +28,7 @@ class Database:
         self.reconnecting = False
 
     @property
-    async def connected(self) -> bool:
+    def connected(self) -> bool:
         if not self.pool:
             return False
 

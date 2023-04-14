@@ -150,7 +150,7 @@ async def cmd_check(interaction: Interaction):
     cmd = interaction.application_command
 
     # Reconnect to the database if it is not
-    if not await bot.db.connected or bot.db.reconnecting:
+    if bot.db.reconnecting or not bot.db.connected:
         msg = await interaction.send(
             embed=functions.format_with_embed(
                 "We are reconnecting to the database, please be patient and wait for a few seconds."
@@ -222,13 +222,13 @@ async def cmd_check(interaction: Interaction):
 
 
 @bot.application_command_before_invoke
-async def create_user_if_not_exists(interaction: Interaction):
+async def before_invoke(interaction: Interaction):
     if not interaction.response.is_done():
         await interaction.response.defer()
 
 
 @bot.application_command_after_invoke
-async def increase_player_experience(interaction: Interaction):
+async def after_invoke(interaction: Interaction):
     old_experience_level = (
         await bot.db.fetchval(
             """
