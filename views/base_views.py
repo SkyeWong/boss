@@ -110,7 +110,7 @@ async def _get_farm_embed_and_img(
             label = f"{ascii_uppercase[index // farm_width]}" \
                     f"{index % farm_width + 1}"  # example label: A1
 
-            font = ImageFont.truetype(r"resources\font\font.ttf", 24)
+            font = ImageFont.truetype("resources/font/font.ttf", 24)
             txt_width, txt_height = font.getsize(label)
             
             # draw a background rectangle
