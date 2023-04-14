@@ -64,7 +64,7 @@ class BossBot(commands.Bot):
             self.persistent_views_added = True
 
         # Connect to the bot database
-        if not await self.db.connected:
+        if not self.db.connected:
             self.pool = await self.db.connect()
         print(
             f"\033[1;36m{self.user.name} (ID: {self.user.id})\033[0m has connected to discord \033[0;34min {len(self.guilds)} servers!\033[0m"
