@@ -102,13 +102,24 @@ def get_error_message():
     return embed, view
 
 
-def get_item_embed(item, owned_quantity: int = None):
+def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
     embed = Embed()
     embed.colour = random.choice(constants.EMBED_COLOURS)
     embed.title = f"{item['name']}"
-    if owned_quantity:
-        embed.title += f" (you own {owned_quantity})"
-    embed.description = f">>> _{item['description']}_"
+
+    description = ""
+    for i in item["description"].splitlines():
+        description += f"> _{i}_\n"
+
+    embed.description = description
+
+    if isinstance(owned_quantity, int):
+        embed.description += f"\nYou own **{owned_quantity}**"
+    
+    if isinstance(owned_quantity, dict):
+        embed.description += f"\nYou have"
+        for inv_type, quantity in owned_quantity.items():
+            embed.description += f"\n` - ` **{quantity}** in your {inv_type}" \
 
     prices = {
         "buy": item["buy_price"],
@@ -119,9 +130,9 @@ def get_item_embed(item, owned_quantity: int = None):
     prices_txt = ""
     for k, price in prices.items():
         if not price or price == 0:
-            prices_txt += f"**{k.upper()}** - Unknown\n"
+            prices_txt += f"{k.capitalize()}: Unknown\n"
         else:
-            prices_txt += f"**{k.upper()}** - ◎ {int(price):,}\n"
+            prices_txt += f"{k.capitalize()}: ◎ {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
 
     embed.add_field(name="Rarity", value=[i.name for i in constants.ItemRarity if i.value == item['rarity']][0], inline=True)
