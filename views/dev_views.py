@@ -78,7 +78,7 @@ class EditItemView(BaseView):
     @button(label="Edit Names", style=ButtonStyle.blurple)
     async def edit_name(self, button: Button, interaction: Interaction):
         model = EditItemModal(self.interaction, self.item)
-        await model.popuplate_inputs(exclude=("buy_price", "sell_price", "trade_price", "rarity", "type"))
+        await model.popuplate_inputs(include=("name", "description", "emoji_name", "emoji_id"))
         await interaction.response.send_modal(model)
 
     @button(label="Edit Prices")
@@ -105,24 +105,25 @@ class EditItemModal(Modal):
         self.inputs = {}
 
     async def popuplate_inputs(self, *, include: tuple[str] = None, exclude: tuple[str] = None):
-        # type-cast the parameters
-        if not include:
-            include = tuple()
-        if not exclude:
-            exclude = tuple()
+        """Populate the modal's list of input, and include/exclude any columns that have been provided."""
+        # typecast the tuples
+        if include is None: include = tuple()
+        if exclude is None: exclude = tuple()
 
         db: Database = self.slash_interaction.client.db
-        res = await db.fetch(
-            """
+        # fetch the list of columns in `utility.items` table.
+        res = await db.fetch("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_schema = 'utility' AND table_name = 'items' AND column_name <> 'item_id';
-        """
-        )
+        """)
         for column in res:
             column_name = column[0]
             # check if the column is included, and not excluded
-            if column_name in include and column_name not in exclude:
+            if (
+                (not include or column_name in include)   # if no `include` list is provided, ignore that it is not included
+                and column_name not in exclude
+            ):
 
                 if column_name == "rarity":
                     value = [i.name for i in constants.ItemRarity if i.value == self.item[column_name]][0]
