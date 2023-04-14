@@ -233,7 +233,7 @@ class Utility(commands.Cog, name="Utility"):
         if not item:
             await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
         else:
-            owned_quantities = await db.fetch(
+            res = await db.fetch(
                 """
                 SELECT inv_type, quantity
                 FROM players.inventory
@@ -245,7 +245,7 @@ class Utility(commands.Cog, name="Utility"):
             owned_quantities = {
                 constants.InventoryType(inv_type).name: quantity
                 for inv_type, quantity
-                in owned_quantities
+                in res
             }
             embed = functions.get_item_embed(item, owned_quantities)
             await interaction.send(embed=embed)

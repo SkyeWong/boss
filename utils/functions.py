@@ -113,13 +113,16 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
 
     embed.description = description
 
-    if isinstance(owned_quantity, int):
+    if not owned_quantity: # `owned_quantity` is 0/ empty dict
+        embed.description += f"\nYou own **0**"
+
+    elif isinstance(owned_quantity, int):
         embed.description += f"\nYou own **{owned_quantity}**"
     
-    if isinstance(owned_quantity, dict):
-        embed.description += f"\nYou have"
+    elif isinstance(owned_quantity, dict) and owned_quantity:  # make sure the dict is not empty
+        embed.description += f" \nYou own"
         for inv_type, quantity in owned_quantity.items():
-            embed.description += f"\n` - ` **{quantity}** in your {inv_type}" \
+            embed.description += f"\n` - ` **{quantity}** in your {inv_type}"
 
     prices = {
         "buy": item["buy_price"],
