@@ -25,9 +25,6 @@ from mazelib import Maze
 from mazelib.generate.Prims import Prims
 from mazelib.solve.BacktrackingSolver import BacktrackingSolver
 
-# requests
-import requests
-
 
 class Fun(commands.Cog, name="Fun"):
     COG_EMOJI = "🎡"

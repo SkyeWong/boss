@@ -72,11 +72,11 @@ class BossBot(commands.Bot):
 
     async def on_disconnect(self):
         await self.db.disconnect()
-        print("Disconnected.")
+        print("Bot disconnected.")
 
     async def on_close(self):
         await self.db.disconnect()
-        print("Closed")
+        print("Bot closed.")
 
     async def on_application_command_error(self, interaction: Interaction, error: Exception):
         error = getattr(error, "original", error)
@@ -84,7 +84,7 @@ class BossBot(commands.Bot):
         # don't meet application check requirement
         if isinstance(error, nextcord.ApplicationCheckFailure):
             await interaction.send(
-                embed=Embed(description="You can't use this command bruh"),
+                embed=functions.format_with_embed("You do not have the permissions to user this command."),
                 ephemeral=True,
             )
             return
@@ -152,16 +152,16 @@ async def cmd_check(interaction: Interaction):
     # Reconnect to the database if it is not
     if not await bot.db.connected or bot.db.reconnecting:
         msg = await interaction.send(
-            embed=Embed(
-                description=("We are reconnecting to the database, please be patient and wait for a few seconds.")
+            embed=functions.format_with_embed(
+                "We are reconnecting to the database, please be patient and wait for a few seconds."
             ),
             ephemeral=True,
         )
         await bot.db.connect()
 
         await msg.edit(
-            embed=Embed(
-                description="We have successfully connected to the database!\n"
+            embed=functions.format_with_embed(
+                "We have successfully connected to the database! " \
                 f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again."
             )
         )

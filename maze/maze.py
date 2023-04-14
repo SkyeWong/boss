@@ -224,7 +224,7 @@ class MazeButton(Button["Maze"]):
 class Maze(BaseView):
     """Shows buttons to control a player in Maze."""
 
-    def __init__(self, slash_interaction, size: tuple[int] = (20, 20)):
+    def __init__(self, slash_interaction, size: tuple[int] = (25, 25)):
         """
         `1.` Initalise the player, enemies and the view.
 
