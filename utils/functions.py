@@ -133,9 +133,9 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
     prices_txt = ""
     for k, price in prices.items():
         if not price or price == 0:
-            prices_txt += f"{k.capitalize()}: Unknown\n"
+            prices_txt += f"`{k.capitalize()}`: Unknown\n"
         else:
-            prices_txt += f"{k.capitalize()}: ◎ {int(price):,}\n"
+            prices_txt += f"`{k.capitalize()}`: ◎ {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
 
     embed.add_field(name="Rarity", value=[i.name for i in constants.ItemRarity if i.value == item['rarity']][0], inline=True)
