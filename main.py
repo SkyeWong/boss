@@ -84,7 +84,7 @@ class BossBot(commands.Bot):
         # don't meet application check requirement
         if isinstance(error, nextcord.ApplicationCheckFailure):
             await interaction.send(
-                embed=functions.format_with_embed("You do not have the permissions to user this command."),
+                embed=functions.format_with_embed("You do not have the necessary permissions to use this command."),
                 ephemeral=True,
             )
             return
