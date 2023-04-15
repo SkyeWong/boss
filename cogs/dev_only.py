@@ -994,7 +994,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
 
     @nextcord.slash_command(name="multiple-images")
     async def multiple_images(self, interaction: Interaction):
-        embeds = [Embed(url="www.google.com") for i in range(3)]
+        embeds = [Embed(url="https://www.google.com") for i in range(3)]
         links = ["https://i.imgur.com/ljn0XJF.jpeg", "https://i.imgur.com/Ymw5Ncd.jpeg", "https://i.imgur.com/htM04Ug.jpeg"]
         for link, embed in zip(links, embeds):
             embed.set_image(link)
