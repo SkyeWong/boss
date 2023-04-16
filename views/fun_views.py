@@ -1,15 +1,15 @@
 # nextcord
 import nextcord
 from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import View, Button, button, Select, select
+from nextcord.ui import Button, button, Select, select
+
+# my modules and constants
+from utils import constants, functions
+from views.template_views import BaseView
 
 # default modules
 import random
 import math
-
-# my modules and constants
-from utils import constants
-from views.template_views import BaseView
 
 
 class FightPlayer:
@@ -221,3 +221,109 @@ class EmojiView(BaseView):
         self.disable_buttons()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
+
+
+class TriviaQuestion:
+    __slots__ = (
+        "question",
+        "correctAnswer",
+        "incorrectAnswers",
+        "category",
+        "difficulty",
+    )
+
+
+class TriviaAnswerButton(Button):
+    def __init__(self, label: str, correct: bool):
+        super().__init__(label=label)
+        self.correct = correct
+
+    async def callback(self, interaction: Interaction):
+        view: TriviaView = self.view
+
+        if self.correct:  # the user got the question correct
+            self.style = ButtonStyle.green
+
+            msgs = (
+                "You got that correct, somehow...",
+                "You must have got lucky. How could you got it right otherwise?",
+                "Stop, you smart-aleck. Didn't you guess it?",
+                "You are bound to get lucky sometimes, ig.",
+                "~~When you get one question right finally after 10+ trials.~~",
+            )
+            msg = random.choice(msgs)  # choose a random msg
+        else:  # the user got the question wrong
+            self.style = ButtonStyle.red
+
+            msgs = (
+                "You dunderhead, that wasn't even hard...",
+                "Shame you didn't have your smart panties on.",
+                "No wonder you have an IQ lower than that of a dog.",
+                "Everyone is ashamed of you.",
+                "Could it get easier? Still, you got it wrong.",
+                "Fits you to get it wrong, you're unicellular.",
+                "Even an amoeba would have got it right.",
+                'Sodium said "_na..._" to your answer.',
+            )
+            msg = f"{random.choice(msgs)}\nThe correct answer was _{view.question.correctAnswer}_."  # choose a random msg and append it with the correct answer
+
+            # set the correct answer's button to green
+            correct_btn = [i for i in view.children if i.correct == True][0]
+            correct_btn.style = ButtonStyle.green
+
+        # disable all buttons
+        for i in view.children:
+            i.disabled = True
+        # add a new embed with the msg to the message
+        view.message.embeds.append(functions.format_with_embed(msg))
+        await view.message.edit(embeds=view.message.embeds, view=view)
+        # set the view to be done so that on_timeout() will not edit the message again.
+        view.is_done = True
+
+
+class TriviaView(BaseView):
+    def __init__(self, interaction: Interaction, question: TriviaQuestion):
+        timeouts = {"easy": 15, "medium": 12, "hard": 10}  # timeouts with respect to difficulty of the question
+        super().__init__(interaction, timeout=timeouts.get(question.difficulty))
+
+        self.question = question
+
+        if len(question.question) > 100:
+            raise functions.ComponentLabelTooLong(f"Question `{question.question}` is too long.")
+
+        answers = question.incorrectAnswers + [question.correctAnswer]
+        random.shuffle(
+            answers
+        )  # make the order of answers random so that the correct answer will not always appear at the same place
+
+        for ans in answers:
+            if len(ans) > 50:
+                raise functions.ComponentLabelTooLong(f"Label of `{ans}` is too long.")
+            self.add_item(TriviaAnswerButton(ans, correct=ans == question.correctAnswer))
+
+        self.message: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = None
+
+        self.is_done = False
+
+    def _get_embed(self):
+        embed = Embed()
+        embed.colour = random.choice(constants.EMBED_COLOURS)
+        embed.title = self.question.question
+        embed.description = f"_You have {self.timeout} seconds to answer._"
+
+        embed.add_field(name="Difficulty", value=self.question.difficulty.capitalize())
+        embed.add_field(name="Category", value=self.question.category.replace("_", " ").capitalize())
+
+        return embed
+
+    async def send(self):
+        embed = self._get_embed()
+        self.message = await self.interaction.send(embed=embed, view=self)
+
+    async def on_timeout(self):
+        if not self.is_done:
+            await super().on_timeout()
+            embed = self.message.embeds[0]
+            await self.message.edit(
+                embeds=[embed, functions.format_with_embed("Guess you didn't want to play the trivia after all?")]
+            )

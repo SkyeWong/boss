@@ -4,26 +4,28 @@ from nextcord.ext import commands
 from nextcord import Embed, Interaction, SlashOption
 from nextcord.ui import View, Button
 
+import aiohttp
+
 # command cooldowns
 import cooldowns
 from cooldowns import SlashBucket
+
+# my modules and constants
+from utils import constants, functions
+
+# command views
+from views.fun_views import FightPlayer, FightView, EmojiView, TriviaQuestion, TriviaView
+
+# mazelib
+from mazelib import Maze
+from mazelib.generate.Prims import Prims
+from mazelib.solve.BacktrackingSolver import BacktrackingSolver
 
 # default modules
 import random
 from PIL import Image
 from io import BytesIO
 import asyncio
-
-# my modules and constants
-from utils import constants
-
-# command views
-from views.fun_views import FightPlayer, FightView, EmojiView
-
-# mazelib
-from mazelib import Maze
-from mazelib.generate.Prims import Prims
-from mazelib.solve.BacktrackingSolver import BacktrackingSolver
 
 
 class Fun(commands.Cog, name="Fun"):
@@ -362,6 +364,70 @@ class Fun(commands.Cog, name="Fun"):
                 )
             else:
                 await interaction.send(embed=Embed(description=f"No emojis are found for `{emoji_name}`."))
+
+    @nextcord.slash_command()
+    async def trivia(
+        self,
+        interaction: Interaction,
+        category: str = SlashOption(
+            description="Category of the trivia question",
+            choices={
+                i.replace("_", " ").capitalize(): i
+                for i in (
+                    "music",
+                    "sport_and_leisure",
+                    "film_and_tv",
+                    "arts_and_literature",
+                    "history",
+                    "society_and_culture",
+                    "science",
+                    "geography",
+                    "food_and_drink",
+                    "general_knowledge",
+                )
+            },  # list of enums from https://the-trivia-api.com/,
+            required=False,
+            default=None,
+        ),
+        difficulty: str = SlashOption(
+            description="Difficulty of the trivia question",
+            choices={i: i.lower() for i in ("Easy", "Medium", "Hard")},
+            required=False,
+            default=None,
+        ),
+    ):
+        """Test your knowledge with a random trivia question!"""
+        params = {
+            # predefined
+            "type": "text_choice",
+            "limit": 1,
+        }
+        # user-defined
+        if category:
+            params.update(categories=category)
+        if difficulty:
+            params.update(difficulties=difficulty)
+
+        while True:
+            async with aiohttp.ClientSession() as session:
+                async with session.get("https://the-trivia-api.com/v2/questions", params=params) as response:
+                    question_res = await response.json()
+                    question_res = question_res[0]
+                    question_res["question"] = question_res["question"]["text"]
+
+            question = TriviaQuestion()
+            for k, v in question_res.items():
+                if k in question.__slots__:
+                    setattr(question, k, v)
+
+            try:
+                view = TriviaView(interaction, question)
+            except functions.ComponentLabelTooLong:
+                continue
+            else:
+                break
+
+        await view.send()
 
 
 def setup(bot: commands.Bot):
