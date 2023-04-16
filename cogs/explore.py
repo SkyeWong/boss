@@ -196,11 +196,7 @@ class Exploring(commands.Cog, name="Exploring"):
 
             embed = Embed(title="Adventure time!", description=outcome[0])
 
-            view = ConfirmView(
-                slash_interaction=interaction,
-                confirm_func=outcome[1],
-                embed=embed
-            )
+            view = ConfirmView(slash_interaction=interaction, confirm_func=outcome[1], embed=embed)
             await interaction.send(embed=view.embed, view=view)
         else:
             # 40% fail

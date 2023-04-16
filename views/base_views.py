@@ -107,33 +107,25 @@ async def _get_farm_embed_and_img(
         # add a small label in bottom right corner of crop if `label_crops` is True
         if label_crops:
             crop_draw = ImageDraw.Draw(tile_img)
-            label = f"{ascii_uppercase[index // farm_width]}" \
-                    f"{index % farm_width + 1}"  # example label: A1
+            label = f"{ascii_uppercase[index // farm_width]}" f"{index % farm_width + 1}"  # example label: A1
 
             font = ImageFont.truetype("resources/font/font.ttf", 24)
             txt_width, txt_height = font.getsize(label)
-            
+
             # draw a background rectangle
             crop_draw.rounded_rectangle(
                 (
-                    (TILE_SIZE - 5 - txt_width - 5, TILE_SIZE - 5 - txt_height - 5), 
-                    (TILE_SIZE - 5, TILE_SIZE - 5)
+                    (TILE_SIZE - 5 - txt_width - 5, TILE_SIZE - 5 - txt_height - 5),
+                    (TILE_SIZE - 5, TILE_SIZE - 5),
                 ),  # top-left and bottom-right coords for the rectangle, create a rectangle with 5px padding around the text
                 fill="#1e130e",
-                radius=5
+                radius=5,
             )
 
             # draw the label
             # same as the rectangle, the image here is image of crop/empty tile, not `farm_img`
             # text will be white by default
-            crop_draw.text(
-                (
-                    TILE_SIZE - 5 - txt_width - 2,
-                    TILE_SIZE - 5 - txt_height - 5
-                ),
-                text=label,
-                font=font
-            )
+            crop_draw.text((TILE_SIZE - 5 - txt_width - 2, TILE_SIZE - 5 - txt_height - 5), text=label, font=font)
 
         farm_img.paste(tile_img, (x, y))
 
@@ -194,7 +186,9 @@ class FarmView(BaseView):
             embed = Embed()
         embed.set_author(name=f"{self.interaction.user.name}'s Farm")
 
-        msg = await _get_farm_embed_and_img(self.player, self.farm, self.farm_width, self.farm_height, embed=embed, **kwargs)
+        msg = await _get_farm_embed_and_img(
+            self.player, self.farm, self.farm_width, self.farm_height, embed=embed, **kwargs
+        )
         msg.update(view=self)
         return msg
 
@@ -273,7 +267,7 @@ class FarmView(BaseView):
             embed.description = "No crops are planted!"
 
         if ready_msg:
-            embed.add_field(name="Crops ready to harvest",value=ready_msg)
+            embed.add_field(name="Crops ready to harvest", value=ready_msg)
         if unready_msg:
             embed.add_field(name="Crops not ready yet", value=unready_msg)
 
@@ -367,8 +361,9 @@ class PlantView(BaseView):
 
         for index, crop in enumerate(self.farm):
             if crop is None:  # check if the tile is empty
-                label = f"{ascii_uppercase[index // self.farm_width]}" \
-                        f"{index % self.farm_width + 1}"  # example label: A1
+                label = (
+                    f"{ascii_uppercase[index // self.farm_width]}" f"{index % self.farm_width + 1}"
+                )  # example label: A1
                 crops_select.options.append(
                     SelectOption(
                         label=label,
@@ -433,7 +428,9 @@ class PlantView(BaseView):
         embed.set_author(name=f"{self.interaction.user.name}'s Farm • Planting")
         embed.set_footer(text="Choose BOTH the tiles and types of crops to plant.")
 
-        msg = await _get_farm_embed_and_img(self.player, self.farm, self.farm_width, self.farm_height, embed=embed, label_crops=True, **kwargs)
+        msg = await _get_farm_embed_and_img(
+            self.player, self.farm, self.farm_width, self.farm_height, embed=embed, label_crops=True, **kwargs
+        )
         msg.update(view=self)
         return msg
 
@@ -531,7 +528,9 @@ class PlantView(BaseView):
                     self.farm[index] = {"type": self.type_to_plant, "planted_at": datetime.now(tz=pytz.UTC)}
                     planted_crops += 1
                 else:  # the tile is actually filled, the user must have used 2 views at the same time
-                    await interaction.send(embed=functions.format_with_embed("You can only plant crops in empty tiles!"), ephemeral=True)
+                    await interaction.send(
+                        embed=functions.format_with_embed("You can only plant crops in empty tiles!"), ephemeral=True
+                    )
                     return
 
         farm_for_query = []
@@ -596,8 +595,9 @@ class HarvestView(BaseView):
 
         for index, crop in enumerate(self.farm):
             if crop is not None:
-                label = f"{ascii_uppercase[index // self.farm_width]}" \
-                        f"{index % self.farm_width + 1}"  # example label: A1
+                label = (
+                    f"{ascii_uppercase[index // self.farm_width]}" f"{index % self.farm_width + 1}"
+                )  # example label: A1
                 crops_select.options.append(
                     SelectOption(
                         label=label,
@@ -665,7 +665,9 @@ class HarvestView(BaseView):
         embed.set_author(name=f"{self.interaction.user.name}'s Farm • Harvesting")
         embed.set_footer(text="Harvest fully grown crops and remove those which are not ready yet!")
 
-        msg = await _get_farm_embed_and_img(self.player, self.farm, self.farm_width, self.farm_height, embed=embed, label_crops=True, **kwargs)
+        msg = await _get_farm_embed_and_img(
+            self.player, self.farm, self.farm_width, self.farm_height, embed=embed, label_crops=True, **kwargs
+        )
         msg.update(view=self)
         return msg
 
@@ -677,7 +679,7 @@ class HarvestView(BaseView):
         msg = await view.get_msg()
         for item in msg["view"].children:
             item.disabled = True  # disable the items of the view
-            
+
         await self.interaction.edit_original_message(**msg)
 
     @select(placeholder="Choose the tiles...", custom_id="crops_select", min_values=1)

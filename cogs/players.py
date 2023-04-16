@@ -138,11 +138,7 @@ class Players(commands.Cog, name="Players"):
         """Check the backpack of your own or others."""
         if user == None:
             user = interaction.user
-        view = InventoryView(
-            interaction=interaction,
-            user=user,
-            inv_type=constants.InventoryType.backpack.value
-        )
+        view = InventoryView(interaction=interaction, user=user, inv_type=constants.InventoryType.backpack.value)
         await view.get_inv_content()
         view.disable_buttons()
         embed = view.get_inv_embed()
@@ -163,11 +159,7 @@ class Players(commands.Cog, name="Players"):
         """Check the chest of your own or others."""
         if user == None:
             user = interaction.user
-        view = InventoryView(
-            interaction=interaction, 
-            user=user, 
-            inv_type=constants.InventoryType.chest.value
-        )
+        view = InventoryView(interaction=interaction, user=user, inv_type=constants.InventoryType.chest.value)
         await view.get_inv_content()
         view.disable_buttons()
         embed = view.get_inv_embed()
@@ -178,11 +170,7 @@ class Players(commands.Cog, name="Players"):
     async def vault(self, interaction: Interaction):
         """Check the vault of your own."""
         user = interaction.user
-        view = InventoryView(
-            interaction=interaction, 
-            user=user, 
-            inv_type=constants.InventoryType.vault.value
-        )
+        view = InventoryView(interaction=interaction, user=user, inv_type=constants.InventoryType.vault.value)
         await view.get_inv_content()
         view.disable_buttons()
         embed = view.get_inv_embed()

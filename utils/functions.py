@@ -113,12 +113,12 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
 
     embed.description = description
 
-    if not owned_quantity: # `owned_quantity` is 0/ empty dict
+    if not owned_quantity:  # `owned_quantity` is 0/ empty dict
         embed.description += f"\nYou own **0**"
 
     elif isinstance(owned_quantity, int):
         embed.description += f"\nYou own **{owned_quantity}**"
-    
+
     elif isinstance(owned_quantity, dict) and owned_quantity:  # make sure the dict is not empty
         embed.description += f" \nYou own"
         for inv_type, quantity in owned_quantity.items():
@@ -138,9 +138,11 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
             prices_txt += f"`{k.capitalize()}`: ◎ {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
 
-    embed.add_field(name="Rarity", value=[i.name for i in constants.ItemRarity if i.value == item['rarity']][0], inline=True)
+    embed.add_field(
+        name="Rarity", value=[i.name for i in constants.ItemRarity if i.value == item["rarity"]][0], inline=True
+    )
 
-    embed.add_field(name="Type", value=[i.name for i in constants.ItemType if i.value == item['type']][0], inline=True)
+    embed.add_field(name="Type", value=[i.name for i in constants.ItemType if i.value == item["type"]][0], inline=True)
     embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
     return embed
 
@@ -198,5 +200,9 @@ class DisabledCommand(CommandCheckException):
     pass
 
 
-class PlayerNotExist(BaseException):
+class PlayerNotExist(BossException):
+    pass
+
+
+class ComponentLabelTooLong(BossException):
     pass

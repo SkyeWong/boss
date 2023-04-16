@@ -462,10 +462,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
             await interaction.send("The item is not found!", ephemeral=True)
         else:
             view = ConfirmItemDelete(interaction, item)
-            await interaction.send(
-                embed=view.embed,
-                view=view
-            )
+            await interaction.send(embed=view.embed, view=view)
 
     @nextcord.slash_command(name="changelog", guild_ids=[constants.DEVS_SERVER_ID])
     async def changelog(self, interaction: Interaction):
@@ -995,7 +992,11 @@ class DevOnly(commands.Cog, name="Dev Only"):
     @nextcord.slash_command(name="multiple-images")
     async def multiple_images(self, interaction: Interaction):
         embeds = [Embed(url="https://www.google.com") for i in range(3)]
-        links = ["https://i.imgur.com/ljn0XJF.jpeg", "https://i.imgur.com/Ymw5Ncd.jpeg", "https://i.imgur.com/htM04Ug.jpeg"]
+        links = [
+            "https://i.imgur.com/ljn0XJF.jpeg",
+            "https://i.imgur.com/Ymw5Ncd.jpeg",
+            "https://i.imgur.com/htM04Ug.jpeg",
+        ]
         for link, embed in zip(links, embeds):
             embed.set_image(link)
         await interaction.send(embeds=embeds)

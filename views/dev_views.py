@@ -107,24 +107,26 @@ class EditItemModal(Modal):
     async def popuplate_inputs(self, *, include: tuple[str] = None, exclude: tuple[str] = None):
         """Populate the modal's list of input, and include/exclude any columns that have been provided."""
         # typecast the tuples
-        if include is None: include = tuple()
-        if exclude is None: exclude = tuple()
+        if include is None:
+            include = tuple()
+        if exclude is None:
+            exclude = tuple()
 
         db: Database = self.slash_interaction.client.db
         # fetch the list of columns in `utility.items` table.
-        res = await db.fetch("""
+        res = await db.fetch(
+            """
             SELECT column_name
             FROM information_schema.columns
             WHERE table_schema = 'utility' AND table_name = 'items' AND column_name <> 'item_id';
-        """)
+        """
+        )
         for column in res:
             column_name = column[0]
             # check if the column is included, and not excluded
             if (
-                (not include or column_name in include)   # if no `include` list is provided, ignore that it is not included
-                and column_name not in exclude
-            ):
-
+                not include or column_name in include
+            ) and column_name not in exclude:  # if no `include` list is provided, ignore that it is not included
                 if column_name == "rarity":
                     value = [i.name for i in constants.ItemRarity if i.value == self.item[column_name]][0]
                 elif column_name == "type":
@@ -277,7 +279,6 @@ class ConfirmItemDelete(ConfirmView):
             slash_interaction=slash_interaction,
             confirm_func=self.delete_item,
             embed=embed,
-
             confirmed_title="Item deleted!",
         )
 
@@ -315,11 +316,7 @@ class ConfirmChangelogSend(ConfirmView):
         else:
             embed.add_field(name="Role to ping", value="No roles will be pinged")
 
-        super().__init__(
-            slash_interaction=slash_interaction,
-            confirm_func=self.send_changelog,
-            embed=embed
-        )
+        super().__init__(slash_interaction=slash_interaction, confirm_func=self.send_changelog, embed=embed)
 
     async def send_edit_changelog(self, interaction: Interaction):
         client: nextcord.Client = interaction.client
@@ -374,11 +371,7 @@ class ConfirmChangelogDelete(ConfirmView):
         else:
             embed.add_field(name="Sent at", value=f"<t:{int(message.created_at.timestamp())}:f>")
 
-        super().__init__(
-            slash_interaction=slash_interaction,
-            confirm_func=self.delete_changelog,
-            embed=embed
-        )
+        super().__init__(slash_interaction=slash_interaction, confirm_func=self.delete_changelog, embed=embed)
         self.message = message
         self.changelog_embed = message.embeds[0]
         jump_btn = Button(label="Jump", url=message.jump_url)
@@ -408,7 +401,7 @@ class ConfirmChangelogEdit(ConfirmView):
         self.message = message
         self.old_embed = message.embeds[0]
         self.new_embed = new_embed
-        
+
         embed = Embed(title="Editing message...")
         if self.message.edited_at:
             embed.add_field(name="Last edited at", value=f"<t:{int(self.message.edited_at.timestamp())}:f>")

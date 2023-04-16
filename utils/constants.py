@@ -21,6 +21,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 DEVS_SERVER_ID = 919223073054539858
 CHANGELOG_CHANNEL_ID = 1020660847321808930
 
+
 class Enum(enum.Enum):
     """An enum that supports searching values and converting itself to a `dict`."""
 
@@ -36,7 +37,7 @@ class Enum(enum.Enum):
         """Returns a `dict` containing each attribute, with its name as the key and value as value."""
         return {i.name: i.value for i in cls}
 
-    
+
 class IntEnum(Enum):
     """An enum that supports comparing and hashing as an int."""
 
@@ -56,7 +57,7 @@ class ItemType(IntEnum):
     power_up = 2
     sellable = 3
     bundle = 4
-    
+
 
 class ItemRarity(IntEnum):
     common = 0
@@ -65,5 +66,6 @@ class ItemRarity(IntEnum):
     epic = 3
     legendary = 4
     godly = 5
+
 
 MAZE_DIRECTIONS = ["⬆️", "⬅️", "⬇️", "➡️"]

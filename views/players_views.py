@@ -64,7 +64,7 @@ class InventoryView(BaseView):
             return embed
 
         for item in inv[self.get_page_start_index() : self.get_page_end_index() + 1]:
-            item_type = [i.name for i in constants.ItemType if i.value == item['type']][0]
+            item_type = [i.name for i in constants.ItemType if i.value == item["type"]][0]
             embed.add_field(
                 name=f"<:{item['emoji_name']}:{item['emoji_id']}>  {item['name']} ─ {item['quantity']}\n",
                 value=f"─ {item_type}",
@@ -119,7 +119,7 @@ class InventoryView(BaseView):
     async def refresh_msg(self, button: Button, interaction: Interaction):
         await interaction.response.defer()
         self.disable_buttons()
-        
+
         await self.get_inv_content()
         embed = self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)

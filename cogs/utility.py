@@ -242,11 +242,7 @@ class Utility(commands.Cog, name="Utility"):
                 interaction.user.id,
                 item["item_id"],
             )
-            owned_quantities = {
-                constants.InventoryType(inv_type).name: quantity
-                for inv_type, quantity
-                in res
-            }
+            owned_quantities = {constants.InventoryType(inv_type).name: quantity for inv_type, quantity in res}
             embed = functions.get_item_embed(item, owned_quantities)
             await interaction.send(embed=embed)
 

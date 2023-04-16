@@ -161,7 +161,7 @@ async def cmd_check(interaction: Interaction):
 
         await msg.edit(
             embed=functions.format_with_embed(
-                "We have successfully connected to the database! " \
+                "We have successfully connected to the database! "
                 f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again."
             )
         )

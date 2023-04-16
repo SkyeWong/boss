@@ -20,7 +20,6 @@ from contextlib import suppress
 
 
 class WebScraping(commands.Cog, name="Web Scraping"):
-
     COG_EMOJI = "📶"
 
     def __init__(self, bot: commands.Bot):
@@ -280,15 +279,9 @@ class WebScraping(commands.Cog, name="Web Scraping"):
     async def upload_imgur_cmd(
         self,
         interaction: Interaction,
-        image: nextcord.Attachment = SlashOption(
-            description="Image to upload", required=True
-        ),
-        title: str = SlashOption(
-            description="Title of image (optional)", required=False
-        ),
-        description: str = SlashOption(
-            description="Description of image (optional)", required=False
-        ),
+        image: nextcord.Attachment = SlashOption(description="Image to upload", required=True),
+        title: str = SlashOption(description="Title of image (optional)", required=False),
+        description: str = SlashOption(description="Description of image (optional)", required=False),
     ):
         payload = {
             "image": image.url,
@@ -304,9 +297,7 @@ class WebScraping(commands.Cog, name="Web Scraping"):
                 html = await response.json()
 
         if not html.get("success"):
-            embed = Embed(
-                title="Uploading image failed!", description="Please try again."
-            )
+            embed = Embed(title="Uploading image failed!", description="Please try again.")
             embed.add_field(
                 name="Causes",
                 value="`-` an incompatible file format is uploaded; or\n`-` an internal error has occured",
@@ -339,9 +330,7 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         embed.add_field(
             name="Image",
             value=(
-                f"**`WIDTH`** - {data['width']}\n"
-                f"**`HEIGHT`** - {data['height']}\n"
-                f"**`TYPE`** - `{data['type']}`"
+                f"**`WIDTH`** - {data['width']}\n" f"**`HEIGHT`** - {data['height']}\n" f"**`TYPE`** - `{data['type']}`"
             ),
         )
         await interaction.send(embed=embed)

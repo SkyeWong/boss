@@ -160,7 +160,7 @@ class HelpView(BaseView):
         self.page -= 1
         self.btn_disable()
         await self.get_embed_and_send_msg(interaction)
-    
+
     @button(emoji="▶️", style=nextcord.ButtonStyle.blurple, custom_id="next")
     async def next(self, button: Button, interaction: Interaction):
         self.page += 1

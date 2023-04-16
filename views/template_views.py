@@ -46,14 +46,14 @@ class ConfirmView(BaseView):
         confirm_func=None,
         cancel_func=None,
         embed: Embed,
-        confirmed_title: str="Action confirmed!",
-        cancelled_title: str="Action cancelled!",
+        confirmed_title: str = "Action confirmed!",
+        cancelled_title: str = "Action cancelled!",
         **kwargs,
     ):
         super().__init__(interaction=slash_interaction)
 
         self.embed = embed
-        
+
         self.confirm_func = confirm_func
         self.cancel_func = cancel_func
 
