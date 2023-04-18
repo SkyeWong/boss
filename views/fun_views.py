@@ -250,6 +250,7 @@ class TriviaAnswerButton(Button):
                 "Stop, you smart-aleck. Didn't you guess it?",
                 "You are bound to get lucky sometimes, ig.",
                 "~~When you get one question right finally after 10+ trials.~~",
+                "A once-in-a-lifetime coincidence...",
             )
             msg = random.choice(msgs)  # choose a random msg
         else:  # the user got the question wrong
