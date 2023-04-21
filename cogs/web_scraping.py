@@ -26,23 +26,29 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         self.bot = bot
         self._last_member = None
 
-        response = requests.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json").content.decode("utf-8")
+        response = requests.get(
+            "https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json"
+        ).content.decode("utf-8")
         response: dict[dict] = json.loads(response).get("DYN_DAT_MINDS_RHRREAD")
         self.location_list = {}
         for k, v in response.items():
             if "LocationName" in k:
                 if not v["Val_Eng"] or not v["Val_Chi"]:
-                    self.location_list[k.replace("LocationName", "")] = k.replace("LocationName", "")
-                else:
-                    self.location_list[html.unescape(f"{v['Val_Eng']} - {v['Val_Chi']}")] = k.replace(
+                    self.location_list[k.replace("LocationName", "")] = k.replace(
                         "LocationName", ""
                     )
+                else:
+                    self.location_list[
+                        html.unescape(f"{v['Val_Eng']} - {v['Val_Chi']}")
+                    ] = k.replace("LocationName", "")
         self.location_list = dict(sorted(self.location_list.items()))
         self.announce_temp.start()
 
     async def get_temperature(self, location: str, language="Val_Eng"):
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json") as response:
+            async with session.get(
+                "https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json"
+            ) as response:
                 html = await response.text()
 
         temp_list: dict[dict] = json.loads(html).get("DYN_DAT_MINDS_RHRREAD")
@@ -50,7 +56,9 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         date = temp_list.get("BulletinDate")[language]
         time = temp_list.get("BulletinTime")[language]
         hk_tz = pytz.timezone("Asia/Hong_Kong")
-        temp_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(tzinfo=hk_tz)
+        temp_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(
+            tzinfo=hk_tz
+        )
         if not location:
             location_name = "Hong Kong Observatory"
             temp = temp_list.get("HongKongObservatoryTemperature")[language]
@@ -67,14 +75,18 @@ class WebScraping(commands.Cog, name="Web Scraping"):
 
     async def get_weather_forecast(self, language="Val_Eng"):
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json") as response:
+            async with session.get(
+                "https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json"
+            ) as response:
                 html = await response.text()
 
         response: dict[dict] = json.loads(html).get("DYN_DAT_MINDS_FLW")
         date = response.get("BulletinDate")[language]
         time = response.get("BulletinTime")[language]
         hk_tz = pytz.timezone("Asia/Hong_Kong")
-        forecast_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(tzinfo=hk_tz)
+        forecast_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(
+            tzinfo=hk_tz
+        )
 
         situation = response.get("FLW_WxForecastGeneralSituation")[language]
         situation += "\n\n"
@@ -92,7 +104,9 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         )
 
         if len(temp) > 2:  # fetching info succeeded
-            embed.add_field(name=f"Temperature", value=f"{temp[1]} - {temp[2]}°C", inline=True)
+            embed.add_field(
+                name=f"Temperature", value=f"{temp[1]} - {temp[2]}°C", inline=True
+            )
             embed.add_field(name=f"Humidty", value=f"{temp[3]}%", inline=True)
             if temp[2] > 12:
                 embed.colour = 0xFF4365
@@ -113,15 +127,23 @@ class WebScraping(commands.Cog, name="Web Scraping"):
     async def choose_location_autocomplete(self, interaction: Interaction, data: str):
         if not data:
             # return full list
-            await interaction.response.send_autocomplete(dict(sorted(self.location_list.items())[:25]))
+            await interaction.response.send_autocomplete(
+                dict(sorted(self.location_list.items())[:25])
+            )
         else:
             # send a list of nearest matches from the list of item
             near_locations = {
-                k: v for k, v in self.location_list.items() if data.lower() in k.lower() or data.lower() in v.lower()
+                k: v
+                for k, v in self.location_list.items()
+                if data.lower() in k.lower() or data.lower() in v.lower()
             }
-            await interaction.response.send_autocomplete(dict(sorted(near_locations.items())[:25]))
+            await interaction.response.send_autocomplete(
+                dict(sorted(near_locations.items())[:25])
+            )
 
-    @nextcord.slash_command(name="weather", description="Fetches the latest temperature from HK observatory")
+    @nextcord.slash_command(
+        name="weather", description="Fetches the latest temperature from HK observatory"
+    )
     async def fetch_forecast(
         self,
         interaction: Interaction,
@@ -138,8 +160,14 @@ class WebScraping(commands.Cog, name="Web Scraping"):
             choices={"English": "Val_Eng", "Chinese": "Val_Chi"},
         ),
     ):
-        if location and location not in self.location_list.keys() and location not in self.location_list.values():
-            await interaction.send(f"District not found\n`{location=}`\n", ephemeral=True)
+        if (
+            location
+            and location not in self.location_list.keys()
+            and location not in self.location_list.values()
+        ):
+            await interaction.send(
+                f"District not found\n`{location=}`\n", ephemeral=True
+            )
             return
 
         temp = await self.get_temperature(location, language)
@@ -188,7 +216,9 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         else:
             await interaction.response.send_autocomplete([data] + results[:24])
 
-    @nextcord.slash_command(name="search-channel", description="Finds the newest videos of a channel")
+    @nextcord.slash_command(
+        name="search-channel", description="Finds the newest videos of a channel"
+    )
     @application_checks.is_owner()
     async def find_yt_channel(
         self,
@@ -202,9 +232,13 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         api_version = "v3"
         dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
 
-        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+        youtube = googleapiclient.discovery.build(
+            api_service_name, api_version, developerKey=dev_key
+        )
         search_response = (
-            youtube.search().list(part="snippet", type="channel", q=channel, maxResults=1).execute()["items"][0]
+            youtube.search()
+            .list(part="snippet", type="channel", q=channel, maxResults=1)
+            .execute()["items"][0]
         )
 
         channel_response = (
@@ -220,14 +254,18 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         playlist = channel_response["contentDetails"]["relatedPlaylists"]["uploads"]
 
         playlist_response = (
-            youtube.playlistItems().list(part="contentDetails", playlistId=playlist, maxResults=25).execute()["items"]
+            youtube.playlistItems()
+            .list(part="contentDetails", playlistId=playlist, maxResults=25)
+            .execute()["items"]
         )
 
         videos_response = (
             youtube.videos()
             .list(
                 part="snippet,contentDetails,statistics",
-                id=",".join([video["contentDetails"]["videoId"] for video in playlist_response]),
+                id=",".join(
+                    [video["contentDetails"]["videoId"] for video in playlist_response]
+                ),
             )
             .execute()["items"]
         )
@@ -239,7 +277,9 @@ class WebScraping(commands.Cog, name="Web Scraping"):
 
         view.msg = await interaction.send(embed=embed, view=view)
 
-    @nextcord.slash_command(name="search-youtube", description="Searches for videos on Youtube")
+    @nextcord.slash_command(
+        name="search-youtube", description="Searches for videos on Youtube"
+    )
     @application_checks.is_owner()
     async def search_youtube(
         self,
@@ -259,10 +299,14 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         api_version = "v3"
         dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
 
-        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+        youtube = googleapiclient.discovery.build(
+            api_service_name, api_version, developerKey=dev_key
+        )
 
         videos_response = (
-            youtube.videos().list(part="snippet,contentDetails,statistics", id=",".join(video_ids)).execute()["items"]
+            youtube.videos()
+            .list(part="snippet,contentDetails,statistics", id=",".join(video_ids))
+            .execute()["items"]
         )
 
         videos = [Video.from_api_response(video) for video in videos_response]
@@ -279,9 +323,15 @@ class WebScraping(commands.Cog, name="Web Scraping"):
     async def upload_imgur_cmd(
         self,
         interaction: Interaction,
-        image: nextcord.Attachment = SlashOption(description="Image to upload", required=True),
-        title: str = SlashOption(description="Title of image (optional)", required=False),
-        description: str = SlashOption(description="Description of image (optional)", required=False),
+        image: nextcord.Attachment = SlashOption(
+            description="Image to upload", required=True
+        ),
+        title: str = SlashOption(
+            description="Title of image (optional)", required=False
+        ),
+        description: str = SlashOption(
+            description="Description of image (optional)", required=False
+        ),
     ):
         payload = {
             "image": image.url,
@@ -293,11 +343,15 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         headers = {"Authorization": "Client-ID 826be6012a5dd28"}
 
         async with aiohttp.ClientSession() as session:
-            async with session.post("https://api.imgur.com/3/image", headers=headers, data=payload) as response:
+            async with session.post(
+                "https://api.imgur.com/3/image", headers=headers, data=payload
+            ) as response:
                 html = await response.json()
 
         if not html.get("success"):
-            embed = Embed(title="Uploading image failed!", description="Please try again.")
+            embed = Embed(
+                title="Uploading image failed!", description="Please try again."
+            )
             embed.add_field(
                 name="Causes",
                 value="`-` an incompatible file format is uploaded; or\n`-` an internal error has occured",
@@ -330,7 +384,9 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         embed.add_field(
             name="Image",
             value=(
-                f"**`WIDTH`** - {data['width']}\n" f"**`HEIGHT`** - {data['height']}\n" f"**`TYPE`** - `{data['type']}`"
+                f"**`WIDTH`** - {data['width']}\n"
+                f"**`HEIGHT`** - {data['height']}\n"
+                f"**`TYPE`** - `{data['type']}`"
             ),
         )
         await interaction.send(embed=embed)

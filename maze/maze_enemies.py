@@ -91,7 +91,9 @@ class MazeEnemy:
 
     def get_target_cell(self):
         cells = self.get_all_possible_routes()
-        current_cell = [cell for cell in cells if cell.x == self.x and cell.y == self.y][0]
+        current_cell = [
+            cell for cell in cells if cell.x == self.x and cell.y == self.y
+        ][0]
         target_cell = [cell for cell in cells if cell.id == current_cell.parent_id]
         return target_cell[0] if target_cell else current_cell
 
@@ -109,7 +111,9 @@ class MazeEnemy:
 
                 # if player is within 1 block of distance, deal 12 points of damage
                 player = view.player
-                distance_with_player = math.sqrt((player.x - self.x) ** 2 + (player.y - self.y) ** 2)
+                distance_with_player = math.sqrt(
+                    (player.x - self.x) ** 2 + (player.y - self.y) ** 2
+                )
                 if distance_with_player == 0:
                     player.hp -= random.randint(7, 12)
 

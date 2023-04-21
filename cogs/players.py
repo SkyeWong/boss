@@ -27,7 +27,9 @@ from collections import defaultdict
 
 class Players(commands.Cog, name="Players"):
     COG_EMOJI = "🦸‍♂️"
-    cooldowns.define_shared_cooldown(1, 15, SlashBucket.author, cooldown_id="check_inventory")
+    cooldowns.define_shared_cooldown(
+        1, 15, SlashBucket.author, cooldown_id="check_inventory"
+    )
 
     def __init__(self, bot):
         self.bot = bot
@@ -52,7 +54,9 @@ class Players(commands.Cog, name="Players"):
         player = Player(db, user)
         if not await player.is_present():
             await interaction.send(
-                embed=Embed(description="The user hasn't started playing BOSS yet! Maybe invite them over?"),
+                embed=Embed(
+                    description="The user hasn't started playing BOSS yet! Maybe invite them over?"
+                ),
                 ephemeral=True,
             )
             return
@@ -100,7 +104,9 @@ class Players(commands.Cog, name="Players"):
         if item_worth is None:
             item_worth = 0
 
-        profile_ui.add_field(name="Gold", value=f"`◎ {numerize.numerize(profile['gold'])}`")
+        profile_ui.add_field(
+            name="Gold", value=f"`◎ {numerize.numerize(profile['gold'])}`"
+        )
         experience_progress_bar_filled = round((experience % 100) / 10)
         profile_ui.add_field(
             name="Experience",
@@ -138,7 +144,11 @@ class Players(commands.Cog, name="Players"):
         """Check the backpack of your own or others."""
         if user == None:
             user = interaction.user
-        view = InventoryView(interaction=interaction, user=user, inv_type=constants.InventoryType.backpack.value)
+        view = InventoryView(
+            interaction=interaction,
+            user=user,
+            inv_type=constants.InventoryType.backpack.value,
+        )
         await view.get_inv_content()
         view.disable_buttons()
         embed = view.get_inv_embed()
@@ -159,7 +169,11 @@ class Players(commands.Cog, name="Players"):
         """Check the chest of your own or others."""
         if user == None:
             user = interaction.user
-        view = InventoryView(interaction=interaction, user=user, inv_type=constants.InventoryType.chest.value)
+        view = InventoryView(
+            interaction=interaction,
+            user=user,
+            inv_type=constants.InventoryType.chest.value,
+        )
         await view.get_inv_content()
         view.disable_buttons()
         embed = view.get_inv_embed()
@@ -170,13 +184,19 @@ class Players(commands.Cog, name="Players"):
     async def vault(self, interaction: Interaction):
         """Check the vault of your own."""
         user = interaction.user
-        view = InventoryView(interaction=interaction, user=user, inv_type=constants.InventoryType.vault.value)
+        view = InventoryView(
+            interaction=interaction,
+            user=user,
+            inv_type=constants.InventoryType.vault.value,
+        )
         await view.get_inv_content()
         view.disable_buttons()
         embed = view.get_inv_embed()
         view.message = await interaction.send(embed=embed, view=view)
 
-    async def get_autocompleted_items(self, user: nextcord.User, inv_type: int, data: str):
+    async def get_autocompleted_items(
+        self, user: nextcord.User, inv_type: int, data: str
+    ):
         db: Database = self.bot.db
         items = await db.fetch(
             """
@@ -194,7 +214,9 @@ class Players(commands.Cog, name="Players"):
             # return full list
             return [item[0] for item in items]
         # send a list of nearest matches from the list of item
-        near_items = [item[0] for item in items if item[0].lower().startswith(data.lower())]
+        near_items = [
+            item[0] for item in items if item[0].lower().startswith(data.lower())
+        ]
         return near_items
 
     async def choose_inv_autocomplete(self, interaction: Interaction, data: str):
@@ -214,10 +236,16 @@ class Players(commands.Cog, name="Players"):
             # return full list
             return sorted(list({item[0] for item in items}))
         # send a list of nearest matches from the list of item
-        near_items = sorted(list({item[0] for item in items if item[0].lower().startswith(data.lower())}))
+        near_items = sorted(
+            list(
+                {item[0] for item in items if item[0].lower().startswith(data.lower())}
+            )
+        )
         return near_items
 
-    async def move_items(self, player_id: int, item_from: int, item_to: int, item_id: int, quantity: int):
+    async def move_items(
+        self, player_id: int, item_from: int, item_to: int, item_id: int, quantity: int
+    ):
         """
         Moves an item from an inventory type to another one. Should be used with try/except to catch errors when
 
@@ -274,9 +302,17 @@ class Players(commands.Cog, name="Players"):
 
                 for inv_type, items in num_of_items_in_inv.items():
                     # transaction has not been committed, items are not updated
-                    if item_to == inv_type == 0 and len(items) >= 32 and item_id not in items:
+                    if (
+                        item_to == inv_type == 0
+                        and len(items) >= 32
+                        and item_id not in items
+                    ):
                         raise MoveItemException("Backpacks only have 32 slots!")
-                    if item_to == inv_type == 2 and len(items) >= 5 and item_id not in items:
+                    if (
+                        item_to == inv_type == 2
+                        and len(items) >= 5
+                        and item_id not in items
+                    ):
                         raise MoveItemException("Vaults only have 5 slots!")
         return quantities_after
 
@@ -329,7 +365,9 @@ class Players(commands.Cog, name="Players"):
             f"%{item_name}%",
         )
         if not item:
-            await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
+            await interaction.send(
+                embed=Embed(description="The item is not found!"), ephemeral=True
+            )
             return
 
         try:
@@ -358,7 +396,9 @@ class Players(commands.Cog, name="Players"):
         embed.description = f">>> Item: **{item['name']}**"
         embed.description += f"\nQuantity in {[inv.name for inv in constants.InventoryType if inv.value == item_from][0]}: `{quantities_after['from']}`"
         embed.description += f"\nQuantity in {[inv.name for inv in constants.InventoryType if inv.value == item_to][0]}: `{quantities_after['to']}`"
-        embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
+        embed.set_thumbnail(
+            url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png"
+        )
         await interaction.send(embed=embed)
 
 
