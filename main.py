@@ -66,6 +66,7 @@ class BossBot(commands.Bot):
         # Connect to the bot database
         if not self.db.connected:
             self.pool = await self.db.connect()
+
         print(
             f"\033[1;36m{self.user.name} (ID: {self.user.id})\033[0m has connected to discord \033[0;34min {len(self.guilds)} servers!\033[0m"
         )
@@ -78,13 +79,17 @@ class BossBot(commands.Bot):
         await self.db.disconnect()
         print("Bot closed.")
 
-    async def on_application_command_error(self, interaction: Interaction, error: Exception):
+    async def on_application_command_error(
+        self, interaction: Interaction, error: Exception
+    ):
         error = getattr(error, "original", error)
 
         # don't meet application check requirement
         if isinstance(error, nextcord.ApplicationCheckFailure):
             await interaction.send(
-                embed=functions.format_with_embed("You do not have the necessary permissions to use this command."),
+                embed=functions.format_with_embed(
+                    "You do not have the necessary permissions to use this command."
+                ),
                 ephemeral=True,
             )
             return
@@ -168,7 +173,9 @@ async def cmd_check(interaction: Interaction):
         raise functions.DatabaseReconnect()
 
     # Pause execution if command is disabled
-    if interaction.guild_id != constants.DEVS_SERVER_ID:  # only check for disabled commands if its not the dev server.
+    if (
+        interaction.guild_id != constants.DEVS_SERVER_ID
+    ):  # only check for disabled commands if its not the dev server.
         db = bot.db
         res = await db.fetchrow(
             """
@@ -184,7 +191,9 @@ async def cmd_check(interaction: Interaction):
 
             utc = pytz.UTC
 
-            if until is None or until > datetime.now(tz=utc):  # until is None --> permanently disabled
+            if until is None or until > datetime.now(
+                tz=utc
+            ):  # until is None --> permanently disabled
                 embed = Embed()
                 embed.title = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> is disabled!"
 
