@@ -243,11 +243,10 @@ class TriviaAnswerButton(Button):
 
     async def callback(self, interaction: Interaction):
         await interaction.response.defer()
+
         view: TriviaView = self.view
 
-        if (
-            self.label == view.question.correctAnswer
-        ):  # the user got the question correct
+        if self.label == view.question.correctAnswer:  # the user got the question correct
             self.style = ButtonStyle.green
 
             msgs = (
@@ -255,7 +254,7 @@ class TriviaAnswerButton(Button):
                 "You must have got lucky. How could you got it right otherwise?",
                 "Stop, you smart-aleck. Didn't you guess it?",
                 "You are bound to get lucky sometimes, ig.",
-                "~~When you get one question right finally after 10+ trials.~~",
+                "When you get one question right finally after 10+ trials",
                 "That's a once-in-a-lifetime coincidence... \nCherish it bcs you'll never get it again.",
                 "Who knew that guessing randomly could be such a successful strategy?",
                 "Well done, you truly are a master of the game of chance.",
@@ -288,7 +287,7 @@ class TriviaAnswerButton(Button):
             msg = f"{random.choice(msgs)}\nThe correct answer was _{view.question.correctAnswer}_."  # choose a random msg and append it with the correct answer
 
             # set the correct answer's button to green
-            correct_btn = [i for i in view.children if i.correct == True][0]
+            correct_btn = [i for i in view.children if i.label == view.question.correctAnswer][0]
             correct_btn.style = ButtonStyle.green
 
         # disable all buttons
@@ -299,7 +298,7 @@ class TriviaAnswerButton(Button):
         await view.message.edit(embeds=view.message.embeds, view=view)
         # set the view to be done so that on_timeout() will not edit the message again.
         view.is_done = True
-
+        
 
 class TriviaView(BaseView):
     def __init__(self, interaction: Interaction, question: TriviaQuestion):
