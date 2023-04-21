@@ -19,7 +19,9 @@ class FightPlayer:
 
 
 class FightView(BaseView):
-    def __init__(self, slash_interaction: Interaction, player1: FightPlayer, player2: FightPlayer):
+    def __init__(
+        self, slash_interaction: Interaction, player1: FightPlayer, player2: FightPlayer
+    ):
         super().__init__(interaction=slash_interaction)
         self.players = [player1, player2]
         self._round = 0
@@ -166,7 +168,9 @@ class EmojiView(BaseView):
 
     @select(placeholder="Choose an emoji...", custom_id="emoji_select")
     async def choose_video(self, select: Select, interaction: Interaction):
-        self.emoji_index = int(select.values[0])  # the value is set to the index of the emoji
+        self.emoji_index = int(
+            select.values[0]
+        )  # the value is set to the index of the emoji
 
         self.disable_buttons()
         embed = self.get_embed()
@@ -234,14 +238,16 @@ class TriviaQuestion:
 
 
 class TriviaAnswerButton(Button):
-    def __init__(self, label: str, correct: bool):
+    def __init__(self, label: str):
         super().__init__(label=label)
-        self.correct = correct
 
     async def callback(self, interaction: Interaction):
+        await interaction.response.defer()
         view: TriviaView = self.view
 
-        if self.correct:  # the user got the question correct
+        if (
+            self.label == view.question.correctAnswer
+        ):  # the user got the question correct
             self.style = ButtonStyle.green
 
             msgs = (
@@ -297,25 +303,32 @@ class TriviaAnswerButton(Button):
 
 class TriviaView(BaseView):
     def __init__(self, interaction: Interaction, question: TriviaQuestion):
-        timeouts = {"easy": 15, "medium": 12, "hard": 10}  # timeouts with respect to difficulty of the question
+        timeouts = {
+            "easy": 15,
+            "medium": 12,
+            "hard": 10,
+        }  # timeouts with respect to difficulty of the question
         super().__init__(interaction, timeout=timeouts.get(question.difficulty))
 
         self.question = question
 
         if len(question.question) > 100:
-            raise functions.ComponentLabelTooLong(f"Question `{question.question}` is too long.")
+            raise functions.ComponentLabelTooLong(
+                f"Question `{question.question}` is too long."
+            )
 
         answers = question.incorrectAnswers + [question.correctAnswer]
-        random.shuffle(
-            answers
-        )  # make the order of answers random so that the correct answer will not always appear at the same place
+        random.shuffle(answers)
+        # make the order of answers random so that the correct answer will not always appear at the same place
 
         for ans in answers:
             if len(ans) > 50:
                 raise functions.ComponentLabelTooLong(f"Label of `{ans}` is too long.")
-            self.add_item(TriviaAnswerButton(ans, correct=ans == question.correctAnswer))
+            self.add_item(TriviaAnswerButton(ans))
 
-        self.message: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = None
+        self.message: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = (
+            None
+        )
 
         self.is_done = False
 
@@ -326,7 +339,9 @@ class TriviaView(BaseView):
         embed.description = f"_You have {self.timeout} seconds to answer._"
 
         embed.add_field(name="Difficulty", value=self.question.difficulty.capitalize())
-        embed.add_field(name="Category", value=self.question.category.replace("_", " ").capitalize())
+        embed.add_field(
+            name="Category", value=self.question.category.replace("_", " ").capitalize()
+        )
 
         return embed
 
@@ -339,5 +354,10 @@ class TriviaView(BaseView):
             await super().on_timeout()
             embed = self.message.embeds[0]
             await self.message.edit(
-                embeds=[embed, functions.format_with_embed("Guess you didn't want to play the trivia after all?")]
+                embeds=[
+                    embed,
+                    functions.format_with_embed(
+                        "Guess you didn't want to play the trivia after all?"
+                    ),
+                ]
             )
