@@ -19,9 +19,7 @@ class FightPlayer:
 
 
 class FightView(BaseView):
-    def __init__(
-        self, slash_interaction: Interaction, player1: FightPlayer, player2: FightPlayer
-    ):
+    def __init__(self, slash_interaction: Interaction, player1: FightPlayer, player2: FightPlayer):
         super().__init__(interaction=slash_interaction)
         self.players = [player1, player2]
         self._round = 0
@@ -168,9 +166,7 @@ class EmojiView(BaseView):
 
     @select(placeholder="Choose an emoji...", custom_id="emoji_select")
     async def choose_video(self, select: Select, interaction: Interaction):
-        self.emoji_index = int(
-            select.values[0]
-        )  # the value is set to the index of the emoji
+        self.emoji_index = int(select.values[0])  # the value is set to the index of the emoji
 
         self.disable_buttons()
         embed = self.get_embed()
@@ -298,7 +294,7 @@ class TriviaAnswerButton(Button):
         await view.message.edit(embeds=view.message.embeds, view=view)
         # set the view to be done so that on_timeout() will not edit the message again.
         view.is_done = True
-        
+
 
 class TriviaView(BaseView):
     def __init__(self, interaction: Interaction, question: TriviaQuestion):
@@ -312,9 +308,7 @@ class TriviaView(BaseView):
         self.question = question
 
         if len(question.question) > 100:
-            raise functions.ComponentLabelTooLong(
-                f"Question `{question.question}` is too long."
-            )
+            raise functions.ComponentLabelTooLong(f"Question `{question.question}` is too long.")
 
         answers = question.incorrectAnswers + [question.correctAnswer]
         random.shuffle(answers)
@@ -325,9 +319,7 @@ class TriviaView(BaseView):
                 raise functions.ComponentLabelTooLong(f"Label of `{ans}` is too long.")
             self.add_item(TriviaAnswerButton(ans))
 
-        self.message: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = (
-            None
-        )
+        self.message: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = None
 
         self.is_done = False
 
@@ -338,9 +330,7 @@ class TriviaView(BaseView):
         embed.description = f"_You have {self.timeout} seconds to answer._"
 
         embed.add_field(name="Difficulty", value=self.question.difficulty.capitalize())
-        embed.add_field(
-            name="Category", value=self.question.category.replace("_", " ").capitalize()
-        )
+        embed.add_field(name="Category", value=self.question.category.replace("_", " ").capitalize())
 
         return embed
 
@@ -355,8 +345,6 @@ class TriviaView(BaseView):
             await self.message.edit(
                 embeds=[
                     embed,
-                    functions.format_with_embed(
-                        "Guess you didn't want to play the trivia after all?"
-                    ),
+                    functions.format_with_embed("Guess you didn't want to play the trivia after all?"),
                 ]
             )

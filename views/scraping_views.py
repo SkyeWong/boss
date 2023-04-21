@@ -147,9 +147,7 @@ class Video:
 
         link = f"https://www.youtube.com/watch?v={video_response['id']}"
         published_time = int(
-            datetime.datetime.strptime(
-                video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ"
-            )
+            datetime.datetime.strptime(video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
             .replace(tzinfo=datetime.timezone.utc)
             .astimezone(tz=None)
             .timestamp()
@@ -181,13 +179,7 @@ class Video:
                 # No match for this unit: it's absent
                 duration_vals.update({sep.lower(): 0})
 
-        duration = " ".join(
-            [
-                f"{value}{unit}"
-                for unit, value in duration_vals.items()
-                if not value == 0
-            ]
-        )
+        duration = " ".join([f"{value}{unit}" for unit, value in duration_vals.items() if not value == 0])
 
         views = video_response["statistics"].get("viewCount", 0)
         likes = video_response["statistics"].get("likeCount", 0)
@@ -212,9 +204,7 @@ class VideoView(BaseView):
 
         video_select = [i for i in self.children if i.custom_id == "video_select"][0]
         video_select.options = [
-            SelectOption(
-                label=video.title[:100], description=video.channel_title, value=index
-            )
+            SelectOption(label=video.title[:100], description=video.channel_title, value=index)
             for index, video in enumerate(self.videos)
         ]
 
@@ -225,9 +215,7 @@ class VideoView(BaseView):
         embed.set_author(name=video.channel_title)
         embed.colour = 0xDBFCFF
 
-        embed.set_footer(
-            text=f"Page {self.page + 1}/{len(self.videos)}"
-        )  # + 1 because self.page uses zero-indexing
+        embed.set_footer(text=f"Page {self.page + 1}/{len(self.videos)}")  # + 1 because self.page uses zero-indexing
 
         embed.set_thumbnail(url=video.thumbnail_url)
 
@@ -241,9 +229,7 @@ class VideoView(BaseView):
                 inline=False,
             )
         else:
-            embed.add_field(
-                name="Description", value=f"\n>>> {video.description}", inline=False
-            )
+            embed.add_field(name="Description", value=f"\n>>> {video.description}", inline=False)
 
         embed.add_field(
             name="Publish time",

@@ -108,9 +108,7 @@ class Drill(MazeItem):
         x, y = player.get_new_position()
         if player.hp <= 50:
             await interaction.send(
-                embed=Embed(
-                    description="You sure you gonna drill through the wall? You seem a bit low dude"
-                ),
+                embed=Embed(description="You sure you gonna drill through the wall? You seem a bit low dude"),
                 ephemeral=True,
                 delete_after=3,
             )

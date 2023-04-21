@@ -45,9 +45,7 @@ def text_to_num(text: str):
         i = i.lower()
         if not isinstance(i, str):
             # Non-strings are bad are missing data in poster's submission
-            raise TextToNumException(
-                f"text_to_num() must be passed str, not {i.__class__.__qualname__}"
-            )
+            raise TextToNumException(f"text_to_num() must be passed str, not {i.__class__.__qualname__}")
         elif i.isnumeric():
             gold += int(i)
         elif i[-1] in d:
@@ -57,9 +55,7 @@ def text_to_num(text: str):
                 # if this succeeds, you have your (first) float
                 num = float(num)
             except ValueError:
-                raise TextToNumException(
-                    f"text_to_num() received a non-number prefix before {magnitude}"
-                )
+                raise TextToNumException(f"text_to_num() received a non-number prefix before {magnitude}")
             gold += num * d[magnitude]
         else:
             raise TextToNumException(f"text_to_num() is passed an incorrect magnitude.")
@@ -86,10 +82,7 @@ def get_mapping(interaction: Interaction, bot: commands.Bot):
         for application_cmd in cog.application_commands:
             cmd_in_guild = False
             if isinstance(application_cmd, nextcord.SlashApplicationCommand):
-                if (
-                    application_cmd.is_global
-                    or interaction.guild_id in application_cmd.guild_ids
-                ):
+                if application_cmd.is_global or interaction.guild_id in application_cmd.guild_ids:
                     cmd_in_guild = True
                 if cmd_in_guild:
                     commands.append(application_cmd)
@@ -126,9 +119,7 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
     elif isinstance(owned_quantity, int):
         embed.description += f"\nYou own **{owned_quantity}**"
 
-    elif (
-        isinstance(owned_quantity, dict) and owned_quantity
-    ):  # make sure the dict is not empty
+    elif isinstance(owned_quantity, dict) and owned_quantity:  # make sure the dict is not empty
         embed.description += f" \nYou own"
         for inv_type, quantity in owned_quantity.items():
             embed.description += f"\n` - ` **{quantity}** in your {inv_type}"

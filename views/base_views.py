@@ -72,11 +72,7 @@ async def _get_farm_embed_and_img(
     for index, crop in enumerate(farm):
         if crop:
             # find the relevant crop type
-            crop_type = [
-                crop_type
-                for crop_type in crop_types
-                if crop_type["crop_type_id"] == crop["type"]
-            ][0]
+            crop_type = [crop_type for crop_type in crop_types if crop_type["crop_type_id"] == crop["type"]][0]
 
             planted_at: datetime = crop["planted_at"]
             ready_at: datetime = planted_at + crop_type["growth_period"]
@@ -92,9 +88,7 @@ async def _get_farm_embed_and_img(
                 growth_stage = 2
 
             # paste the crop image into the farm image
-            tile_img = Image.open(
-                f"resources/crops/{crop_type['name']}_{growth_stage}.png"
-            )
+            tile_img = Image.open(f"resources/crops/{crop_type['name']}_{growth_stage}.png")
 
         else:
             # tile is empty, paste farm_empty image
@@ -116,9 +110,7 @@ async def _get_farm_embed_and_img(
         # add a small label in bottom right corner of crop if `label_crops` is True
         if label_crops:
             crop_draw = ImageDraw.Draw(tile_img)
-            label = (
-                f"{ascii_uppercase[index // farm_width]}" f"{index % farm_width + 1}"
-            )  # example label: A1
+            label = f"{ascii_uppercase[index // farm_width]}" f"{index % farm_width + 1}"  # example label: A1
 
             font = ImageFont.truetype("resources/font/font.ttf", 24)
             txt_width, txt_height = font.getsize(label)
@@ -216,9 +208,7 @@ class FarmView(BaseView):
         # Check if the player exists
         if not await self.player.is_present():
             await interaction.send(
-                embed=functions.format_with_embed(
-                    "The user hasn't started playing BOSS yet! Maybe invite them over?"
-                ),
+                embed=functions.format_with_embed("The user hasn't started playing BOSS yet! Maybe invite them over?"),
                 ephemeral=True,
             )
             return
@@ -227,11 +217,7 @@ class FarmView(BaseView):
 
         # Check if the player has started his farm
         if not self.farm:
-            await interaction.send(
-                embed=functions.format_with_embed(
-                    "The user hasn't started his/her farm yet!"
-                )
-            )
+            await interaction.send(embed=functions.format_with_embed("The user hasn't started his/her farm yet!"))
             return
 
         # All checks succeeded, send the message with the view
@@ -244,18 +230,14 @@ class FarmView(BaseView):
     @button(label="Plant", style=ButtonStyle.blurple)
     async def plant(self, button: Button, interaction: Interaction):
         """Turn to a new page, `PlantView`, which allows users to plant the crops."""
-        view = PlantView(
-            self.interaction, self.player, self.farm, self.farm_width, self.farm_height
-        )
+        view = PlantView(self.interaction, self.player, self.farm, self.farm_width, self.farm_height)
         await view.update_components()
         await interaction.response.edit_message(**await view.get_msg())
 
     @button(label="Harvest", style=ButtonStyle.blurple)
     async def harvest(self, button: Button, interaction: Interaction):
         """Turn to a new page, `HarvestView`, which allows users to harvest the crops."""
-        view = HarvestView(
-            self.interaction, self.player, self.farm, self.farm_width, self.farm_height
-        )
+        view = HarvestView(self.interaction, self.player, self.farm, self.farm_width, self.farm_height)
         await view.update_components()
         await interaction.response.edit_message(**await view.get_msg())
 
@@ -279,11 +261,7 @@ class FarmView(BaseView):
         for index, crop in enumerate(self.farm):
             if crop:
                 # find the relevant crop type
-                crop_type = [
-                    crop_type
-                    for crop_type in crop_types
-                    if crop_type["id"] == crop["type"]
-                ][0]
+                crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
 
                 planted_at: datetime = crop["planted_at"]
                 ready_at: datetime = planted_at + crop_type["growth_period"]
@@ -315,9 +293,7 @@ class FarmView(BaseView):
         """Increase the user's farm size."""
 
         if self.farm_width * self.farm_height == 12:
-            await interaction.send(
-                embed=functions.format_with_embed("Max size reached!"), ephemeral=True
-            )
+            await interaction.send(embed=functions.format_with_embed("Max size reached!"), ephemeral=True)
             return
 
         # Should result in farm sizes which are either
@@ -349,9 +325,7 @@ class FarmView(BaseView):
         await interaction.response.edit_message(**await view.get_msg())
 
         await interaction.send(
-            embed=functions.format_with_embed(
-                f"Farm size is now increased to `{view.farm_width}x{view.farm_height}`!"
-            ),
+            embed=functions.format_with_embed(f"Farm size is now increased to `{view.farm_width}x{view.farm_height}`!"),
             ephemeral=True,
         )
 
@@ -378,14 +352,10 @@ class PlantView(BaseView):
 
     """The **plant** page of the `/farm` command. Allows players to plant their crops."""
 
-    def __init__(
-        self, interaction: Interaction, player: Player, farm, farm_width, farm_height
-    ):
+    def __init__(self, interaction: Interaction, player: Player, farm, farm_width, farm_height):
         super().__init__(interaction, timeout=180)
 
-        self.player = (
-            player  # only the user itself should be able to access `PlantView`
-        )
+        self.player = player  # only the user itself should be able to access `PlantView`
         self.farm = farm
         self.farm_width = farm_width
         self.farm_height = farm_height
@@ -404,16 +374,13 @@ class PlantView(BaseView):
         for index, crop in enumerate(self.farm):
             if crop is None:  # check if the tile is empty
                 label = (
-                    f"{ascii_uppercase[index // self.farm_width]}"
-                    f"{index % self.farm_width + 1}"
+                    f"{ascii_uppercase[index // self.farm_width]}" f"{index % self.farm_width + 1}"
                 )  # example label: A1
                 crops_select.options.append(
                     SelectOption(
                         label=label,
                         value=index,
-                        default=index in self.crops_to_plant
-                        if self.crops_to_plant
-                        else False,
+                        default=index in self.crops_to_plant if self.crops_to_plant else False,
                     )
                 )
 
@@ -425,16 +392,12 @@ class PlantView(BaseView):
             select_all_btn.label = "Deselect all"
         elif crops_select.options:
             select_all_btn.disabled = False
-            select_all_btn.label = (
-                f"Select all empty tiles ({len(crops_select.options)})"
-            )
+            select_all_btn.label = f"Select all empty tiles ({len(crops_select.options)})"
         else:
             select_all_btn.disabled = True
             select_all_btn.label = f"Select all empty tiles (0)"
 
-        if (
-            not crops_select.options
-        ):  # there are no empty tiles, so we disable the select menus
+        if not crops_select.options:  # there are no empty tiles, so we disable the select menus
             crops_select.placeholder = "No empty tiles"
             crops_select.options = [
                 SelectOption(label="1")
@@ -511,9 +474,7 @@ class PlantView(BaseView):
             if str(option.value) in select.values:
                 option.default = True
 
-        await interaction.response.edit_message(
-            **await self.get_msg(selected_crops=self.crops_to_plant)
-        )
+        await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_plant))
 
     @select(
         placeholder="Choose the crops to plant...",
@@ -533,13 +494,9 @@ class PlantView(BaseView):
             option.default = False
             if str(option.value) in select.values:
                 option.default = True
-                embed.add_field(
-                    name="Planting", value=f"{option.emoji} **{option.label}**"
-                )
+                embed.add_field(name="Planting", value=f"{option.emoji} **{option.label}**")
 
-        await interaction.response.edit_message(
-            **await self.get_msg(embed, selected_crops=self.crops_to_plant)
-        )
+        await interaction.response.edit_message(**await self.get_msg(embed, selected_crops=self.crops_to_plant))
 
     @button(
         label="Select all empty tiles",
@@ -565,9 +522,7 @@ class PlantView(BaseView):
 
         await self.update_components()
 
-        await interaction.response.edit_message(
-            **await self.get_msg(selected_crops=self.crops_to_plant)
-        )
+        await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_plant))
 
     @button(label="Go Back", row=3)
     async def return_to_main_view(self, button: Button, interaction: Interaction):
@@ -605,9 +560,7 @@ class PlantView(BaseView):
                     planted_crops += 1
                 else:  # the tile is actually filled, the user must have used 2 views at the same time
                     await interaction.send(
-                        embed=functions.format_with_embed(
-                            "You can only plant crops in empty tiles!"
-                        ),
+                        embed=functions.format_with_embed("You can only plant crops in empty tiles!"),
                         ephemeral=True,
                     )
                     return
@@ -641,15 +594,11 @@ class PlantView(BaseView):
         # the default option is the one the user chose, so here we fetch that and get its label and emoji
         type_select = [i for i in self.children if i.custom_id == "type_select"][0]
         type_name, type_emoji = [
-            (option.label, option.emoji)
-            for option in type_select.options
-            if option.default == True
+            (option.label, option.emoji) for option in type_select.options if option.default == True
         ][0]
 
         await interaction.send(
-            embed=functions.format_with_embed(
-                f"Planted {planted_crops} **{type_name}** {type_emoji}!"
-            ),
+            embed=functions.format_with_embed(f"Planted {planted_crops} **{type_name}** {type_emoji}!"),
             ephemeral=True,
         )
 
@@ -662,14 +611,10 @@ class HarvestView(BaseView):
     Allows players to harvest their ready crops, or remove their crops which are not grown.
     """
 
-    def __init__(
-        self, interaction: Interaction, player: Player, farm, farm_width, farm_height
-    ):
+    def __init__(self, interaction: Interaction, player: Player, farm, farm_width, farm_height):
         super().__init__(interaction, timeout=180)
 
-        self.player = (
-            player  # only the user itself should be able to access `HarvestView`
-        )
+        self.player = player  # only the user itself should be able to access `HarvestView`
         self.farm = farm
         self.farm_width = farm_width
         self.farm_height = farm_height
@@ -684,22 +629,17 @@ class HarvestView(BaseView):
         for index, crop in enumerate(self.farm):
             if crop is not None:
                 label = (
-                    f"{ascii_uppercase[index // self.farm_width]}"
-                    f"{index % self.farm_width + 1}"
+                    f"{ascii_uppercase[index // self.farm_width]}" f"{index % self.farm_width + 1}"
                 )  # example label: A1
                 crops_select.options.append(
                     SelectOption(
                         label=label,
                         value=index,
-                        default=index in self.crops_to_harvest
-                        if self.crops_to_harvest
-                        else False,
+                        default=index in self.crops_to_harvest if self.crops_to_harvest else False,
                     )
                 )
 
-        if (
-            not crops_select.options
-        ):  # if every tile is empty, we disable the select menus
+        if not crops_select.options:  # if every tile is empty, we disable the select menus
             crops_select.placeholder = "No planted tiles"
             crops_select.options = [
                 SelectOption(label="1")
@@ -726,11 +666,7 @@ class HarvestView(BaseView):
         for index, crop in enumerate(self.farm):
             if crop is not None:
                 # find the relevant crop type
-                crop_type = [
-                    crop_type
-                    for crop_type in crop_types
-                    if crop_type["id"] == crop["type"]
-                ][0]
+                crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
 
                 # check if it has passed the `ready_at` time, which means the crop is ready to be harvested.
                 ready_at: datetime = crop["planted_at"] + crop_type["growth_period"]
@@ -738,13 +674,9 @@ class HarvestView(BaseView):
                 if now > ready_at:
                     ready_tiles.append(index)
 
-        select_all_btn = [
-            i for i in self.children if i.custom_id == "select_all_ready"
-        ][0]
+        select_all_btn = [i for i in self.children if i.custom_id == "select_all_ready"][0]
 
-        if (
-            not ready_tiles
-        ):  # if there are no full grown tiles, we disable the select_all btn
+        if not ready_tiles:  # if there are no full grown tiles, we disable the select_all btn
             select_all_btn.disabled = True
             select_all_btn.label = f"Select all ready tiles (0)"
         else:
@@ -764,9 +696,7 @@ class HarvestView(BaseView):
         if not embed:
             embed = Embed()
         embed.set_author(name=f"{self.interaction.user.name}'s Farm • Harvesting")
-        embed.set_footer(
-            text="Harvest fully grown crops and remove those which are not ready yet!"
-        )
+        embed.set_footer(text="Harvest fully grown crops and remove those which are not ready yet!")
 
         msg = await _get_farm_embed_and_img(
             self.player,
@@ -797,9 +727,7 @@ class HarvestView(BaseView):
 
         await self.update_components()
 
-        await interaction.response.edit_message(
-            **await self.get_msg(selected_crops=self.crops_to_harvest)
-        )
+        await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_harvest))
 
     @button(
         label="Select all ready tiles",
@@ -824,11 +752,7 @@ class HarvestView(BaseView):
             for index, crop in enumerate(self.farm):
                 if crop is not None:
                     # find the relevant crop type
-                    crop_type = [
-                        crop_type
-                        for crop_type in crop_types
-                        if crop_type["id"] == crop["type"]
-                    ][0]
+                    crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
 
                     # check if it has passed the `ready_at` time, which means the crop is ready to be harvested.
                     ready_at: datetime = crop["planted_at"] + crop_type["growth_period"]
@@ -838,9 +762,7 @@ class HarvestView(BaseView):
 
             if not ready_tiles:
                 await interaction.send(
-                    embed=functions.format_with_embed(
-                        "There are no fully grown crops!"
-                    ),
+                    embed=functions.format_with_embed("There are no fully grown crops!"),
                     ephemeral=True,
                 )
                 return
@@ -849,9 +771,7 @@ class HarvestView(BaseView):
 
         await self.update_components()
 
-        await interaction.response.edit_message(
-            **await self.get_msg(selected_crops=self.crops_to_harvest)
-        )
+        await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_harvest))
 
     @button(label="Go Back", row=3)
     async def return_to_main_view(self, button: Button, interaction: Interaction):
@@ -893,11 +813,7 @@ class HarvestView(BaseView):
         for index, crop in enumerate(self.farm):
             if index in self.crops_to_harvest and crop is not None:
                 # find the relevant crop type
-                crop_type = [
-                    crop_type
-                    for crop_type in crop_types
-                    if crop_type["id"] == crop["type"]
-                ][0]
+                crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
 
                 # harvest the crop and make the tile empty
                 self.farm[index] = None
@@ -946,8 +862,6 @@ class HarvestView(BaseView):
                 crop_type = [i for i in crop_types if i["id"] == crop_type_id][0]
                 msg += f"\n` {count}x ` {crop_type['emoji']} **{crop_type['name'].title()}**"
 
-            embed.add_field(
-                name=name.capitalize(), value=msg if msg else "Nothing", inline=False
-            )
+            embed.add_field(name=name.capitalize(), value=msg if msg else "Nothing", inline=False)
 
         await interaction.send(embed=embed, ephemeral=True)

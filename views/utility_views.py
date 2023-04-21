@@ -32,9 +32,7 @@ class HelpView(BaseView):
         self.old_selected_values = ["All"]
 
     def _get_cogs_option(self) -> list[SelectOption]:
-        options: list[SelectOption] = [
-            SelectOption(label="All", emoji="🌐", default=True)
-        ]
+        options: list[SelectOption] = [SelectOption(label="All", emoji="🌐", default=True)]
         for cog_name in self.mapping:
             cog = self.mapping[cog_name][0]
             emoji = getattr(cog, "COG_EMOJI", None)
@@ -54,10 +52,7 @@ class HelpView(BaseView):
         if description:
             embed.description = description
         if set_author:
-            avatar = (
-                self.interaction.client.user.avatar
-                or self.interaction.client.user.default_avatar
-            )
+            avatar = self.interaction.client.user.avatar or self.interaction.client.user.default_avatar
             embed.set_author(name=author_name, icon_url=avatar.url)
         if not command_list:
             for cog_name in self.mapping:
@@ -83,18 +78,14 @@ class HelpView(BaseView):
                         cmd_in_guild = True
             if cmd_in_guild:
                 filtered.append(i)
-        final_cmd_list = filtered[
-            self.get_page_start_index() : self.get_page_end_index() + 1
-        ]
+        final_cmd_list = filtered[self.get_page_start_index() : self.get_page_end_index() + 1]
         for cmd in final_cmd_list:
             value = cmd.description if cmd.description else "..."
             name = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
             if len(cmd.children) > 0:
                 name += " `has subcommands`"
             embed.add_field(name=name, value=f"`➸` {value}", inline=False)
-        embed.set_footer(
-            text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}"
-        )
+        embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}")
         return embed
 
     @select(
@@ -158,17 +149,13 @@ class HelpView(BaseView):
         embed = self.help_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @button(
-        emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True
-    )
+    @button(emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True)
     async def first(self, button: Button, interaction: Interaction):
         self.page = 1
         self.btn_disable()
         await self.get_embed_and_send_msg(interaction)
 
-    @button(
-        emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back"
-    )
+    @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back")
     async def back(self, button: Button, interaction: Interaction):
         self.page -= 1
         self.btn_disable()

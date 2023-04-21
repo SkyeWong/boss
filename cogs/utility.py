@@ -78,9 +78,7 @@ class Utility(commands.Cog, name="Utility"):
             if cmd_in_guild == True:
                 cmd_names.append(base_cmd.name)
             if hasattr(base_cmd, "children") and len(base_cmd.children) > 0:
-                cmd_names.extend(
-                    self.get_all_subcmd_names(interaction.guild_id, base_cmd)
-                )
+                cmd_names.extend(self.get_all_subcmd_names(interaction.guild_id, base_cmd))
         cmd_names.sort()
         if not data:
             # return full list
@@ -121,9 +119,7 @@ class Utility(commands.Cog, name="Utility"):
 
         for i in client.get_all_application_commands():
             # search for the command name
-            if (
-                i.is_global or interaction.guild_id in i.guild_ids
-            ):  # command is available to user
+            if i.is_global or interaction.guild_id in i.guild_ids:  # command is available to user
                 if i.name == cmd_name:  # matched exact command
                     cmd = i
                     break
@@ -146,9 +142,7 @@ class Utility(commands.Cog, name="Utility"):
         embed = Embed()
         name = cmd.qualified_name
         embed.title = f"Info of </{name}:{list(cmd.command_ids.values())[0]}>"
-        embed.set_author(
-            name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url
-        )
+        embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
 
         if len(cmd.children) > 0:
             # this command has subcommands, send a list of the subcommands
@@ -237,9 +231,7 @@ class Utility(commands.Cog, name="Utility"):
         db: Database = self.bot.db
         item = await db.fetchrow(sql, f"%{itemname.lower()}%")
         if not item:
-            await interaction.send(
-                embed=Embed(description="The item is not found!"), ephemeral=True
-            )
+            await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
         else:
             res = await db.fetch(
                 """
@@ -250,10 +242,7 @@ class Utility(commands.Cog, name="Utility"):
                 interaction.user.id,
                 item["item_id"],
             )
-            owned_quantities = {
-                constants.InventoryType(inv_type).name: quantity
-                for inv_type, quantity in res
-            }
+            owned_quantities = {constants.InventoryType(inv_type).name: quantity for inv_type, quantity in res}
             embed = functions.get_item_embed(item, owned_quantities)
             await interaction.send(embed=embed)
 

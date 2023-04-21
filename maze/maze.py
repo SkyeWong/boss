@@ -34,13 +34,9 @@ class MazeButton(Button["Maze"]):
                     custom_id=f"walk {btn_func}",
                 )
             elif btn_func == 4:  # run button
-                super().__init__(
-                    style=ButtonStyle.blurple, emoji="🏃", row=y, custom_id="run"
-                )
+                super().__init__(style=ButtonStyle.blurple, emoji="🏃", row=y, custom_id="run")
             elif btn_func == 5:  # punch button
-                super().__init__(
-                    style=ButtonStyle.blurple, emoji="👊", row=y, custom_id="punch"
-                )
+                super().__init__(style=ButtonStyle.blurple, emoji="👊", row=y, custom_id="punch")
             elif btn_func == 6:  # inventory
                 super().__init__(
                     style=ButtonStyle.blurple,
@@ -100,9 +96,7 @@ class MazeButton(Button["Maze"]):
                 return
             if player.hunger < 30:  # stop running if hunger is too low
                 await interaction.send(
-                    embed=Embed(
-                        description="I'm too tired to run! Find some food before sprinting again."
-                    ),
+                    embed=Embed(description="I'm too tired to run! Find some food before sprinting again."),
                     ephemeral=True,
                 )
                 return
@@ -120,9 +114,7 @@ class MazeButton(Button["Maze"]):
                 while player.walking == True:  # if player walked, continue to do so
                     if player.hunger < 30:  # stop running if hunger is too low
                         await interaction.send(
-                            embed=Embed(
-                                description="I'm too tired to run! Find some food before sprinting again."
-                            ),
+                            embed=Embed(description="I'm too tired to run! Find some food before sprinting again."),
                             ephemeral=True,
                         )
                         break
@@ -187,9 +179,7 @@ class MazeButton(Button["Maze"]):
             embed.set_author(name="Inventory")
             embed.add_field(name="Item", value="`not selected`")
             inv_view = InvView(view)
-            inv_view.msg = await interaction.send(
-                embed=embed, view=inv_view, ephemeral=True
-            )
+            inv_view.msg = await interaction.send(embed=embed, view=inv_view, ephemeral=True)
         elif "compass" in self.custom_id:
             embed = Embed()
             embed.set_image(self.emoji.url)
@@ -203,17 +193,13 @@ class MazeButton(Button["Maze"]):
         embed.colour = random.choice(constants.EMBED_COLOURS)
         return embed
 
-    async def check_in_cooldown(
-        self, interaction: Interaction, action: str, action_gerund: str = None
-    ):
+    async def check_in_cooldown(self, interaction: Interaction, action: str, action_gerund: str = None):
         player = self.player
         cd = (datetime.now() - player.cooldowns[action][0]).total_seconds()
         if cd < player.cooldowns[action][1]:
             embed = self.get_cooldown_embed(
                 player.cooldowns[action][1] - cd,
-                action_gerund.title()
-                if action_gerund is not None
-                else f"`{action.title()}`",
+                action_gerund.title() if action_gerund is not None else f"`{action.title()}`",
             )
             await interaction.send(embed=embed, ephemeral=True)
             return True
@@ -315,26 +301,18 @@ class Maze(BaseView):
         while True:
             enemy.x = random.randint(1, len(self.maze_map[0])) - 1
             enemy.y = random.randint(1, len(self.maze_map)) - 1
-            distance_with_player = math.sqrt(
-                (self.player.x - enemy.x) ** 2 + (self.player.y - enemy.y) ** 2
-            )
-            if (self.maze_map[enemy.y][enemy.x] not in enemy.unwalkable_cells) and (
-                distance_with_player > 8
-            ):
+            distance_with_player = math.sqrt((self.player.x - enemy.x) ** 2 + (self.player.y - enemy.y) ** 2)
+            if (self.maze_map[enemy.y][enemy.x] not in enemy.unwalkable_cells) and (distance_with_player > 8):
                 break
         enemy.move.start()
         self.enemies.append(enemy)
 
     def spawn_item(self):
-        item = random.choices(
-            list(ITEMS.values()), [item.spawn_chance for item in ITEMS.values()]
-        )[0]
+        item = random.choices(list(ITEMS.values()), [item.spawn_chance for item in ITEMS.values()])[0]
         while True:
             x = random.randint(1, len(self.maze_map[0])) - 1
             y = random.randint(1, len(self.maze_map)) - 1
-            distance_with_player = math.sqrt(
-                (self.player.x - x) ** 2 + (self.player.y - y) ** 2
-            )
+            distance_with_player = math.sqrt((self.player.x - x) ** 2 + (self.player.y - y) ** 2)
             if (
                 (self.maze_map[y][x] != 3)
                 and (self.maze_map[y][x] not in self.player.unwalkable_cells)
@@ -396,13 +374,9 @@ class Maze(BaseView):
         if self.maze_map[player.y][player.x] == 2:  # win
             player.emoji = "🤴🏻"
             self.end_maze()
-            await interaction.send(
-                embed=Embed(description="Congrats, you won! 🎉🎉🎉"), ephemeral=True
-            )
+            await interaction.send(embed=Embed(description="Congrats, you won! 🎉🎉🎉"), ephemeral=True)
 
-        if item := [
-            item for item in self.items if player.x == item.x and player.y == item.y
-        ]:  # picked up item
+        if item := [item for item in self.items if player.x == item.x and player.y == item.y]:  # picked up item
             item: MazeItem = item[0]
             self.items.remove(item)
 
@@ -443,10 +417,7 @@ class Maze(BaseView):
             x_end_index = len(self.maze_map[0])
             x_start_index = x_end_index - cam_width
 
-        cam = [
-            i[x_start_index:x_end_index]
-            for i in self.maze_map[y_start_index:y_end_index]
-        ]
+        cam = [i[x_start_index:x_end_index] for i in self.maze_map[y_start_index:y_end_index]]
         return cam, x_start_index, y_start_index
 
     def draw_camera(self, camera, x_start_index, y_start_index):
@@ -458,26 +429,19 @@ class Maze(BaseView):
         for y in range(self.cam_width):  # 0-8
             camera_str += "<:frame2:1073794643411619931>"
             for x in range(self.cam_width):  # 0-8
-                if (
-                    x + x_start_index == self.player.x
-                    and y + y_start_index == self.player.y
-                ):
+                if x + x_start_index == self.player.x and y + y_start_index == self.player.y:
                     camera_str += self.player.emoji
 
                 elif isinstance(camera[y][x], str):  # specified text
                     camera_str += camera[y][x]
 
                 elif item := [
-                    item
-                    for item in self.items
-                    if x + x_start_index == item.x and y + y_start_index == item.y
+                    item for item in self.items if x + x_start_index == item.x and y + y_start_index == item.y
                 ]:
                     camera_str += item[0].emoji
 
                 elif enemy := [
-                    enemy
-                    for enemy in self.enemies
-                    if x + x_start_index == enemy.x and y + y_start_index == enemy.y
+                    enemy for enemy in self.enemies if x + x_start_index == enemy.x and y + y_start_index == enemy.y
                 ]:
                     camera_str += enemy[0].emoji
 
@@ -491,9 +455,7 @@ class Maze(BaseView):
                     camera_str += "🟨"
 
                 elif camera[y][x] == 3:  # trap
-                    camera_str += (
-                        "<:trap:1028648275634573343>"  # 25% opacity empty emoji
-                    )
+                    camera_str += "<:trap:1028648275634573343>"  # 25% opacity empty emoji
 
             camera_str += "<:frame2:1073794643411619931>\n"
 
@@ -502,9 +464,7 @@ class Maze(BaseView):
         camera_str += "<:frame1:1073794639758364844>"
         return camera_str
 
-    def get_embed(
-        self, set_cam: tuple = None
-    ):  # cam: (cam, x_start_index, y_start_index)
+    def get_embed(self, set_cam: tuple = None):  # cam: (cam, x_start_index, y_start_index)
         embed = Embed()
 
         if set_cam is not None:
@@ -593,9 +553,7 @@ class InvView(View):
     async def select_item(self, select: Select, interaction: Interaction):
         await interaction.response.defer()
 
-        items = [
-            items for name, items in self.inventory.items() if name == select.values[0]
-        ][0]
+        items = [items for name, items in self.inventory.items() if name == select.values[0]][0]
         self.item: MazeItem = items[-1]
 
         use_1 = [i for i in self.children if i.custom_id == "use_1"][0]
@@ -605,9 +563,7 @@ class InvView(View):
         use_max.disabled = False
 
         inv_quantity = len(items)
-        self.max_quantity = (
-            inv_quantity if inv_quantity < self.item.max_use else self.item.max_use
-        )
+        self.max_quantity = inv_quantity if inv_quantity < self.item.max_use else self.item.max_use
         use_max.label = f"Use max ({self.max_quantity})"
 
         embed = self.msg.embeds[0]
@@ -628,9 +584,7 @@ class InvView(View):
         items = self.inventory[self.item.name]
         if len(items) < 1:
             await interaction.send(
-                embed=Embed(
-                    description=f"You don't have enough {self.item.emoji} {self.item.name}!"
-                ),
+                embed=Embed(description=f"You don't have enough {self.item.emoji} {self.item.name}!"),
                 ephemeral=True,
             )
             return
@@ -640,23 +594,17 @@ class InvView(View):
         await self.item.use(view=self.maze, interaction=interaction)
         await self.msg.delete()
 
-    @button(
-        label="Use max", style=ButtonStyle.blurple, disabled=True, custom_id="use_max"
-    )
+    @button(label="Use max", style=ButtonStyle.blurple, disabled=True, custom_id="use_max")
     async def use_max_item(self, button: Button, interaction: Interaction):
         items = self.inventory[self.item.name]
         if len(items) < self.max_quantity:
             await interaction.send(
-                embed=Embed(
-                    description=f"You don't have enough {self.item.emoji} {self.item.name}!"
-                ),
+                embed=Embed(description=f"You don't have enough {self.item.emoji} {self.item.name}!"),
                 ephemeral=True,
             )
             return
 
         self.inventory[self.item.name] = items[: -self.max_quantity]
 
-        await self.item.use(
-            view=self.maze, interaction=interaction, quantity=self.max_quantity
-        )
+        await self.item.use(view=self.maze, interaction=interaction, quantity=self.max_quantity)
         await self.msg.delete()
