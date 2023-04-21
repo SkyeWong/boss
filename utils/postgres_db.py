@@ -38,12 +38,13 @@ class Database:
 
     async def connect(self) -> Pool:
         """Connect to the database and return the connection."""
-        print(f"\033[1;34mConnecting to the database...\033[0m")
-        self.reconnecting = True
-        self.pool = await asyncpg.create_pool(DSN_DB.format(**self.params))
-        self.reconnecting = False
-        print(f"\033[1;36m{self.params['user']}\033[0m has connected to the \033[0;34mneon.db database!\033[0m")
-        return self.pool
+        if not self.reconnecting and not self.connected:
+            print(f"\033[1;34mConnecting to the database...\033[0m")
+            self.reconnecting = True
+            self.pool = await asyncpg.create_pool(DSN_DB.format(**self.params))
+            self.reconnecting = False
+            print(f"\033[1;36m{self.params['user']}\033[0m has connected to the \033[0;34mneon.db database!\033[0m")
+            return self.pool
 
     async def disconnect(self):
         """Disconnect to the database."""
