@@ -382,21 +382,32 @@ class Fun(commands.Cog, name="Fun"):
         interaction: Interaction,
         category: str = SlashOption(
             description="Category of the trivia question",
-            choices={
-                i.replace("_", " ").capitalize(): i
-                for i in (
-                    "music",
-                    "sport_and_leisure",
-                    "film_and_tv",
-                    "arts_and_literature",
-                    "history",
-                    "society_and_culture",
-                    "science",
-                    "geography",
-                    "food_and_drink",
-                    "general_knowledge",
-                )
-            },  # list of enums from https://the-trivia-api.com/,
+            choices={  # category_name: id
+                "Animals": "27",
+                "Art": "25",
+                "Celebrities": "26",
+                "Entertainment: Board Games": "16",
+                "Entertainment: Books": "10",
+                "Entertainment: Cartoon & Animations": "32",
+                "Entertainment: Comics": "29",
+                "Entertainment: Film": "11",
+                "Entertainment: Japanese Anime & Manga": "31",
+                "Entertainment: Music": "12",
+                "Entertainment: Musicals & Theatres": "13",
+                "Entertainment: Television": "14",
+                "Entertainment: Video Games": "15",
+                "General Knowledge": "9",
+                "Geography": "22",
+                "History": "23",
+                "Mythology": "20",
+                "Politics": "24",
+                "Science & Nature": "17",
+                "Science: Computers": "18",
+                "Science: Gadgets": "30",
+                "Science: Mathematics": "19",
+                "Sports": "21",
+                "Vehicles": "28"
+            },
             required=False,
             default=None,
         ),
@@ -410,32 +421,33 @@ class Fun(commands.Cog, name="Fun"):
         """Test your knowledge with a random trivia question!"""
         params = {
             # predefined
-            "type": "text_choice",
-            "limit": 1,
+            "type": "multiple",
+            "amount": 1,
         }
         # user-defined
         if category:
-            params.update(categories=category)
+            params.update(category=category)
         if difficulty:
-            params.update(difficulties=difficulty)
+            params.update(difficulty=difficulty)
 
         while True:
             async with aiohttp.ClientSession() as session:
-                async with session.get("https://the-trivia-api.com/v2/questions", params=params) as response:
+                async with session.get("https://opentdb.com/api.php", params=params) as response:
                     question_res = await response.json()
-                    question_res = question_res[0]
-                    question_res["question"] = question_res["question"]["text"]
+                    
+                    if question_res["response_code"] != 0:  # error response code
+                        await interaction.send(embed=functions.format_with_embed("An error occured. Please try again"), ephemeral=True)
+                        return
+                    
+                    question_res = question_res["results"][0]
 
-            question = TriviaQuestion()
-            for k, v in question_res.items():
-                if k in question.__slots__:
-                    setattr(question, k, v)
-
+            kwargs = {k: v for k, v in question_res.items() if k in TriviaQuestion.__slots__}
             try:
-                view = TriviaView(interaction, question)
+                question = TriviaQuestion(**kwargs)
             except functions.ComponentLabelTooLong:
                 continue
             else:
+                view = TriviaView(interaction, question)
                 break
 
         await view.send()

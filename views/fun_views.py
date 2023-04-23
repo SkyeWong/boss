@@ -10,7 +10,7 @@ from views.template_views import BaseView
 # default modules
 import random
 import math
-
+import html
 
 class FightPlayer:
     def __init__(self, user: nextcord.User, hp=100):
@@ -226,11 +226,27 @@ class EmojiView(BaseView):
 class TriviaQuestion:
     __slots__ = (
         "question",
-        "correctAnswer",
-        "incorrectAnswers",
+        "correct_answer",
+        "incorrect_answers",
         "category",
         "difficulty",
     )
+    
+    def __init__(self, question: str, correct_answer: str, incorrect_answers: list[str], category: str, difficulty: str) -> None:
+        self.question = html.unescape(question)
+        if len(question) > 100:
+            raise functions.ComponentLabelTooLong(f"Question `{question}` is too long.")
+        
+        self.correct_answer = html.unescape(correct_answer)
+        if len(correct_answer) > 50:
+            raise functions.ComponentLabelTooLong(f"Label of `{correct_answer}` is too long.")
+            
+        self.incorrect_answers = [html.unescape(i) for i in incorrect_answers]
+        if any([len(i) > 50 for i in self.incorrect_answers]):
+            raise functions.ComponentLabelTooLong(f"Label of an incorrect_answer is too long.")
+        
+        self.category = category
+        self.difficulty = difficulty
 
 
 class TriviaAnswerButton(Button):
@@ -242,7 +258,7 @@ class TriviaAnswerButton(Button):
 
         view: TriviaView = self.view
 
-        if self.label == view.question.correctAnswer:  # the user got the question correct
+        if self.label == view.question.correct_answer:  # the user got the question correct
             self.style = ButtonStyle.green
 
             msgs = (
@@ -272,7 +288,7 @@ class TriviaAnswerButton(Button):
                 "Could it get easier? Still, you got it wrong.",
                 "Fits you to get it wrong, you're unicellular.",
                 "Even an amoeba would have got it right.",
-                'Sodium said "_na..._" to your answer.',
+                "Sodium said '_na..._' to your answer.\n Bet you didn't get that.",
                 "Better luck next time.",
                 "Nice try, that was.",
                 "You've managed to achieve a new level of incompetence.",
@@ -280,10 +296,10 @@ class TriviaAnswerButton(Button):
                 "I'm sure your participation trophy is in the mail. Keep an eye out for it!",
                 "Better luck next time, champ. Or maybe just bring a lifeline or two.",
             )
-            msg = f"{random.choice(msgs)}\nThe correct answer was _{view.question.correctAnswer}_."  # choose a random msg and append it with the correct answer
+            msg = f"{random.choice(msgs)}\nThe correct answer was _{view.question.correct_answer}_."  # choose a random msg and append it with the correct answer
 
             # set the correct answer's button to green
-            correct_btn = [i for i in view.children if i.label == view.question.correctAnswer][0]
+            correct_btn = [i for i in view.children if i.label == view.question.correct_answer][0]
             correct_btn.style = ButtonStyle.green
 
         # disable all buttons
@@ -307,16 +323,11 @@ class TriviaView(BaseView):
 
         self.question = question
 
-        if len(question.question) > 100:
-            raise functions.ComponentLabelTooLong(f"Question `{question.question}` is too long.")
-
-        answers = question.incorrectAnswers + [question.correctAnswer]
-        random.shuffle(answers)
+        answers = question.incorrect_answers + [question.correct_answer]
         # make the order of answers random so that the correct answer will not always appear at the same place
+        random.shuffle(answers)
 
         for ans in answers:
-            if len(ans) > 50:
-                raise functions.ComponentLabelTooLong(f"Label of `{ans}` is too long.")
             self.add_item(TriviaAnswerButton(ans))
 
         self.message: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = None
@@ -329,8 +340,8 @@ class TriviaView(BaseView):
         embed.title = self.question.question
         embed.description = f"_You have {self.timeout} seconds to answer._"
 
-        embed.add_field(name="Difficulty", value=self.question.difficulty.capitalize())
-        embed.add_field(name="Category", value=self.question.category.replace("_", " ").capitalize())
+        embed.add_field(name="Difficulty", value=self.question.difficulty.title())
+        embed.add_field(name="Category", value=self.question.category.title())
 
         return embed
 
