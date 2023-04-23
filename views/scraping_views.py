@@ -284,6 +284,16 @@ class VideoView(BaseView):
         self.disable_buttons()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
+        
+    @button(emoji="📃", style=ButtonStyle.grey, custom_id="description")
+    async def show_description(self, button: Button, interaction: Interaction):
+        embed = Embed()
+        video = self.videos[self.page]
+
+        embed.set_author(name=video.title)
+        embed.set_thumbnail(url=video.thumbnail_url)
+        embed.description = video.description[:4096]  # upper limit for description length is 4096.
+        await interaction.send(embed=embed, ephemeral=True)
 
     @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
     async def next(self, button: Button, interaction: Interaction):
