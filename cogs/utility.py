@@ -89,7 +89,6 @@ class Utility(commands.Cog, name="Utility"):
             await interaction.response.send_autocomplete(near_items[:25])
 
     @nextcord.slash_command(name="help")
-    @cooldowns.cooldown(1, 12, SlashBucket.author)
     async def help(
         self,
         interaction: Interaction,
@@ -131,26 +130,25 @@ class Utility(commands.Cog, name="Utility"):
                     else:
                         break
 
-        if cmd is None:
-            await interaction.send(
-                embed=functions.format_with_embed(
-                    "The command is not found! Use </help:964753444164501505> for a list of available commands"
+        if cmd is None:  # no exact match of command
+            # search for command that matches partially
+            cmds = [i for i in client.get_all_application_commands() if cmd_name in i.qualified_name]
+            
+            if (
+                not cmds  # no command is matched exactly or partially.
+                or len(cmd_name) < 3  # the search term should be at least 3 characters long.
+            ):
+                await interaction.send(
+                    embed=functions.format_with_embed(
+                        "The command is not found! Use </help:964753444164501505> for a list of available commands"
+                    )
                 )
-            )
-            return
-
-        embed = Embed()
-        name = cmd.qualified_name
-        embed.title = f"Info of </{name}:{list(cmd.command_ids.values())[0]}>"
-        embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
-
-        if len(cmd.children) > 0:
-            # this command has subcommands, send a list of the subcommands
+                return
+            
             view = HelpView(interaction, mapping)
-            view.cmd_list = cmd.children.values()
+            view.cmd_list = cmds
             embed = view.help_embed(
-                description=f">>> {cmd.description}",
-                author_name=f"Subcommands of /{name}",
+                author_name=f"Commands matching '{cmd_name}'",
             )
 
             # disable some paginating buttons
@@ -160,37 +158,62 @@ class Utility(commands.Cog, name="Utility"):
             select = [i for i in view.children if i.custom_id == "cog_select"][0]
             view.remove_item(select)
             await interaction.send(embed=embed, view=view)
-        else:
-            # this command does not have subcommands,
-            # send values of the command itself
-            embed.description = cmd.description
+            return
+            
+            
+        else:  # the exact command has been found
+            embed = Embed()
+            name = cmd.qualified_name
+            embed.title = f"Info of </{name}:{list(cmd.command_ids.values())[0]}>"
+            embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
 
-            cmd_options = [i for i in list(cmd.options.values())]
-            usage = f"`/{name} "
-
-            options_txt = ""
-            for option in cmd_options:
-                if option.required == True:
-                    usage += f"<{option.name}> "
-                else:
-                    usage += f"[{option.name}] "
-
-                options_txt += (
-                    f"**`{option.name}`**: {option.description}\n"
-                    if option.description != "No description provided."
-                    else ""
+            if len(cmd.children) > 0:
+                # this command has subcommands, send a list of the subcommands
+                view = HelpView(interaction, mapping)
+                view.cmd_list = cmd.children.values()
+                embed = view.help_embed(
+                    description=f">>> {cmd.description}",
+                    author_name=f"Subcommands of /{name}",
                 )
 
-            usage = usage[:-1]  # remove the last space
-            usage += "`"  # make it monospace
+                # disable some paginating buttons
+                view.btn_disable()
 
-            embed.add_field(name="Usage", value=usage, inline=False)
-            if options_txt != "":
-                embed.add_field(name="Options", value=options_txt, inline=False)
+                # remove the select menu to choose between cogs
+                select = [i for i in view.children if i.custom_id == "cog_select"][0]
+                view.remove_item(select)
+                await interaction.send(embed=embed, view=view)
+            else:
+                # this command does not have subcommands,
+                # send values of the command itself
+                embed.description = cmd.description
 
-            embed.set_footer(text="Syntax: <required> [optional]")
-            embed.colour = random.choice(constants.EMBED_COLOURS)
-            await interaction.send(embed=embed)
+                cmd_options = [i for i in list(cmd.options.values())]
+                usage = f"`/{name} "
+
+                options_txt = ""
+                for option in cmd_options:
+                    if option.required == True:
+                        usage += f"<{option.name}> "
+                    else:
+                        usage += f"[{option.name}] "
+
+                    options_txt += (
+                        f"**`{option.name}`**: {option.description}\n"
+                        if option.description != "No description provided."
+                        else ""
+                    )
+
+                usage = usage[:-1]  # remove the last space
+                usage += "`"  # make it monospace
+
+                embed.add_field(name="Usage", value=usage, inline=False)
+                if options_txt != "":
+                    embed.add_field(name="Options", value=options_txt, inline=False)
+
+                embed.set_footer(text="Syntax: <required> [optional]")
+                embed.colour = random.choice(constants.EMBED_COLOURS)
+                await interaction.send(embed=embed)
 
     async def choose_item_autocomplete(self, interaction: Interaction, data: str):
         sql = """
