@@ -22,6 +22,7 @@ class HelpView(BaseView):
 
         for cog_name, (cog, commands) in mapping.items():
             self.cmd_list.extend(commands)
+            
         self.cmd_list.sort(key=lambda x: x.qualified_name)
         cog_select_menu = [i for i in self.children if i.custom_id == "cog_select"][0]
         options = self._get_cogs_option()
@@ -46,7 +47,8 @@ class HelpView(BaseView):
         set_author: bool = True,
         author_name: str = "Commands",
     ):
-        command_list = self.cmd_list
+        command_list = sorted(list(self.cmd_list), key=lambda x: x.qualified_name)
+
         embed = Embed()
         embed.colour = random.choice(constants.EMBED_COLOURS)
         if description:
