@@ -113,9 +113,9 @@ class Utility(commands.Cog, name="Utility"):
             cmd_name = cmd_name.strip()
             if cmd_name.startswith("$"):  # search for commands, not just exact matches
                 cmd_name = cmd_name[1:]  # remove "$" prefix
-                if len(cmd_name) <= 3:
+                if len(cmd_name) < 3:
                     await interaction.send(embed=functions.format_with_embed(
-                        "Use search terms longer than 3 characters."
+                        "Use search terms at least 3 characters long."
                     ))
                     return
                 
