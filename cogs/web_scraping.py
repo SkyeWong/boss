@@ -8,6 +8,8 @@ import aiohttp, requests
 import googleapiclient.discovery
 from pytube import Search
 
+from utils import functions
+
 # views
 from views.scraping_views import WeatherView, PersistentWeatherView, VideoView, Video
 
@@ -361,7 +363,7 @@ class WebScraping(commands.Cog, name="Web Scraping"):
                 html = await response.json()
         import json
         formatted = json.dumps(html, indent=4)
-        await interaction.send(formatted)
+        await interaction.send(embed=functions.format_with_embed(f"```json\n{formatted}\n```"))
                 
     @next_train.on_autocomplete("station")
     async def station_autocomplete(self, interaction: Interaction, station: str, line: Optional[str] = None):
