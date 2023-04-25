@@ -17,6 +17,7 @@ import datetime
 import html
 import pytz
 from contextlib import suppress
+from typing import Optional
 
 
 class WebScraping(commands.Cog, name="Web Scraping"):
@@ -188,7 +189,7 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         else:
             await interaction.response.send_autocomplete([data] + results[:24])
 
-    @nextcord.slash_command(name="search-channel", description="Finds the newest videos of a channel")
+    @nextcord.slash_command(name="search-channel")
     @application_checks.is_owner()
     async def find_yt_channel(
         self,
@@ -198,6 +199,7 @@ class WebScraping(commands.Cog, name="Web Scraping"):
             autocomplete_callback=search_yt_autocomplete,
         ),
     ):
+        """Finds the newest videos of a channel"""
         api_service_name = "youtube"
         api_version = "v3"
         dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
@@ -239,7 +241,7 @@ class WebScraping(commands.Cog, name="Web Scraping"):
 
         view.msg = await interaction.send(embed=embed, view=view)
 
-    @nextcord.slash_command(name="search-youtube", description="Searches for videos on Youtube")
+    @nextcord.slash_command(name="search-youtube")
     @application_checks.is_owner()
     async def search_youtube(
         self,
@@ -251,6 +253,7 @@ class WebScraping(commands.Cog, name="Web Scraping"):
             min_length=3,
         ),
     ):
+        """Searches for videos on Youtube"""
         s = Search(query)
 
         video_ids = [video.video_id for video in s.results][:25]
@@ -272,17 +275,15 @@ class WebScraping(commands.Cog, name="Web Scraping"):
 
         view.msg = await interaction.send(embed=embed, view=view)
 
-    @nextcord.slash_command(
-        name="upload-imgur",
-        description="Uploads an image to imgur anonymously and returns the link",
-    )
-    async def upload_imgur_cmd(
+    @nextcord.slash_command(name="upload-imgur")
+    async def upload_imgur(
         self,
         interaction: Interaction,
         image: nextcord.Attachment = SlashOption(description="Image to upload", required=True),
         title: str = SlashOption(description="Title of image (optional)", required=False),
         description: str = SlashOption(description="Description of image (optional)", required=False),
     ):
+        """Uploads an image to imgur anonymously and returns the link"""
         payload = {
             "image": image.url,
             "type": "url",
@@ -334,6 +335,167 @@ class WebScraping(commands.Cog, name="Web Scraping"):
             ),
         )
         await interaction.send(embed=embed)
+        
+    @nextcord.slash_command(name="next-train")
+    async def next_train(
+        self, 
+        interaction: Interaction,
+        line: str=SlashOption(
+            description="The railway line",
+            choices={
+                "Airport Express": "AEL",
+                "Tung Chung Line": "TCL",
+                "Tuen Ma Line": "TML",
+                "Tseung Kwan O Line": "TKO",
+                "East Rail Line": "EAL",
+                "South Island Line": "SIL",
+                "Tseun Wan Line": "TWL",
+            }
+        ),
+        station: str=SlashOption(description="Any station in the line")
+    ):
+        """Shows information of the HK MTR train system."""   
+        params = {"line": line, "sta": station}
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php", params=params) as response:
+                html = await response.json()
+        import json
+        formatted = json.dumps(html, indent=4)
+        await interaction.send(formatted)
+                
+    @next_train.on_autocomplete("station")
+    async def station_autocomplete(self, interaction: Interaction, station: str, line: Optional[str] = None):
+        """
+        If `line` is empty, tell users to choose a line first.
+        Otherwise, search for a specifc station.
+        """
+        LINE_CODES = {
+            "Airport Express": "AEL",
+            "Tung Chung Line": "TCL",
+            "Tuen Ma Line": "TML",
+            "Tseung Kwan O Line": "TKO",
+            "East Rail Line": "EAL",
+            "South Island Line": "SIL",
+            "Tseun Wan Line": "TWL",
+        }
+        LINE_STATION_CODES = {
+            "AEL": {
+                "Hong Kong": "HOK",
+                "Kowloon": "KOW",
+                "Tsing Yi": "TSY",
+                "Airport": "AIR",
+                "AsiaWorld Expo": "AWE",
+            },
+            "TCL": {
+                "Hong Kong": "HOK",
+                "Kowloon": "KOW",
+                "Olympic": "OLY",
+                "Nam Cheong": "NAC",
+                "Lai King": "LAK",
+                "Tsing Yi": "TSY",
+                "Sunny Bay": "SUN",
+                "Tung Chung": "TUC",
+            },
+            "TML": {
+                "Wu Kai Sha": "WKS",
+                "Ma On Shan": "MOS",
+                "Heng On": "HEO",
+                "Tai Shui Hang": "TSH",
+                "Shek Mun": "SHM",
+                "City One": "CIO",
+                "Sha Tin Wai": "STW",
+                "Che Kung Temple": "CKT",
+                "Tai Wai": "TAW",
+                "Hin Keng": "HIK",
+                "Diamond Hill": "DIH",
+                "Kai Tak": "KAT",
+                "Sung Wong Toi": "SUW",
+                "To Kwa Wan": "TKW",
+                "Ho Man Tin": "HOM",
+                "Hung Hom": "HUH",
+                "East Tsim Sha Tsui": "ETS",
+                "Austin": "AUS",
+                "Nam Cheong": "NAC",
+                "Mei Foo": "MEF",
+                "Tsuen Wan West": "TWW", 
+                "Kam Sheung Road": "KSR", 
+                "Yuen Long": "YUL", 
+                "Long Ping": "LOP", 
+                "Tin Shui Wai": "TIS", 
+                "Siu Hong": "SIH", 
+                "Tuen Mun": "TUM", 
+            },
+            "TKO": {
+                "North Point": "NOP", 
+                "Quarry Bay": "QUB", 
+                "Yau Tong": "YAT", 
+                "Tiu Keng Leng": "TIK", 
+                "Tseung Kwan O": "TKO", 
+                "LOHAS Park": "LHP", 
+                "Hang Hau": "HAH", 
+                "Po Lam": "POA", 
+            },
+            "EAL": {
+                "Admiralty": "ADM", 
+                "Exhibition Centre": "EXC", 
+                "Hung Hom": "HUH", 
+                "Mong Kok East": "MKK", 
+                "Kowloon Tong": "KOT", 
+                "Tai Wai": "TAW", 
+                "Sha Tin": "SHT", 
+                "Fo Tan": "FOT", 
+                "Racecourse": "RAC", 
+                "University": "UNI", 
+                "Tai Po Market": "TAP", 
+                "Tai Wo": "TWO", 
+                "Fanling": "FAN", 
+                "Sheung Shui": "SHS", 
+                "Lo Wu": "LOW", 
+                "Lok Ma Chau": "LMC", 
+            },
+            "SIL": {
+                "Admiralty": "ADM", 
+                "Ocean Park": "OCP", 
+                "Wong Chuk Hang": "WCH", 
+                "Lei Tung": "LET", 
+                "South Horizons": "SOH", 
+            },
+            "TWL": {
+                "Central": "CEN", 
+                "Admiralty": "ADM", 
+                "Tsim Sha Tsui": "TST", 
+                "Jordan": "JOR", 
+                "Yau Ma Tei": "YMT", 
+                "Mong Kok": "MOK", 
+                "Price Edward": "PRE", 
+                "Sham Shui Po": "SSP", 
+                "Cheung Sha Wan": "CSW", 
+                "Lai Chi Kok": "LCK", 
+                "Mei Foo": "MEF", 
+                "Lai King": "LAK", 
+                "Kwai Fong": "KWF", 
+                "Kwai Hing": "KWH", 
+                "Tai Wo Hau": "TWH", 
+                "Tsuen Wan": "TSW", 
+            },
+        }
+        
+        if not line:
+            await interaction.response.send_autocomplete(["Open the slash command again and choose a line first.", "If you want to switch to a new line, do that too."])
+            return
+        if line and not station:
+            stations = dict(sorted(
+                [(name, code) for name, code in LINE_STATION_CODES[line].items()]
+            )[:25])
+            await interaction.response.send_autocomplete(stations)
+            return
+        
+        station = station.strip()
+        # search for stations
+        near_stations = dict(sorted(
+            [(name, code) for name, code in LINE_STATION_CODES[line].items() if name.lower().startswith(station.lower())]
+        )[:25])
+        await interaction.response.send_autocomplete(near_stations)
 
 
 def setup(bot: commands.Bot):
