@@ -32,7 +32,7 @@ class Players(commands.Cog, name="Players"):
     def __init__(self, bot):
         self.bot = bot
 
-    @nextcord.slash_command(name="profile")
+    @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author)
     async def profile(
         self,
@@ -122,8 +122,69 @@ class Players(commands.Cog, name="Players"):
             inline=False,
         )
         await interaction.send(embed=profile_ui)
+        
+    @nextcord.slash_command()
+    @cooldowns.cooldown(1, 15, SlashBucket.author)
+    async def balance(
+        self,
+        interaction: Interaction,
+        user: nextcord.User = SlashOption(
+            name="user",
+            description="The user to check the balance. Leave this empty to view yours.",
+            required=False,
+            default=None,
+        ),
+    ):
+        """Check your or other user's balance."""
+        if user is None:
+            user = interaction.user
+        db: Database = self.bot.db
 
-    @nextcord.slash_command(name="backpack")
+        player = Player(db, user)
+        if not await player.is_present():
+            await interaction.send(
+                embed=Embed(description="The user hasn't started playing BOSS yet! Maybe invite them over?"),
+                ephemeral=True,
+            )
+            return
+
+        gold = await db.fetchval(
+            """
+            SELECT gold
+            FROM players.players
+            WHERE player_id = $1
+            """,
+            user.id,
+        )
+
+        embed = Embed()
+        embed.colour = random.choice(constants.EMBED_COLOURS)
+        embed.title = f"{user}'s Balance"
+        
+        item_worth = await db.fetchval(
+            """
+            SELECT SUM(items.trade_price * inv.quantity)::bigint As item_worth
+                FROM players.inventory As inv
+
+                INNER JOIN utility.items
+                ON inv.item_id = items.item_id
+                
+                INNER JOIN players.players
+                ON inv.player_id = players.player_id
+            WHERE inv.player_id = $1
+            GROUP BY players.gold
+            """,
+            user.id,
+        )
+        if item_worth is None:
+            item_worth = 0
+        
+        embed.description = f"**Gold**: ◎ {gold:,}\n" \
+                            f"**Item worth**: ◎ {item_worth:,}\n\n" \
+                            f"**Net worth**: ◎ {item_worth + gold:,}"
+        await interaction.send(embed=embed)    
+
+    @nextcord.slash_command()
     @cooldowns.shared_cooldown("check_inventory")
     async def backpack(
         self,
@@ -148,7 +209,7 @@ class Players(commands.Cog, name="Players"):
         embed = view.get_inv_embed()
         view.message = await interaction.send(embed=embed, view=view)
 
-    @nextcord.slash_command(name="chest")
+    @nextcord.slash_command()
     @cooldowns.shared_cooldown("check_inventory")
     async def chest(
         self,
@@ -173,7 +234,7 @@ class Players(commands.Cog, name="Players"):
         embed = view.get_inv_embed()
         view.message = await interaction.send(embed=embed, view=view)
 
-    @nextcord.slash_command(name="vault")
+    @nextcord.slash_command()
     @cooldowns.shared_cooldown("check_inventory")
     async def vault(self, interaction: Interaction):
         """Check the vault of your own."""
