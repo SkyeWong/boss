@@ -14,6 +14,7 @@ import random
 from utils.postgres_db import Database
 
 # my modules and constants
+from utils import functions
 from utils.player import Player
 from views.template_views import ConfirmView
 
@@ -168,6 +169,35 @@ class Exploring(commands.Cog, name="Exploring"):
                 embed=Embed(description="Someone was lurking around! You got attacked..."),
                 ephemeral=True,
             )
+            
+    async def adventure_slave(self, button, interaction: Interaction):
+        player = Player(self.bot.db, interaction.user)
+        if random.randint(1, 5) > 2:
+            await player.add_item(32)
+            await interaction.send(
+                embed=functions.format_with_embed(
+                    "Wow, you found yourself a slave! However, what he is able to do, I don't know."
+                ),
+                ephemeral=True
+            )
+        else:
+            player_gold = await self.bot.db.fetchval(
+                """
+                SELECT gold
+                FROM players.players
+                WHERE player_id = $1
+                """,
+                interaction.user.id,
+            )
+            # use min() with user's gold so the gold will not be negative
+            lost_gold = min(player_gold, random.randint(120, 800))
+            await player.modify_gold(-lost_gold)
+            await interaction.send(
+                embed=functions.format_with_embed(
+                    f"Shame on you, he was a bandits. He attacked you and you lost 🪙 {lost_gold}",
+                ),
+                ephemeral=True
+            )
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 60, SlashBucket.author, cooldown_id="adventure")
@@ -179,9 +209,13 @@ class Exploring(commands.Cog, name="Exploring"):
         if random.randint(1, 10) > 4:
             # 60% to have an adventure
             outcomes = {
-                20: (
+                10: (
                     "You found a creepy pyramid that goes DEEP down! Do you want to continue?",
                     self.adventure_pyramid,
+                ),
+                10: (
+                    "Wait what? You found... a random slave! Adopt him, he'd like to.",
+                    self.adventure_slave,
                 ),
                 30: (
                     "While you were wandering in the woods, you saw some smoke rising in the sky. You walked forward and saw civilisation! Wanna meet the people?",
@@ -196,7 +230,7 @@ class Exploring(commands.Cog, name="Exploring"):
 
             embed = Embed(title="Adventure time!", description=outcome[0])
 
-            view = ConfirmView(slash_interaction=interaction, confirm_func=outcome[1], embed=embed)
+            view = ConfirmView(slash_interaction=interaction, confirm_func=outcome[1], cancel_func=lambda button, interaction: cooldowns.reset_cooldown("adventure"), embed=embed)
             await interaction.send(embed=view.embed, view=view)
         else:
             # 40% fail
