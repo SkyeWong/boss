@@ -474,7 +474,7 @@ class Fun(commands.Cog, name="Fun"):
 
         # Encrypt data with AES
         try:
-            cipher = AES.new(key, AES.MODE_CBC)
+            cipher = AES.new(key, AES.MODE_ECB)
         except:
             await interaction.send(embed=functions.format_with_embed("The key is invalid!"))
             return
@@ -487,7 +487,6 @@ class Fun(commands.Cog, name="Fun"):
             "Plaintext": plaintext,
             "Ciphertext": ciphertext,
             "AES Key": key,
-            "IV": cipher.iv,
         }
         embed = Embed()
         for k, v in data.items():
@@ -504,13 +503,11 @@ class Fun(commands.Cog, name="Fun"):
         interaction: Interaction,
         ciphertext: str = SlashOption(description="The message to decrypt"),
         key: str = SlashOption(description="The base64-encoded key to be used in AES."),
-        iv: str = SlashOption(description="The initalization vector to be used in AES, encoded in base64."),
     ):
         """Decrypt that gibberish your friend just sent you!"""
         data = {
             "ciphertext": ciphertext,
             "key": key,
-            "initalization vector": iv,
         }
         for k, v in data.items():
             try:
@@ -521,10 +518,10 @@ class Fun(commands.Cog, name="Fun"):
 
         # Decrypt data with AES
         try:
-            cipher = AES.new(data["key"], AES.MODE_CBC, iv=data["initalization vector"])
+            cipher = AES.new(data["key"], AES.MODE_ECB)
         except:
             await interaction.send(
-                embed=functions.format_with_embed("Either the key or initalization vector is invalid!")
+                embed=functions.format_with_embed("The key is invalid!")
             )
             return
 
