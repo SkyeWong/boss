@@ -6,6 +6,8 @@ from nextcord.ui import View, Button, button, Select, select
 # numerize
 from numerize import numerize
 
+import pytz
+
 # my modules
 from views.template_views import BaseView
 
@@ -474,6 +476,7 @@ class Train:
             "DOWN": values.get("DOWN", [])
         }  # use empty list for default in case station is at either end of line
         
+        hk_tz = pytz.timezone("Asia/Hong_Kong")
         for train_type, trains_res in trains.items():
             for index, train in enumerate(trains_res):
                 destination_code = train["dest"]
@@ -481,7 +484,7 @@ class Train:
                 sequence = train["seq"]
                 platform = train["plat"]
                 via_racecourse = bool(train.get("route"))
-                arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S")
+                arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=hk_tz)
                 
                 trains[train_type][index] = cls(
                     line, 
