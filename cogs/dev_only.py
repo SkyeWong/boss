@@ -85,17 +85,17 @@ class DevOnly(commands.Cog, name="Dev Only"):
             await interaction.response.send_autocomplete(near_items)
 
     @nextcord.slash_command(name="modify", guild_ids=[constants.DEVS_SERVER_ID])
-    async def edit(self, interaction: Interaction):
+    async def modify(self, interaction: Interaction):
         """Modify users and items info."""
         pass
 
-    @edit.subcommand(name="user", inherit_hooks=True)
-    async def user(self, interaction: Interaction):
+    @modify.subcommand(name="user")
+    async def modify_user(self, interaction: Interaction):
         """Edit a user's profile."""
         pass
 
-    @user.subcommand(name="gold", description="Modify or set a user's gold", inherit_hooks=True)
-    async def gold(
+    @modify_user.subcommand(name="gold", description="Modify or set a user's gold")
+    async def modify_gold(
         self,
         interaction: Interaction,
         gold: str = SlashOption(name="gold", required=True),
@@ -153,8 +153,8 @@ class DevOnly(commands.Cog, name="Dev Only"):
             channel = await self.bot.fetch_channel(988046548309016586)
             await channel.send(embed=embed)
 
-    @user.subcommand(name="experience", description="Set a user's experience", inherit_hooks=True)
-    async def experience(
+    @modify_user.subcommand(name="experience", description="Set a user's experience")
+    async def modify_experience(
         self,
         interaction: Interaction,
         experience: int = SlashOption(description="Level * 100 + experience", required=True),
@@ -197,8 +197,8 @@ class DevOnly(commands.Cog, name="Dev Only"):
         channel = await self.bot.fetch_channel(988046548309016586)
         await channel.send(embed=embed)
 
-    @user.subcommand(name="inventory", inherit_hooks=True)
-    async def inventory(
+    @modify_user.subcommand(name="inventory")
+    async def modify_inventory(
         self,
         interaction: Interaction,
         inv_type: int = SlashOption(
@@ -303,7 +303,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
             await interaction.send(embed=Embed(description=e.text), ephemeral=True)
             return
 
-        inv_type_str = [k for k, v in constants.InventoryType.items() if v == inv_type][0]
+        inv_type_str = [i.name for i in constants.InventoryType if i.value == inv_type][0]
         embed = Embed(
             title=f"{interaction.user.name} **UPDATED** `{player.name}#{player.discriminator}'s {inv_type_str}`"
         )
@@ -317,12 +317,12 @@ class DevOnly(commands.Cog, name="Dev Only"):
         await interaction.send(embed=embed)
         await interaction.guild.get_channel(988046548309016586).send(embed=embed)
 
-    @edit.subcommand(name="item", inherit_hooks=True)
-    async def item(self, interaction: Interaction):
+    @modify.subcommand(name="item")
+    async def modify_item(self, interaction: Interaction):
         """Add, edit, or delete an item."""
         pass
 
-    @item.subcommand(name="add", description="Add a new item into the game", inherit_hooks=True)
+    @modify_item.subcommand(name="add", description="Add a new item into the game")
     async def add_item(
         self,
         interaction: Interaction,
@@ -409,7 +409,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
         await interaction.send(embed=embed)
         await interaction.guild.get_channel(988046548309016586).send(embed=embed)
 
-    @item.subcommand(
+    @modify_item.subcommand(
         name="edit",
         description="Edit an item's name, description, trade price etc",
         inherit_hooks=True,
@@ -439,7 +439,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
             embed = view.get_item_embed()
             await interaction.send(embed=embed, view=view)
 
-    @item.subcommand(name="delete", description="Delete an existing item", inherit_hooks=True)
+    @modify_item.subcommand(name="delete", description="Delete an existing item")
     async def delete_item(
         self,
         interaction: Interaction,
@@ -554,7 +554,7 @@ class DevOnly(commands.Cog, name="Dev Only"):
         view = ConfirmChangelogSend(interaction, log_embed, ping_role if ping_role else None)
         await interaction.send(embed=view.embed, view=view)
 
-    @changelog.subcommand(name="delete", description="Deletes a changelog message", inherit_hooks=True)
+    @changelog.subcommand(name="delete", description="Deletes a changelog message")
     async def delete_changelog(
         self,
         interaction: Interaction,
