@@ -484,8 +484,9 @@ class Train:
                 sequence = train["seq"]
                 platform = train["plat"]
                 via_racecourse = bool(train.get("route"))
-                arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=hk_tz)
-                
+                arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S")
+                arrival_time = hk_tz.localize(arrival_time)
+                                
                 trains[train_type][index] = cls(
                     line, 
                     arriving_station,
