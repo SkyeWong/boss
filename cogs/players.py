@@ -27,13 +27,13 @@ from collections import defaultdict
 
 class Players(commands.Cog, name="Players"):
     COG_EMOJI = "🦸‍♂️"
-    cooldowns.define_shared_cooldown(1, 15, SlashBucket.author, cooldown_id="check_inventory")
+    cooldowns.define_shared_cooldown(1, 6, SlashBucket.author, cooldown_id="check_inventory")
 
     def __init__(self, bot):
         self.bot = bot
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 15, SlashBucket.author)
+    @cooldowns.cooldown(1, 8, SlashBucket.author)
     async def profile(
         self,
         interaction: Interaction,
@@ -124,7 +124,7 @@ class Players(commands.Cog, name="Players"):
         await interaction.send(embed=profile_ui)
         
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 15, SlashBucket.author)
+    @cooldowns.cooldown(1, 8, SlashBucket.author)
     async def balance(
         self,
         interaction: Interaction,
@@ -290,10 +290,12 @@ class Players(commands.Cog, name="Players"):
         near_items = sorted(list({item[0] for item in items if item[0].lower().startswith(data.lower())}))
         return near_items
 
-    async def move_items(self, player_id: int, item_from: int, item_to: int, item_id: int, quantity: int):
+    async def move_items(self, player_id: int, item_from: int, item_to: int, item_id: int, quantity: int = None):
         """
-        Moves an item from an inventory type to another one. Should be used with try/except to catch errors when
-
+        Moves an item from an inventory type to another one. 
+        If `quantity` is not provided all items will be moved.
+        
+        Should be used with try/except to catch errors when
         1) there are not enough items
         2) the slots are full
         """
@@ -301,21 +303,34 @@ class Players(commands.Cog, name="Players"):
         quantities_after = {}
         async with db.pool.acquire() as conn:
             async with conn.transaction():
-                # moves item out of from_place
-                quantities_after["from"] = await conn.fetchval(
-                    """
-                    UPDATE players.inventory
-                    SET quantity = quantity - $4
-                    WHERE player_id = $1 AND inv_type = $2 AND item_id = $3
-                    RETURNING quantity
-                    """,
-                    player_id,
-                    item_from,
-                    item_id,
-                    quantity,
-                )
-                if quantities_after["from"] is None or quantities_after["from"] < 0:
-                    raise MoveItemException("Not enough items to move!")
+                if quantity is None:  # move all items of that name in that specific inv_type
+                    quantity = await conn.fetchval(
+                        """
+                        UPDATE players.inventory
+                        SET quantity = 0
+                        WHERE player_id = $1 AND inv_type = $2 AND item_id = $3
+                        RETURNING (SELECT quantity As old_quantity FROM players.inventory WHERE player_id = $1 AND inv_type = $2 AND item_id = $3) As quantity 
+                        """,
+                        player_id,
+                        item_from,
+                        item_id,
+                    )
+                    quantities_after["from"] = 0
+                else:  # moves specific number of the item out of from_place
+                    quantities_after["from"] = await conn.fetchval(
+                        """
+                        UPDATE players.inventory
+                        SET quantity = quantity - $4
+                        WHERE player_id = $1 AND inv_type = $2 AND item_id = $3
+                        RETURNING quantity
+                        """,
+                        player_id,
+                        item_from,
+                        item_id,
+                        quantity,
+                    )
+                    if quantities_after["from"] is None or quantities_after["from"] < 0:
+                        raise MoveItemException("Not enough items to move!")
 
                 # moves item to to_place
                 quantities_after["to"] = await conn.fetchval(
@@ -377,9 +392,9 @@ class Players(commands.Cog, name="Players"):
             choices=constants.InventoryType.to_dict(),
         ),
         quantity: int = SlashOption(
-            description="How many of the item do you want to move? DEFAULTS to 1",
+            description="How many of the item do you want to move? DEFAULTS to ALL",
             required=False,
-            default=1,
+            default=None,
         ),
     ):
         """Moves item from one place to other."""
