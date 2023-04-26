@@ -545,8 +545,9 @@ class NextTrainView(BaseView):
             embed.description = "> via Racecourse"
             
         arrival_timestamp = int(train.arrival_time.timestamp())
+        hk_tz = pytz.timezone("Asia/Hong_Kong")
         embed.add_field(
-            name="Arrival time" if train.arrival_time > datetime.datetime.now() else "Departure time",
+            name="Arrival time" if train.arrival_time > datetime.datetime.now(tz=hk_tz) else "Departure time",
             value=f"<t:{arrival_timestamp}:F> • <t:{arrival_timestamp}:R>",
             inline=False
         )
