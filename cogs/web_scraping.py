@@ -11,7 +11,10 @@ from pytube import Search
 from utils import functions
 
 # views
-from views.scraping_views import WeatherView, PersistentWeatherView, VideoView, Video
+from views.scraping_views import \
+WeatherView, PersistentWeatherView, \
+VideoView, Video, \
+MtrLine, LINE_STATION_CODES, Train, NextTrainView
 
 # default modules
 import json
@@ -338,131 +341,20 @@ class WebScraping(commands.Cog, name="Web Scraping"):
         )
         await interaction.send(embed=embed)
         
-    LINE_CODES = {
-            "Airport Express": "AEL",
-            "Tung Chung Line": "TCL",
-            "Tuen Ma Line": "TML",
-            "Tseung Kwan O Line": "TKL",
-            "East Rail Line": "EAL",
-            "South Island Line": "SIL",
-            "Tseun Wan Line": "TWL",
-        }
-    LINE_STATION_CODES = {
-        "AEL": {
-            "Hong Kong": "HOK",
-            "Kowloon": "KOW",
-            "Tsing Yi": "TSY",
-            "Airport": "AIR",
-            "AsiaWorld Expo": "AWE",
-        },
-        "TCL": {
-            "Hong Kong": "HOK",
-            "Kowloon": "KOW",
-            "Olympic": "OLY",
-            "Nam Cheong": "NAC",
-            "Lai King": "LAK",
-            "Tsing Yi": "TSY",
-            "Sunny Bay": "SUN",
-            "Tung Chung": "TUC",
-        },
-        "TML": {
-            "Wu Kai Sha": "WKS",
-            "Ma On Shan": "MOS",
-            "Heng On": "HEO",
-            "Tai Shui Hang": "TSH",
-            "Shek Mun": "SHM",
-            "City One": "CIO",
-            "Sha Tin Wai": "STW",
-            "Che Kung Temple": "CKT",
-            "Tai Wai": "TAW",
-            "Hin Keng": "HIK",
-            "Diamond Hill": "DIH",
-            "Kai Tak": "KAT",
-            "Sung Wong Toi": "SUW",
-            "To Kwa Wan": "TKW",
-            "Ho Man Tin": "HOM",
-            "Hung Hom": "HUH",
-            "East Tsim Sha Tsui": "ETS",
-            "Austin": "AUS",
-            "Nam Cheong": "NAC",
-            "Mei Foo": "MEF",
-            "Tsuen Wan West": "TWW", 
-            "Kam Sheung Road": "KSR", 
-            "Yuen Long": "YUL", 
-            "Long Ping": "LOP", 
-            "Tin Shui Wai": "TIS", 
-            "Siu Hong": "SIH", 
-            "Tuen Mun": "TUM", 
-        },
-        "TKL": {
-            "North Point": "NOP", 
-            "Quarry Bay": "QUB", 
-            "Yau Tong": "YAT", 
-            "Tiu Keng Leng": "TIK", 
-            "Tseung Kwan O": "TKO", 
-            "LOHAS Park": "LHP", 
-            "Hang Hau": "HAH", 
-            "Po Lam": "POA", 
-        },
-        "EAL": {
-            "Admiralty": "ADM", 
-            "Exhibition Centre": "EXC", 
-            "Hung Hom": "HUH", 
-            "Mong Kok East": "MKK", 
-            "Kowloon Tong": "KOT", 
-            "Tai Wai": "TAW", 
-            "Sha Tin": "SHT", 
-            "Fo Tan": "FOT", 
-            "Racecourse": "RAC", 
-            "University": "UNI", 
-            "Tai Po Market": "TAP", 
-            "Tai Wo": "TWO", 
-            "Fanling": "FAN", 
-            "Sheung Shui": "SHS", 
-            "Lo Wu": "LOW", 
-            "Lok Ma Chau": "LMC", 
-        },
-        "SIL": {
-            "Admiralty": "ADM", 
-            "Ocean Park": "OCP", 
-            "Wong Chuk Hang": "WCH", 
-            "Lei Tung": "LET", 
-            "South Horizons": "SOH", 
-        },
-        "TWL": {
-            "Central": "CEN", 
-            "Admiralty": "ADM", 
-            "Tsim Sha Tsui": "TST", 
-            "Jordan": "JOR", 
-            "Yau Ma Tei": "YMT", 
-            "Mong Kok": "MOK", 
-            "Price Edward": "PRE", 
-            "Sham Shui Po": "SSP", 
-            "Cheung Sha Wan": "CSW", 
-            "Lai Chi Kok": "LCK", 
-            "Mei Foo": "MEF", 
-            "Lai King": "LAK", 
-            "Kwai Fong": "KWF", 
-            "Kwai Hing": "KWH", 
-            "Tai Wo Hau": "TWH", 
-            "Tsuen Wan": "TSW", 
-        },
-    }
-        
     @nextcord.slash_command(name="next-train")
     async def next_train(
         self, 
         interaction: Interaction,
         line: str=SlashOption(
             description="The railway line",
-            choices=LINE_CODES
+            choices={i.name.replace("_", " "): i.value for i in MtrLine}
         ),
         station: str=SlashOption(name="station", description="Any station in the line")
     ):
         """Shows information of the HK MTR train system."""
         # validate data
         # `line` is verified by discord, we only need to check `station`
-        if station not in self.LINE_STATION_CODES[line].values():
+        if station not in LINE_STATION_CODES[line].values():
             await interaction.send(embed=functions.format_with_embed("Please input a valid line-station pair."))
             return
         
@@ -482,28 +374,17 @@ class WebScraping(commands.Cog, name="Web Scraping"):
             await interaction.send(embed=functions.format_with_embed("The data is currently unavailable."))
             return
         
-        # successful response
-        data = train_res["data"][f"{line}-{station}"]
-        trains = data.get("UP", []) + data.get("DOWN", [])  # use empty list for default in case station is at either end of line
-        station_name = [name for name, code in self.LINE_STATION_CODES[line].items() if code == station][0]
-        
-        embed = Embed(title=f"The next trains arriving at **{station_name}**")
-        hk_tz = pytz.timezone("Asia/Hong_Kong")
-        if trains:
-            for train in trains:
-                destination_name = [name for name, code in self.LINE_STATION_CODES[line].items() if code == train["dest"]][0]
-                arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S")
-                embed.add_field(
-                    name=f"Destination: `{destination_name}`",
-                    value=f"Arriving <t:{int(arrival_time.timestamp())}:R>\n" \
-                        f"Platform: {train['plat']}" \
-                        f"> via Racecourse" if train.get("route") else "",
-                    inline=False
-                )
-        else:
+        trains = Train.from_api_response(train_res)
+        if trains["UP"] or trains["DOWN"]:
+            view = NextTrainView(interaction, trains)
+            embed = view.get_embed()
+            view.update_view()
+            await interaction.send(embed=embed, view=view)
+        else:  # neither up or down directions are available --> no trains will come
+            station_name = [name for name, code in LINE_STATION_CODES[line].items() if code == station][0]
+            embed = Embed()
             embed.description = f"No trains will arrive at **{station_name}** in the near future."
-            
-        await interaction.send(embed=embed)
+            await interaction.send(embed=embed)        
                 
     @next_train.on_autocomplete("station")
     async def station_autocomplete(self, interaction: Interaction, station: str, line: Optional[str] = None):
@@ -516,16 +397,16 @@ class WebScraping(commands.Cog, name="Web Scraping"):
             await interaction.response.send_autocomplete(["Open the slash command again and choose a line first.", "If you want to switch to a new line, do that too."])
             return
         if line and not station:
-            stations = dict(sorted(
-                [(name, code) for name, code in self.LINE_STATION_CODES[line].items()]
-            )[:25])
+            stations = dict(
+                [(name, code) for name, code in LINE_STATION_CODES[line].items()][:25]
+            )
             await interaction.response.send_autocomplete(stations)
             return
         
         station = station.strip()
         # search for stations
         near_stations = dict(sorted(
-            [(name, code) for name, code in self.LINE_STATION_CODES[line].items() if station.lower() in name.lower()]
+            [(name, code) for name, code in LINE_STATION_CODES[line].items() if station.lower() in name.lower()]
         )[:25])
         await interaction.response.send_autocomplete(near_stations)
 

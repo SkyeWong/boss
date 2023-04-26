@@ -11,6 +11,8 @@ from views.template_views import BaseView
 
 # default modules
 import datetime
+from typing import Optional
+import enum
 
 
 def get_weather_view(self, forecast):
@@ -308,5 +310,288 @@ class VideoView(BaseView):
         self.page = len(self.videos) - 1
 
         self.disable_buttons()
+        embed = self.get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
+
+class MtrLine(enum.Enum):
+    Airport_Express = "AEL"
+    Tung_Chung_Line = "TCL"
+    Tuen_Ma_Line = "TML"
+    Tseung_Kwan_O_Line = "TKL"
+    East_Rail_Line = "EAL"
+    South_Island_Line = "SIL"
+    Tseung_Wan_Line = "TWL"
+
+
+LINE_STATION_CODES = {
+    "AEL": {
+        "Hong Kong": "HOK",
+        "Kowloon": "KOW",
+        "Tsing Yi": "TSY",
+        "Airport": "AIR",
+        "AsiaWorld Expo": "AWE",
+    },
+    "TCL": {
+        "Hong Kong": "HOK",
+        "Kowloon": "KOW",
+        "Olympic": "OLY",
+        "Nam Cheong": "NAC",
+        "Lai King": "LAK",
+        "Tsing Yi": "TSY",
+        "Sunny Bay": "SUN",
+        "Tung Chung": "TUC",
+    },
+    "TML": {
+        "Wu Kai Sha": "WKS",
+        "Ma On Shan": "MOS",
+        "Heng On": "HEO",
+        "Tai Shui Hang": "TSH",
+        "Shek Mun": "SHM",
+        "City One": "CIO",
+        "Sha Tin Wai": "STW",
+        "Che Kung Temple": "CKT",
+        "Tai Wai": "TAW",
+        "Hin Keng": "HIK",
+        "Diamond Hill": "DIH",
+        "Kai Tak": "KAT",
+        "Sung Wong Toi": "SUW",
+        "To Kwa Wan": "TKW",
+        "Ho Man Tin": "HOM",
+        "Hung Hom": "HUH",
+        "East Tsim Sha Tsui": "ETS",
+        "Austin": "AUS",
+        "Nam Cheong": "NAC",
+        "Mei Foo": "MEF",
+        "Tsuen Wan West": "TWW", 
+        "Kam Sheung Road": "KSR", 
+        "Yuen Long": "YUL", 
+        "Long Ping": "LOP", 
+        "Tin Shui Wai": "TIS", 
+        "Siu Hong": "SIH", 
+        "Tuen Mun": "TUM", 
+    },
+    "TKL": {
+        "North Point": "NOP", 
+        "Quarry Bay": "QUB", 
+        "Yau Tong": "YAT", 
+        "Tiu Keng Leng": "TIK", 
+        "Tseung Kwan O": "TKO", 
+        "LOHAS Park": "LHP", 
+        "Hang Hau": "HAH", 
+        "Po Lam": "POA", 
+    },
+    "EAL": {
+        "Admiralty": "ADM", 
+        "Exhibition Centre": "EXC", 
+        "Hung Hom": "HUH", 
+        "Mong Kok East": "MKK", 
+        "Kowloon Tong": "KOT", 
+        "Tai Wai": "TAW", 
+        "Sha Tin": "SHT", 
+        "Fo Tan": "FOT", 
+        "Racecourse": "RAC", 
+        "University": "UNI", 
+        "Tai Po Market": "TAP", 
+        "Tai Wo": "TWO", 
+        "Fanling": "FAN", 
+        "Sheung Shui": "SHS", 
+        "Lo Wu": "LOW", 
+        "Lok Ma Chau": "LMC", 
+    },
+    "SIL": {
+        "Admiralty": "ADM", 
+        "Ocean Park": "OCP", 
+        "Wong Chuk Hang": "WCH", 
+        "Lei Tung": "LET", 
+        "South Horizons": "SOH", 
+    },
+    "TWL": {
+        "Central": "CEN", 
+        "Admiralty": "ADM", 
+        "Tsim Sha Tsui": "TST", 
+        "Jordan": "JOR", 
+        "Yau Ma Tei": "YMT", 
+        "Mong Kok": "MOK", 
+        "Price Edward": "PRE", 
+        "Sham Shui Po": "SSP", 
+        "Cheung Sha Wan": "CSW", 
+        "Lai Chi Kok": "LCK", 
+        "Mei Foo": "MEF", 
+        "Lai King": "LAK", 
+        "Kwai Fong": "KWF", 
+        "Kwai Hing": "KWH", 
+        "Tai Wo Hau": "TWH", 
+        "Tsuen Wan": "TSW", 
+    },
+}
+
+
+class Train:
+
+    """A helper class that is designed to represent a MTR Train and be represented in `NextTrainView`."""
+
+    def __init__(
+        self,
+        line: MtrLine,
+        arriving_station,
+        arrival_time: datetime.datetime,
+        sequence: int,
+        destination,
+        platform: int,
+        via_racecourse: Optional[bool] = None
+    ):
+        self.line = line
+        self.arriving_station = arriving_station
+        self.arrival_time = arrival_time
+        self.sequence = sequence
+        self.destination = destination
+        self.platform = platform
+        self.via_racecourse = via_racecourse
+        
+    @classmethod
+    def from_api_response(cls, next_train_response):
+        """
+        Class method to generate a dict of "UP" and "DOWN" `Train`s from the Next Train api response.
+        ### Data structure of returned value:
+        
+        ```
+        trains = {
+            "UP": list[UP trains],
+            "DOWN": list[DOWN trains]
+        }
+        ```
+        
+        Can be used for the `trains` parameter in `NextTrainView`
+        """
+        data = next_train_response["data"]
+        key = list(data.keys())[0]  # eg: "TKL-TIK"
+        line = MtrLine(key[:3])  # eg: "TKL"
+        arriving_station = key[4:]  # eg: "TIK"
+        
+        values = list(data.values())[0]
+        trains = {
+            "UP": values.get("UP", []),
+            "DOWN": values.get("DOWN", [])
+        }  # use empty list for default in case station is at either end of line
+        
+        for train_type, trains_res in trains.items():
+            for index, train in enumerate(trains_res):
+                destination_code = train["dest"]
+                # destination_name = [name for name, code in LINE_STATION_CODES[line].items() if code == destination_code][0]
+                sequence = train["seq"]
+                platform = train["plat"]
+                via_racecourse = bool(train.get("route"))
+                arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S")
+                
+                trains[train_type][index] = cls(
+                    line, 
+                    arriving_station,
+                    arrival_time,
+                    sequence,
+                    destination_code,
+                    platform,
+                    via_racecourse
+                )
+        
+        return trains
+        
+        
+class NextTrainView(BaseView):
+    """
+    Shows a list of trains returned from Next Train API.
+    # Features
+    `Paginating buttons`: automated (which disable themselves) according to the current page
+    `Type Switching`: Can be switched between "UP" and "DOWN" trains
+    # Parameters
+    `slash_interaction`: `nextcord.Interaction` from the slash command.
+    Used for identifying the user and timing out the view.
+    `trains`: a `dict` containing "UP" and "DOWN" trains
+    """
+    def __init__(self, slash_interaction: Interaction, trains: dict[str, list[Train]]):
+        super().__init__(slash_interaction, timeout=60)
+        self.trains = trains
+        
+        type_button = [i for i in self.children if i.custom_id == "type"][0]
+        if not self.trains["UP"]:  # only down directions are available, disable the type button
+            self.type = "DOWN"
+            type_button.disabled = True
+        elif not self.trains["DOWN"]:  # only up directions are available, disable the type button
+            self.type = "UP"
+            type_button.disabled = True
+        else:  # both directions are available.
+            self.type = "UP"
+            type_button.disabled = False
+        self.page = 0
+    
+    def get_embed(self):
+        embed = Embed()
+        train = self.trains[self.type][self.page]
+
+        arriving_station = [name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.arriving_station][0]
+        embed.title = f"Next trains arriving at {arriving_station}"
+
+        embed.set_footer(text=f"{self.type} trains • Page {self.page + 1}/{len(self.trains)}")  # + 1 because self.page uses zero-indexing
+
+        destination_name = [name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.destination][0]
+        embed.add_field(
+            name="Destination",
+            value=destination_name,
+        )
+        embed.add_field(name="Platform", value=train.platform)
+        if train.via_racecourse:
+            embed.description = "> via Racecourse"
+            
+        arrival_timestamp = int(train.arrival_time.timestamp())
+        embed.add_field(
+            name="Arrival time" if train.arrival_time > datetime.datetime.now() else "Departure time",
+            value=f"<t:{arrival_timestamp}:F> • <t:{arrival_timestamp}:R>",
+            inline=False
+        )
+
+        return embed
+
+    def update_view(self):
+        back_btn = [i for i in self.children if i.custom_id == "back"][0]
+        if self.page == 0:
+            back_btn.disabled = True
+        else:
+            back_btn.disabled = False
+        next_btn = [i for i in self.children if i.custom_id == "next"][0]
+        if self.page == len(self.trains) - 1:
+            next_btn.disabled = True
+        else:
+            next_btn.disabled = False
+            
+        type_button = [i for i in self.children if i.custom_id == "type"][0]
+        if self.type == "UP":
+            type_button.emoji = "🔽"
+        elif self.type == "DOWN":
+            type_button.emoji = "🔼"
+
+    @button(emoji="◀️", style=ButtonStyle.blurple, disabled=True, custom_id="back")
+    async def back(self, button: Button, interaction: Interaction):
+        self.page -= 1
+
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
+
+    @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
+    async def next(self, button: Button, interaction: Interaction):
+        self.page += 1
+
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
+        
+    @button(emoji="🔼", style=ButtonStyle.grey, custom_id="type")
+    async def change_type(self, button: Button, interaction: Interaction):
+        self.page = 0
+        if self.type == "UP":
+            self.type = "DOWN"
+        elif self.type == "DOWN":
+            self.type = "UP"
+        
+        self.update_view()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
