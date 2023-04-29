@@ -45,12 +45,16 @@ class Fun(commands.Cog, name="Fun"):
     def __init__(self):
         self._last_member = None
 
-    @nextcord.slash_command(name="roll", description="Roll a random number between two of them.")
+    @nextcord.slash_command(
+        name="roll", description="Roll a random number between two of them."
+    )
     @cooldowns.cooldown(1, 20, SlashBucket.author)
     async def roll(
         self,
         interaction: Interaction,
-        first: int = SlashOption(description="First number", min_value=1, required=True),
+        first: int = SlashOption(
+            description="First number", min_value=1, required=True
+        ),
         second: int = SlashOption(
             description="Second number. Leave this empty to roll between 1 and the first number",
             min_value=2,
@@ -62,7 +66,11 @@ class Fun(commands.Cog, name="Fun"):
         elif second < first:
             first, second = second, first
         elif second == first:
-            await interaction.send(embed=Embed(description="BOTH numbers are the same! What do you expect me to do?"))
+            await interaction.send(
+                embed=Embed(
+                    description="BOTH numbers are the same! What do you expect me to do?"
+                )
+            )
             return
 
         number = random.randint(first, second)
@@ -88,12 +96,16 @@ class Fun(commands.Cog, name="Fun"):
             embed.set_thumbnail(url="https://i.imgur.com/VcqwLpT.png")
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command(name="8ball", description="I can tell you the future and make decisions! 🎱")
+    @nextcord.slash_command(
+        name="8ball", description="I can tell you the future and make decisions! 🎱"
+    )
     @cooldowns.cooldown(1, 20, SlashBucket.author)
     async def eight_ball(
         self,
         interaction: Interaction,
-        whattodecide: str = SlashOption(name="what-to-decide", description="Something to ask me...", max_length=100),
+        whattodecide: str = SlashOption(
+            name="what-to-decide", description="Something to ask me...", max_length=100
+        ),
     ):
         RESPONSES = {
             "yes": [
@@ -138,7 +150,9 @@ class Fun(commands.Cog, name="Fun"):
         category = RESPONSES[random.choice(list(RESPONSES.keys()))]
         embed.colour = category[0]
         response = random.choice(category[1])
-        embed.add_field(name=f"_{whattodecide}_", value=f"\n```ansi\n{response}\n[0m\n```")
+        embed.add_field(
+            name=f"_{whattodecide}_", value=f"\n```ansi\n{response}\n[0m\n```"
+        )
         await interaction.send(embed=embed)
 
     @nextcord.slash_command(
@@ -176,7 +190,9 @@ class Fun(commands.Cog, name="Fun"):
         embed.colour = random.choice(constants.EMBED_COLOURS)
         embed.set_author(name="Generating maze... Please wait patiently")
         embed.description = "I will ping you when it has finished!"
-        embed.description += "\n`1.` Your request has been received and is processing... "
+        embed.description += (
+            "\n`1.` Your request has been received and is processing... "
+        )
         msg = await interaction.send(embed=embed)
 
         height = width if not height else height
@@ -192,7 +208,9 @@ class Fun(commands.Cog, name="Fun"):
         loop = asyncio.get_running_loop()
 
         if difficulty:
-            future = loop.run_in_executor(None, m.generate_monte_carlo, 10, 1, difficulty / 10)
+            future = loop.run_in_executor(
+                None, m.generate_monte_carlo, 10, 1, difficulty / 10
+            )
             embed.description += "**`Done`**!\n`2.` Generating multiple mazes and finding one with set difficulty... "
             embed.insert_field_at(
                 0,
@@ -216,8 +234,12 @@ class Fun(commands.Cog, name="Fun"):
         loop.run_until_complete(future)
 
         embed.add_field(name="Solution length", value=f"`{len(m.solutions[0])}` cells")
-        embed.add_field(name="Start ➡ End", value=f"`{m.start[::-1]}` ➡ `{m.end[::-1]}`")
-        embed.description += f"**`Done`**!\n`{'3' if difficulty else '4'}.` Generating maze image... "
+        embed.add_field(
+            name="Start ➡ End", value=f"`{m.start[::-1]}` ➡ `{m.end[::-1]}`"
+        )
+        embed.description += (
+            f"**`Done`**!\n`{'3' if difficulty else '4'}.` Generating maze image... "
+        )
 
         if difficulty:
             embed.remove_field(0)
@@ -241,7 +263,9 @@ class Fun(commands.Cog, name="Fun"):
         for k, v in SPRITES.items():
             SPRITES[k] = v.resize((sprite_width, sprite_width))
 
-        maze_img = Image.new("RGBA", (sprite_width * len(m.grid[0]), sprite_width * len(m.grid)))
+        maze_img = Image.new(
+            "RGBA", (sprite_width * len(m.grid[0]), sprite_width * len(m.grid))
+        )
 
         for y_i, y in enumerate(m_str.splitlines()):
             for x_i, x in enumerate(y):
@@ -266,8 +290,12 @@ class Fun(commands.Cog, name="Fun"):
         embed.set_image("attachment://maze.png")
 
         embed.set_author(name="Generating maze successful!")
-        embed.description = f"**Width (inputted - actual)**: `{width}` - `{len(m.grid[0])}`\n"
-        embed.description += f"**Height (inputted - actual)**: `{height}` - `{len(m.grid)}`"
+        embed.description = (
+            f"**Width (inputted - actual)**: `{width}` - `{len(m.grid[0])}`\n"
+        )
+        embed.description += (
+            f"**Height (inputted - actual)**: `{height}` - `{len(m.grid)}`"
+        )
         await msg.edit(file=file, embed=embed)
 
         view = View()
@@ -293,7 +321,9 @@ class Fun(commands.Cog, name="Fun"):
         ),
     ):
         if interaction.user == user:
-            await interaction.send("Who are you fighting with, not... yourself? 😂", ephemeral=True)
+            await interaction.send(
+                "Who are you fighting with, not... yourself? 😂", ephemeral=True
+            )
             return
         if user.bot:
             await interaction.send(
@@ -316,7 +346,13 @@ class Fun(commands.Cog, name="Fun"):
             # return full list
             return sorted([emoji.name for emoji in emojis])[:25]
         # send a list of nearest matches from the list of item
-        near_emojis = sorted([emoji.name for emoji in emojis if emoji.name.lower().startswith(data.lower())])
+        near_emojis = sorted(
+            [
+                emoji.name
+                for emoji in emojis
+                if emoji.name.lower().startswith(data.lower())
+            ]
+        )
         return near_emojis[:25]
 
     @nextcord.slash_command(
@@ -335,7 +371,9 @@ class Fun(commands.Cog, name="Fun"):
         ),
     ):
         if not emoji_name:  # send full list
-            guild_emojis = sorted(interaction.guild.emojis, key=lambda emoji: emoji.name)
+            guild_emojis = sorted(
+                interaction.guild.emojis, key=lambda emoji: emoji.name
+            )
 
             if guild_emojis:  # guild has no emojis
                 view = EmojiView(interaction, guild_emojis)
@@ -348,17 +386,24 @@ class Fun(commands.Cog, name="Fun"):
                     view=view,
                 )
             else:
-                await interaction.send(embed=Embed(description="This server has no emojis!"))
+                await interaction.send(
+                    embed=Embed(description="This server has no emojis!")
+                )
 
             return
 
         if len(emoji_name) < 2:
-            await interaction.send(embed=Embed(description="The search term must be longer than 2 characters."))
+            await interaction.send(
+                embed=Embed(
+                    description="The search term must be longer than 2 characters."
+                )
+            )
         else:  # perform a search on emojis
             emojis_found = [
                 emoji
                 for emoji in interaction.guild.emojis
-                if emoji_name.lower() in emoji.name.lower() or emoji_name == str(emoji.id)
+                if emoji_name.lower() in emoji.name.lower()
+                or emoji_name == str(emoji.id)
             ]
 
             emojis_found.sort(key=lambda emoji: emoji.name)
@@ -374,7 +419,9 @@ class Fun(commands.Cog, name="Fun"):
                     view=view,
                 )
             else:
-                await interaction.send(embed=Embed(description=f"No emojis are found for `{emoji_name}`."))
+                await interaction.send(
+                    embed=Embed(description=f"No emojis are found for `{emoji_name}`.")
+                )
 
     @nextcord.slash_command()
     async def trivia(
@@ -406,7 +453,7 @@ class Fun(commands.Cog, name="Fun"):
                 "Science: Gadgets": "30",
                 "Science: Mathematics": "19",
                 "Sports": "21",
-                "Vehicles": "28"
+                "Vehicles": "28",
             },
             required=False,
             default=None,
@@ -432,16 +479,25 @@ class Fun(commands.Cog, name="Fun"):
 
         while True:
             async with aiohttp.ClientSession() as session:
-                async with session.get("https://opentdb.com/api.php", params=params) as response:
+                async with session.get(
+                    "https://opentdb.com/api.php", params=params
+                ) as response:
                     question_res = await response.json()
-                    
+
                     if question_res["response_code"] != 0:  # error response code
-                        await interaction.send(embed=functions.format_with_embed("An error occured. Please try again"), ephemeral=True)
+                        await interaction.send(
+                            embed=functions.format_with_embed(
+                                "An error occured. Please try again"
+                            ),
+                            ephemeral=True,
+                        )
                         return
-                    
+
                     question_res = question_res["results"][0]
 
-            kwargs = {k: v for k, v in question_res.items() if k in TriviaQuestion.__slots__}
+            kwargs = {
+                k: v for k, v in question_res.items() if k in TriviaQuestion.__slots__
+            }
             try:
                 question = TriviaQuestion(**kwargs)
             except functions.ComponentLabelTooLong:
@@ -469,14 +525,20 @@ class Fun(commands.Cog, name="Fun"):
             try:
                 key = base64.b64decode(key)
             except:
-                await interaction.send(embed=functions.format_with_embed("The key is not properly encoded in base64."))
+                await interaction.send(
+                    embed=functions.format_with_embed(
+                        "The key is not properly encoded in base64."
+                    )
+                )
                 return
 
         # Encrypt data with AES
         try:
             cipher = AES.new(key, AES.MODE_ECB)
         except:
-            await interaction.send(embed=functions.format_with_embed("The key is invalid!"))
+            await interaction.send(
+                embed=functions.format_with_embed("The key is invalid!")
+            )
             return
 
         b = plaintext.encode("UTF-8")
@@ -492,7 +554,9 @@ class Fun(commands.Cog, name="Fun"):
         for k, v in data.items():
             embed.add_field(
                 name=k,
-                value=f"```{base64.b64encode(v).decode()}```" if isinstance(v, bytes) else f"```{v}```",
+                value=f"```{base64.b64encode(v).decode()}```"
+                if isinstance(v, bytes)
+                else f"```{v}```",
                 inline=False,
             )
         await interaction.send(embed=embed)
@@ -513,7 +577,11 @@ class Fun(commands.Cog, name="Fun"):
             try:
                 data[k] = base64.b64decode(v)
             except:
-                await interaction.send(embed=functions.format_with_embed(f"The {k} is not properly encoded in base64."))
+                await interaction.send(
+                    embed=functions.format_with_embed(
+                        f"The {k} is not properly encoded in base64."
+                    )
+                )
                 return
 
         # Decrypt data with AES
@@ -545,7 +613,9 @@ class Fun(commands.Cog, name="Fun"):
         for k, v in data.items():
             embed.add_field(
                 name=k,
-                value=f"```{base64.b64encode(v).decode()}```" if isinstance(v, bytes) else f"```{v}```",
+                value=f"```{base64.b64encode(v).decode()}```"
+                if isinstance(v, bytes)
+                else f"```{v}```",
                 inline=False,
             )
         await interaction.send(embed=embed)

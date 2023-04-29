@@ -1,6 +1,6 @@
 # nextcord
 import nextcord
-from nextcord import Embed, Interaction, SelectOption
+from nextcord import Embed, Interaction, SelectOption, ButtonStyle
 from nextcord.ui import View, Button, button, select
 
 # default modules
@@ -22,7 +22,7 @@ class HelpView(BaseView):
 
         for cog_name, (cog, commands) in mapping.items():
             self.cmd_list.extend(commands)
-            
+
         self.cmd_list.sort(key=lambda x: x.qualified_name)
         cog_select_menu = [i for i in self.children if i.custom_id == "cog_select"][0]
         options = self._get_cogs_option()
@@ -33,7 +33,9 @@ class HelpView(BaseView):
         self.old_selected_values = ["All"]
 
     def _get_cogs_option(self) -> list[SelectOption]:
-        options: list[SelectOption] = [SelectOption(label="All", emoji="🌐", default=True)]
+        options: list[SelectOption] = [
+            SelectOption(label="All", emoji="🌐", default=True)
+        ]
         for cog_name in self.mapping:
             cog = self.mapping[cog_name][0]
             emoji = getattr(cog, "COG_EMOJI", None)
@@ -54,7 +56,10 @@ class HelpView(BaseView):
         if description:
             embed.description = description
         if set_author:
-            avatar = self.interaction.client.user.avatar or self.interaction.client.user.default_avatar
+            avatar = (
+                self.interaction.client.user.avatar
+                or self.interaction.client.user.default_avatar
+            )
             embed.set_author(name=author_name, icon_url=avatar.url)
         if not command_list:
             for cog_name in self.mapping:
@@ -80,14 +85,18 @@ class HelpView(BaseView):
                         cmd_in_guild = True
             if cmd_in_guild:
                 filtered.append(i)
-        final_cmd_list = filtered[self.get_page_start_index() : self.get_page_end_index() + 1]
+        final_cmd_list = filtered[
+            self.get_page_start_index() : self.get_page_end_index() + 1
+        ]
         for cmd in final_cmd_list:
             value = cmd.description if cmd.description else "..."
             name = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
             if len(cmd.children) > 0:
                 name += " `has subcommands`"
             embed.add_field(name=name, value=f"`➸` {value}", inline=False)
-        embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}")
+        embed.set_footer(
+            text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}"
+        )
         return embed
 
     @select(
@@ -151,13 +160,17 @@ class HelpView(BaseView):
         embed = self.help_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @button(emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True)
+    @button(
+        emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True
+    )
     async def first(self, button: Button, interaction: Interaction):
         self.page = 1
         self.btn_disable()
         await self.get_embed_and_send_msg(interaction)
 
-    @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back")
+    @button(
+        emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back"
+    )
     async def back(self, button: Button, interaction: Interaction):
         self.page -= 1
         self.btn_disable()
@@ -174,3 +187,105 @@ class HelpView(BaseView):
         self.page = math.ceil(len(self.cmd_list) / self.cmd_per_page)
         self.btn_disable()
         await self.get_embed_and_send_msg(interaction)
+
+
+class EmbedField:
+    def __init__(self, name: str, value: str, inline: bool = True) -> None:
+        self.name = name
+        self.value = value
+        self.inline = inline
+
+
+class GuidePage(Embed):
+    def __init__(
+        self,
+        title: str,
+        description: str,
+        fields: Optional[tuple[EmbedField]] = None,
+        image: Optional[str] = None,
+    ):
+        super().__init__(title=title, description=description)
+        self.set_image(image)
+        if fields is not None:
+            for field in fields:
+                self.add_field(name=field.name, value=field.value, inline=field.inline)
+
+
+class GuideView(BaseView):
+    pages = [
+        GuidePage(
+            title="Introduction",
+            description="Welcome to BOSS, the Discord bot for a post-apocalyptic wasteland. \n"
+            "Scavenge for resources, complete missions, and participate in events to earn valuable currency. \n\n"
+            "With BOSS's help, you can navigate this harsh world and build your wealth. "
+            "So join us and let BOSS be your guide to survival and prosperity!",
+        ),
+        GuidePage(
+            title="Currency System",
+            description="The currency system includes multiple types of currency, each with its own value and uses. Users can earn currency by completing tasks or challenges, and spend currency on a variety of items and upgrades. The bot also offers a currency exchange feature, where users can trade one type of currency for another. With a user-friendly account system and dynamic economy, the currency system in BOSS provides a realistic and engaging experience for users.",
+        ),
+    ]
+
+    def __init__(self, interaction: Interaction):
+        super().__init__(interaction, timeout=180)
+        self.current_page = 0
+        self.msg: nextcord.WebhookMessage | nextcord.PartialInteractionMessage = None
+
+    async def send(self):
+        embed = self.get_embed()
+        self.update_view()
+        self.msg = await self.interaction.send(embed=embed, view=self)
+
+    def get_embed(self):
+        return self.pages[self.current_page]
+
+    def update_view(self):
+        back_btn = [i for i in self.children if i.custom_id == "back"][0]
+        first_btn = [i for i in self.children if i.custom_id == "first"][0]
+        if self.current_page == 0:
+            back_btn.disabled = True
+            first_btn.disabled = True
+        else:
+            back_btn.disabled = False
+            first_btn.disabled = False
+        next_btn = [i for i in self.children if i.custom_id == "next"][0]
+        last_btn = [i for i in self.children if i.custom_id == "last"][0]
+        if self.current_page == len(self.pages) - 1:
+            next_btn.disabled = True
+            last_btn.disabled = True
+        else:
+            next_btn.disabled = False
+            last_btn.disabled = False
+
+    @button(emoji="⏮️", style=ButtonStyle.blurple, custom_id="first", disabled=True)
+    async def first(self, button: Button, interaction: Interaction):
+        self.current_page = 0
+
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
+
+    @button(emoji="◀️", style=ButtonStyle.blurple, disabled=True, custom_id="back")
+    async def back(self, button: Button, interaction: Interaction):
+        self.current_page -= 1
+
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
+
+    @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
+    async def next(self, button: Button, interaction: Interaction):
+        self.current_page += 1
+
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
+
+    @button(emoji="⏭️", style=ButtonStyle.blurple, custom_id="last")
+    async def last(self, button: Button, interaction: Interaction):
+        self.current_page = len(self.pages) - 1
+
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
+        await interaction.response.edit_message(view=self, embed=embed)

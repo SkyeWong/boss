@@ -14,7 +14,7 @@ from utils.postgres_db import Database
 from utils.player import Player
 from utils import functions, constants
 
-from views.utility_views import HelpView
+from views.utility_views import HelpView, GuideView
 
 # default modules
 import random
@@ -78,7 +78,9 @@ class Utility(commands.Cog, name="Utility"):
             if cmd_in_guild == True:
                 cmd_names.append(base_cmd.name)
             if hasattr(base_cmd, "children") and len(base_cmd.children) > 0:
-                cmd_names.extend(self.get_all_subcmd_names(interaction.guild_id, base_cmd))
+                cmd_names.extend(
+                    self.get_all_subcmd_names(interaction.guild_id, base_cmd)
+                )
         cmd_names.sort()
         if not data:
             # return full list
@@ -88,7 +90,7 @@ class Utility(commands.Cog, name="Utility"):
             near_items = [cmd for cmd in cmd_names if data.lower() in cmd.lower()]
             await interaction.response.send_autocomplete(near_items[:25])
 
-    @nextcord.slash_command(name="help")
+    @nextcord.slash_command()
     async def help(
         self,
         interaction: Interaction,
@@ -102,7 +104,7 @@ class Utility(commands.Cog, name="Utility"):
     ):
         """Get a list of commands or info of a specific command."""
         mapping = functions.get_mapping(interaction, self.bot)
-        
+
         if not cmd_name:  # send full command list
             view = HelpView(interaction, mapping)
             embed = view.help_embed()
@@ -114,27 +116,38 @@ class Utility(commands.Cog, name="Utility"):
             if cmd_name.startswith("$"):  # search for commands, not just exact matches
                 cmd_name = cmd_name[1:]  # remove "$" prefix
                 if len(cmd_name) < 3:
-                    await interaction.send(embed=functions.format_with_embed(
-                        "Use search terms at least 3 characters long."
-                    ))
+                    await interaction.send(
+                        embed=functions.format_with_embed(
+                            "Use search terms at least 3 characters long."
+                        )
+                    )
                     return
-                
+
                 cmds = []
                 for i in interaction.client.get_all_application_commands():
                     # prioritise subcommands
-                    if subcmds := [j for j in i.children.values() if cmd_name in j.qualified_name]:
+                    if subcmds := [
+                        j for j in i.children.values() if cmd_name in j.qualified_name
+                    ]:
                         cmds.extend(subcmds)
-                    elif subsubcmds := [k for k in i.children.values() for k in k.children.values() if cmd_name in k.qualified_name]:
+                    elif subsubcmds := [
+                        k
+                        for k in i.children.values()
+                        for k in k.children.values()
+                        if cmd_name in k.qualified_name
+                    ]:
                         cmds.extend(subsubcmds)
                     elif cmd_name in i.qualified_name:
                         cmds.append(i)
-                        
+
                 if not cmds:
-                    await interaction.send(embed=functions.format_with_embed(
-                        f"There are no commands matching _{cmd_name}_. Use </help:964753444164501505> for a list of available commands"
-                    ))
+                    await interaction.send(
+                        embed=functions.format_with_embed(
+                            f"There are no commands matching _{cmd_name}_. Use </help:964753444164501505> for a list of available commands"
+                        )
+                    )
                     return
-                
+
                 # at least 1 command has been found, send the view with the command list
                 view = HelpView(interaction, mapping)
                 view.cmd_list = cmds
@@ -151,10 +164,12 @@ class Utility(commands.Cog, name="Utility"):
                 await interaction.send(embed=embed, view=view)
             else:  # search for exact matches since the user is likely to have selected it from autocomplete
                 cmd = None
-                
+
                 for i in interaction.client.get_all_application_commands():
                     # search for the command name
-                    if i.is_global or interaction.guild_id in i.guild_ids:  # command is available to user
+                    if (
+                        i.is_global or interaction.guild_id in i.guild_ids
+                    ):  # command is available to user
                         if i.name == cmd_name:  # matched exact command
                             cmd = i
                             break
@@ -167,16 +182,20 @@ class Utility(commands.Cog, name="Utility"):
                                 break
 
                 if cmd is None:  # no exact match of command
-                    await interaction.send(embed=functions.format_with_embed(
+                    await interaction.send(
+                        embed=functions.format_with_embed(
                             "The command is not found! Use </help:964753444164501505> for a list of available commands"
-                    ))
+                        )
+                    )
                     return
-                
+
                 # the exact match has been found
                 embed = Embed()
                 name = cmd.qualified_name
                 embed.title = f"Info of </{name}:{list(cmd.command_ids.values())[0]}>"
-                embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
+                embed.set_author(
+                    name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url
+                )
 
                 if len(cmd.children) > 0:
                     # this command has subcommands, send a list of the subcommands
@@ -191,7 +210,9 @@ class Utility(commands.Cog, name="Utility"):
                     view.btn_disable()
 
                     # remove the select menu to choose between cogs
-                    select = [i for i in view.children if i.custom_id == "cog_select"][0]
+                    select = [i for i in view.children if i.custom_id == "cog_select"][
+                        0
+                    ]
                     view.remove_item(select)
                     await interaction.send(embed=embed, view=view)
                 else:
@@ -244,7 +265,7 @@ class Utility(commands.Cog, name="Utility"):
             near_items = [item for item in items if data.lower() in item.lower()][:25]
             await interaction.response.send_autocomplete(near_items)
 
-    @nextcord.slash_command(name="item")
+    @nextcord.slash_command()
     @cooldowns.cooldown(1, 12, SlashBucket.author)
     async def item(
         self,
@@ -265,7 +286,9 @@ class Utility(commands.Cog, name="Utility"):
         db: Database = self.bot.db
         item = await db.fetchrow(sql, f"%{itemname.lower()}%")
         if not item:
-            await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
+            await interaction.send(
+                embed=Embed(description="The item is not found!"), ephemeral=True
+            )
         else:
             res = await db.fetch(
                 """
@@ -276,9 +299,18 @@ class Utility(commands.Cog, name="Utility"):
                 interaction.user.id,
                 item["item_id"],
             )
-            owned_quantities = {constants.InventoryType(inv_type).name: quantity for inv_type, quantity in res}
+            owned_quantities = {
+                constants.InventoryType(inv_type).name: quantity
+                for inv_type, quantity in res
+            }
             embed = functions.get_item_embed(item, owned_quantities)
             await interaction.send(embed=embed)
+
+    @nextcord.slash_command()
+    async def guide(self, interaction: Interaction):
+        """Get help navigating the wasteland with BOSS's guide."""
+        view = GuideView(interaction)
+        await view.send()
 
 
 def setup(bot: commands.Bot):

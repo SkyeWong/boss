@@ -44,7 +44,9 @@ class InventoryView(BaseView):
         user = self.user
         inv = self.inv
 
-        inv_type = [i.name for i in constants.InventoryType if i.value == self.inv_type][0]
+        inv_type = [
+            i.name for i in constants.InventoryType if i.value == self.inv_type
+        ][0]
 
         embed = Embed()
         embed.set_author(
@@ -64,13 +66,17 @@ class InventoryView(BaseView):
             return embed
 
         for item in inv[self.get_page_start_index() : self.get_page_end_index() + 1]:
-            item_type = [i.name for i in constants.ItemType if i.value == item["type"]][0]
+            item_type = [i.name for i in constants.ItemType if i.value == item["type"]][
+                0
+            ]
             embed.add_field(
                 name=f"<:{item['emoji_name']}:{item['emoji_id']}>  {item['name']} ─ {item['quantity']}\n",
                 value=f"─ {item_type}",
                 inline=False,
             )
-        embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.inv) / self.items_per_page)}")
+        embed.set_footer(
+            text=f"Page {self.page}/{math.ceil(len(self.inv) / self.items_per_page)}"
+        )
         return embed
 
     def get_page_start_index(self):
@@ -99,7 +105,9 @@ class InventoryView(BaseView):
             next_btn.disabled = False
             last_btn.disabled = False
 
-    @button(emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True)
+    @button(
+        emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True
+    )
     async def first(self, button: Button, interaction: Interaction):
         await interaction.response.defer()
         self.page = 1
@@ -107,7 +115,9 @@ class InventoryView(BaseView):
         embed = self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)
 
-    @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back")
+    @button(
+        emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back"
+    )
     async def back(self, button: Button, interaction: Interaction):
         await interaction.response.defer()
         self.page -= 1

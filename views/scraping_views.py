@@ -151,7 +151,9 @@ class Video:
 
         link = f"https://www.youtube.com/watch?v={video_response['id']}"
         published_time = int(
-            datetime.datetime.strptime(video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
+            datetime.datetime.strptime(
+                video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ"
+            )
             .replace(tzinfo=datetime.timezone.utc)
             .astimezone(tz=None)
             .timestamp()
@@ -183,7 +185,13 @@ class Video:
                 # No match for this unit: it's absent
                 duration_vals.update({sep.lower(): 0})
 
-        duration = " ".join([f"{value}{unit}" for unit, value in duration_vals.items() if not value == 0])
+        duration = " ".join(
+            [
+                f"{value}{unit}"
+                for unit, value in duration_vals.items()
+                if not value == 0
+            ]
+        )
 
         views = video_response["statistics"].get("viewCount", 0)
         likes = video_response["statistics"].get("likeCount", 0)
@@ -208,7 +216,9 @@ class VideoView(BaseView):
 
         video_select = [i for i in self.children if i.custom_id == "video_select"][0]
         video_select.options = [
-            SelectOption(label=video.title[:100], description=video.channel_title, value=index)
+            SelectOption(
+                label=video.title[:100], description=video.channel_title, value=index
+            )
             for index, video in enumerate(self.videos)
         ]
 
@@ -219,7 +229,9 @@ class VideoView(BaseView):
         embed.set_author(name=video.channel_title)
         embed.colour = 0xDBFCFF
 
-        embed.set_footer(text=f"Page {self.page + 1}/{len(self.videos)}")  # + 1 because self.page uses zero-indexing
+        embed.set_footer(
+            text=f"Page {self.page + 1}/{len(self.videos)}"
+        )  # + 1 because self.page uses zero-indexing
 
         embed.set_thumbnail(url=video.thumbnail_url)
 
@@ -233,7 +245,9 @@ class VideoView(BaseView):
                 inline=False,
             )
         else:
-            embed.add_field(name="Description", value=f"\n>>> {video.description}", inline=False)
+            embed.add_field(
+                name="Description", value=f"\n>>> {video.description}", inline=False
+            )
 
         embed.add_field(
             name="Publish time",
@@ -288,7 +302,7 @@ class VideoView(BaseView):
         self.disable_buttons()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
-        
+
     @button(emoji="📃", style=ButtonStyle.grey, custom_id="description")
     async def show_description(self, button: Button, interaction: Interaction):
         embed = Embed()
@@ -296,7 +310,9 @@ class VideoView(BaseView):
 
         embed.set_author(name=video.title)
         embed.set_thumbnail(url=video.thumbnail_url)
-        embed.description = video.description[:4096]  # upper limit for description length is 4096.
+        embed.description = video.description[
+            :4096
+        ]  # upper limit for description length is 4096.
         await interaction.send(embed=embed, ephemeral=True)
 
     @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
@@ -314,6 +330,7 @@ class VideoView(BaseView):
         self.disable_buttons()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
+
 
 class MtrLine(enum.Enum):
     Airport_Express = "AEL"
@@ -364,66 +381,66 @@ LINE_STATION_CODES = {
         "Austin": "AUS",
         "Nam Cheong": "NAC",
         "Mei Foo": "MEF",
-        "Tsuen Wan West": "TWW", 
-        "Kam Sheung Road": "KSR", 
-        "Yuen Long": "YUL", 
-        "Long Ping": "LOP", 
-        "Tin Shui Wai": "TIS", 
-        "Siu Hong": "SIH", 
-        "Tuen Mun": "TUM", 
+        "Tsuen Wan West": "TWW",
+        "Kam Sheung Road": "KSR",
+        "Yuen Long": "YUL",
+        "Long Ping": "LOP",
+        "Tin Shui Wai": "TIS",
+        "Siu Hong": "SIH",
+        "Tuen Mun": "TUM",
     },
     "TKL": {
-        "North Point": "NOP", 
-        "Quarry Bay": "QUB", 
-        "Yau Tong": "YAT", 
-        "Tiu Keng Leng": "TIK", 
-        "Tseung Kwan O": "TKO", 
-        "LOHAS Park": "LHP", 
-        "Hang Hau": "HAH", 
-        "Po Lam": "POA", 
+        "North Point": "NOP",
+        "Quarry Bay": "QUB",
+        "Yau Tong": "YAT",
+        "Tiu Keng Leng": "TIK",
+        "Tseung Kwan O": "TKO",
+        "LOHAS Park": "LHP",
+        "Hang Hau": "HAH",
+        "Po Lam": "POA",
     },
     "EAL": {
-        "Admiralty": "ADM", 
-        "Exhibition Centre": "EXC", 
-        "Hung Hom": "HUH", 
-        "Mong Kok East": "MKK", 
-        "Kowloon Tong": "KOT", 
-        "Tai Wai": "TAW", 
-        "Sha Tin": "SHT", 
-        "Fo Tan": "FOT", 
-        "Racecourse": "RAC", 
-        "University": "UNI", 
-        "Tai Po Market": "TAP", 
-        "Tai Wo": "TWO", 
-        "Fanling": "FAN", 
-        "Sheung Shui": "SHS", 
-        "Lo Wu": "LOW", 
-        "Lok Ma Chau": "LMC", 
+        "Admiralty": "ADM",
+        "Exhibition Centre": "EXC",
+        "Hung Hom": "HUH",
+        "Mong Kok East": "MKK",
+        "Kowloon Tong": "KOT",
+        "Tai Wai": "TAW",
+        "Sha Tin": "SHT",
+        "Fo Tan": "FOT",
+        "Racecourse": "RAC",
+        "University": "UNI",
+        "Tai Po Market": "TAP",
+        "Tai Wo": "TWO",
+        "Fanling": "FAN",
+        "Sheung Shui": "SHS",
+        "Lo Wu": "LOW",
+        "Lok Ma Chau": "LMC",
     },
     "SIL": {
-        "Admiralty": "ADM", 
-        "Ocean Park": "OCP", 
-        "Wong Chuk Hang": "WCH", 
-        "Lei Tung": "LET", 
-        "South Horizons": "SOH", 
+        "Admiralty": "ADM",
+        "Ocean Park": "OCP",
+        "Wong Chuk Hang": "WCH",
+        "Lei Tung": "LET",
+        "South Horizons": "SOH",
     },
     "TWL": {
-        "Central": "CEN", 
-        "Admiralty": "ADM", 
-        "Tsim Sha Tsui": "TST", 
-        "Jordan": "JOR", 
-        "Yau Ma Tei": "YMT", 
-        "Mong Kok": "MOK", 
-        "Price Edward": "PRE", 
-        "Sham Shui Po": "SSP", 
-        "Cheung Sha Wan": "CSW", 
-        "Lai Chi Kok": "LCK", 
-        "Mei Foo": "MEF", 
-        "Lai King": "LAK", 
-        "Kwai Fong": "KWF", 
-        "Kwai Hing": "KWH", 
-        "Tai Wo Hau": "TWH", 
-        "Tsuen Wan": "TSW", 
+        "Central": "CEN",
+        "Admiralty": "ADM",
+        "Tsim Sha Tsui": "TST",
+        "Jordan": "JOR",
+        "Yau Ma Tei": "YMT",
+        "Mong Kok": "MOK",
+        "Price Edward": "PRE",
+        "Sham Shui Po": "SSP",
+        "Cheung Sha Wan": "CSW",
+        "Lai Chi Kok": "LCK",
+        "Mei Foo": "MEF",
+        "Lai King": "LAK",
+        "Kwai Fong": "KWF",
+        "Kwai Hing": "KWH",
+        "Tai Wo Hau": "TWH",
+        "Tsuen Wan": "TSW",
     },
 }
 
@@ -440,7 +457,7 @@ class Train:
         sequence: int,
         destination,
         platform: int,
-        via_racecourse: Optional[bool] = None
+        via_racecourse: Optional[bool] = None,
     ):
         self.line = line
         self.arriving_station = arriving_station
@@ -449,33 +466,33 @@ class Train:
         self.destination = destination
         self.platform = platform
         self.via_racecourse = via_racecourse
-        
+
     @classmethod
     def from_api_response(cls, next_train_response):
         """
         Class method to generate a dict of "UP" and "DOWN" `Train`s from the Next Train api response.
         ### Data structure of returned value:
-        
+
         ```
         trains = {
             "UP": list[UP trains],
             "DOWN": list[DOWN trains]
         }
         ```
-        
+
         Can be used for the `trains` parameter in `NextTrainView`
         """
         data = next_train_response["data"]
         key = list(data.keys())[0]  # eg: "TKL-TIK"
         line = MtrLine(key[:3])  # eg: "TKL"
         arriving_station = key[4:]  # eg: "TIK"
-        
+
         values = list(data.values())[0]
         trains = {
             "UP": values.get("UP", []),
-            "DOWN": values.get("DOWN", [])
+            "DOWN": values.get("DOWN", []),
         }  # use empty list for default in case station is at either end of line
-        
+
         hk_tz = pytz.timezone("Asia/Hong_Kong")
         for train_type, trains_res in trains.items():
             for index, train in enumerate(trains_res):
@@ -484,22 +501,24 @@ class Train:
                 sequence = train["seq"]
                 platform = train["plat"]
                 via_racecourse = bool(train.get("route"))
-                arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S")
+                arrival_time = datetime.datetime.strptime(
+                    train["time"], "%Y-%m-%d %H:%M:%S"
+                )
                 arrival_time = hk_tz.localize(arrival_time)
-                                
+
                 trains[train_type][index] = cls(
-                    line, 
+                    line,
                     arriving_station,
                     arrival_time,
                     sequence,
                     destination_code,
                     platform,
-                    via_racecourse
+                    via_racecourse,
                 )
-        
+
         return trains
-        
-        
+
+
 class NextTrainView(BaseView):
     """
     Shows a list of trains returned from Next Train API.
@@ -511,32 +530,57 @@ class NextTrainView(BaseView):
     Used for identifying the user and timing out the view.
     `trains`: a `dict` containing "UP" and "DOWN" trains
     """
+
     def __init__(self, slash_interaction: Interaction, trains: dict[str, list[Train]]):
         super().__init__(slash_interaction, timeout=60)
         self.trains = trains
-        
+
         type_button = [i for i in self.children if i.custom_id == "type"][0]
-        if not self.trains["UP"]:  # only down directions are available, disable the type button
+        if not self.trains[
+            "UP"
+        ]:  # only down directions are available, disable the type button
             self.type = "DOWN"
             type_button.disabled = True
-        elif not self.trains["DOWN"]:  # only up directions are available, disable the type button
+        elif not self.trains[
+            "DOWN"
+        ]:  # only up directions are available, disable the type button
             self.type = "UP"
             type_button.disabled = True
         else:  # both directions are available.
             self.type = "UP"
             type_button.disabled = False
         self.page = 0
-    
+
     def get_embed(self):
         embed = Embed()
         train = self.trains[self.type][self.page]
 
-        arriving_station = [name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.arriving_station][0]
+        colours = {
+            MtrLine.Airport_Express: 0x02838A,
+            MtrLine.East_Rail_Line: 0x5EB9E6,
+            MtrLine.South_Island_Line: 0xCBCD00,
+            MtrLine.Tseung_Kwan_O_Line: 0x863E90,
+            MtrLine.Tuen_Ma_Line: 0x952E07,
+            MtrLine.Tung_Chung_Line: 0xF39131,
+        }
+        embed.colour = colours.get(train.line, None)  # black for default
+
+        arriving_station = [
+            name
+            for name, code in LINE_STATION_CODES[train.line.value].items()
+            if code == train.arriving_station
+        ][0]
         embed.title = f"Next trains arriving at {arriving_station}"
 
-        embed.set_footer(text=f"{self.type} trains • Page {self.page + 1}/{len(self.trains)}")  # + 1 because self.page uses zero-indexing
+        embed.set_footer(
+            text=f"{self.type} trains • Page {self.page + 1}/{len(self.trains)}"
+        )  # + 1 because self.page uses zero-indexing
 
-        destination_name = [name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.destination][0]
+        destination_name = [
+            name
+            for name, code in LINE_STATION_CODES[train.line.value].items()
+            if code == train.destination
+        ][0]
         embed.add_field(
             name="Destination",
             value=destination_name,
@@ -544,13 +588,15 @@ class NextTrainView(BaseView):
         embed.add_field(name="Platform", value=train.platform)
         if train.via_racecourse:
             embed.description = "> via Racecourse"
-            
+
         arrival_timestamp = int(train.arrival_time.timestamp())
         hk_tz = pytz.timezone("Asia/Hong_Kong")
         embed.add_field(
-            name="Arrival time" if train.arrival_time > datetime.datetime.now(tz=hk_tz) else "Departure time",
+            name="Arrival time"
+            if train.arrival_time > datetime.datetime.now(tz=hk_tz)
+            else "Departure time",
             value=f"<t:{arrival_timestamp}:t> • <t:{arrival_timestamp}:R>",
-            inline=False
+            inline=False,
         )
 
         return embed
@@ -566,7 +612,7 @@ class NextTrainView(BaseView):
             next_btn.disabled = True
         else:
             next_btn.disabled = False
-            
+
         type_button = [i for i in self.children if i.custom_id == "type"][0]
         if self.type == "UP":
             type_button.emoji = "🔽"
@@ -588,7 +634,7 @@ class NextTrainView(BaseView):
         self.update_view()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
-        
+
     @button(emoji="🔼", style=ButtonStyle.grey, custom_id="type")
     async def change_type(self, button: Button, interaction: Interaction):
         self.page = 0
@@ -596,7 +642,7 @@ class NextTrainView(BaseView):
             self.type = "DOWN"
         elif self.type == "DOWN":
             self.type = "UP"
-        
+
         self.update_view()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)

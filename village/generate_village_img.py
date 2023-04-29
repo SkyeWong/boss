@@ -40,7 +40,7 @@ for i in range(num_cols * num_rows - random.randint(1, 5)):
         if len(used_cells) == num_cols * num_rows:
             print("There are more houses than the grids! They could not be generated.")
             sys.exit(0)
-            
+
         row = random.randint(0, num_rows - 1)
         col = random.randint(0, num_cols - 1)
         if (row, col) not in used_cells:
@@ -61,10 +61,10 @@ for i in range(num_cols * num_rows - random.randint(1, 5)):
         continue
 
     # Add the house to the list of houses
-    houses.append({'image': house_image, 'x': x, 'y': y})
+    houses.append({"image": house_image, "x": x, "y": y})
 
 # Sort the houses by their y coordinate to ensure they are displayed in the correct order
-houses = sorted(houses, key=lambda h: h['y'])
+houses = sorted(houses, key=lambda h: h["y"])
 
 # Draw the grid lines onto the background
 draw = ImageDraw.Draw(background)
@@ -77,8 +77,8 @@ for row in range(num_rows + 1):
 # Paste the house images onto the background
 for house in houses:
     # Paste the house image onto the background
-    background.paste(house['image'], (house['x'], house['y']), house["image"])
+    background.paste(house["image"], (house["x"], house["y"]), house["image"])
 
 # Save the final image
-background.save('village_map.png')
+background.save("village_map.png")
 input()

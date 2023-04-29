@@ -28,7 +28,7 @@ for y in range(num_houses_h):
 
 # check for overlapping houses
 for i in range(num_houses):
-    for j in range(i+1, num_houses):
+    for j in range(i + 1, num_houses):
         x1, y1 = house_positions[i]
         x2, y2 = house_positions[j]
         if abs(x1 - x2) < house_size and abs(y1 - y2) < house_size:
@@ -49,7 +49,7 @@ for pos in house_positions:
 # create a list of paths
 paths = []
 for i in range(num_houses):
-    for j in range(i+1, num_houses):
+    for j in range(i + 1, num_houses):
         x1, y1 = house_positions[i]
         x2, y2 = house_positions[j]
         dx = x2 - x1

@@ -27,9 +27,11 @@ from collections import defaultdict
 
 class Players(commands.Cog, name="Players"):
     COG_EMOJI = "🦸‍♂️"
-    cooldowns.define_shared_cooldown(1, 6, SlashBucket.author, cooldown_id="check_inventory")
+    cooldowns.define_shared_cooldown(
+        1, 6, SlashBucket.author, cooldown_id="check_inventory"
+    )
 
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     @nextcord.slash_command()
@@ -52,7 +54,9 @@ class Players(commands.Cog, name="Players"):
         player = Player(db, user)
         if not await player.is_present():
             await interaction.send(
-                embed=Embed(description="The user hasn't started playing BOSS yet! Maybe invite them over?"),
+                embed=Embed(
+                    description="The user hasn't started playing BOSS yet! Maybe invite them over?"
+                ),
                 ephemeral=True,
             )
             return
@@ -100,7 +104,9 @@ class Players(commands.Cog, name="Players"):
         if item_worth is None:
             item_worth = 0
 
-        profile_ui.add_field(name="Gold", value=f"`◎ {numerize.numerize(profile['gold'])}`")
+        profile_ui.add_field(
+            name="Gold", value=f"`◎ {numerize.numerize(profile['gold'])}`"
+        )
         experience_progress_bar_filled = round((experience % 100) / 10)
         profile_ui.add_field(
             name="Experience",
@@ -122,7 +128,7 @@ class Players(commands.Cog, name="Players"):
             inline=False,
         )
         await interaction.send(embed=profile_ui)
-        
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 8, SlashBucket.author)
     async def balance(
@@ -143,7 +149,9 @@ class Players(commands.Cog, name="Players"):
         player = Player(db, user)
         if not await player.is_present():
             await interaction.send(
-                embed=Embed(description="The user hasn't started playing BOSS yet! Maybe invite them over?"),
+                embed=Embed(
+                    description="The user hasn't started playing BOSS yet! Maybe invite them over?"
+                ),
                 ephemeral=True,
             )
             return
@@ -160,7 +168,7 @@ class Players(commands.Cog, name="Players"):
         embed = Embed()
         embed.colour = random.choice(constants.EMBED_COLOURS)
         embed.title = f"{user}'s Balance"
-        
+
         item_worth = await db.fetchval(
             """
             SELECT SUM(items.trade_price * inv.quantity)::bigint As item_worth
@@ -172,17 +180,47 @@ class Players(commands.Cog, name="Players"):
                 INNER JOIN players.players
                 ON inv.player_id = players.player_id
             WHERE inv.player_id = $1
-            GROUP BY players.gold
             """,
             user.id,
         )
         if item_worth is None:
             item_worth = 0
-        
-        embed.description = f"**Gold**: ◎ {gold:,}\n" \
-                            f"**Item worth**: ◎ {item_worth:,}\n\n" \
-                            f"**Net worth**: ◎ {item_worth + gold:,}"
-        await interaction.send(embed=embed)    
+
+        embed.description = (
+            f"**Gold**: ◎ {gold:,}\n"
+            f"**Item worth**: ◎ {item_worth:,}\n\n"
+            f"**Net worth**: ◎ {item_worth + gold:,}"
+        )
+        await interaction.send(embed=embed)
+
+    @nextcord.slash_command()
+    @cooldowns.cooldown(1, 20, SlashBucket.author)
+    async def leaderboard(self, interaction: Interaction):
+        """See the richest man in the (BOSS) world, who is probably not Elon Musk."""
+        lb = await self.bot.db.fetch(
+            """
+            SELECT players.player_id, COALESCE(SUM(items.trade_price * inv.quantity)::bigint, 0) + players.gold As net_worth
+                FROM players.players
+                LEFT JOIN players.inventory AS inv
+                    ON inv.player_id = players.player_id
+                LEFT JOIN utility.items
+                    ON inv.item_id = items.item_id
+            GROUP BY players.player_id
+            ORDER BY net_worth DESC
+            LIMIT 8
+            """,
+        )
+        embed = Embed(title="Net Worth Leaderboard", description="")
+        medal_emojis = {
+            1: "🥇",
+            2: "🥈",
+            3: "🥉",
+        }
+        for i, (id, net_worth) in enumerate(lb):
+            user = await self.bot.fetch_user(id)
+            emoji = medal_emojis.get(i + 1, "🔹")
+            embed.description += f"{emoji} ` {net_worth:,} ` - {user}\n"
+        await interaction.send(embed=embed)
 
     @nextcord.slash_command()
     @cooldowns.shared_cooldown("check_inventory")
@@ -249,7 +287,9 @@ class Players(commands.Cog, name="Players"):
         embed = view.get_inv_embed()
         view.message = await interaction.send(embed=embed, view=view)
 
-    async def get_autocompleted_items(self, user: nextcord.User, inv_type: int, data: str):
+    async def get_autocompleted_items(
+        self, user: nextcord.User, inv_type: int, data: str
+    ):
         db: Database = self.bot.db
         items = await db.fetch(
             """
@@ -267,7 +307,9 @@ class Players(commands.Cog, name="Players"):
             # return full list
             return [item[0] for item in items]
         # send a list of nearest matches from the list of item
-        near_items = [item[0] for item in items if item[0].lower().startswith(data.lower())]
+        near_items = [
+            item[0] for item in items if item[0].lower().startswith(data.lower())
+        ]
         return near_items
 
     async def choose_inv_autocomplete(self, interaction: Interaction, data: str):
@@ -287,14 +329,25 @@ class Players(commands.Cog, name="Players"):
             # return full list
             return sorted(list({item[0] for item in items}))
         # send a list of nearest matches from the list of item
-        near_items = sorted(list({item[0] for item in items if item[0].lower().startswith(data.lower())}))
+        near_items = sorted(
+            list(
+                {item[0] for item in items if item[0].lower().startswith(data.lower())}
+            )
+        )
         return near_items
 
-    async def move_items(self, player_id: int, item_from: int, item_to: int, item_id: int, quantity: int = None):
+    async def move_items(
+        self,
+        player_id: int,
+        item_from: int,
+        item_to: int,
+        item_id: int,
+        quantity: int = None,
+    ) -> dict[str, int]:
         """
-        Moves an item from an inventory type to another one. 
+        Moves an item from an inventory type to another one.
         If `quantity` is not provided all items will be moved.
-        
+
         Should be used with try/except to catch errors when
         1) there are not enough items
         2) the slots are full
@@ -303,7 +356,9 @@ class Players(commands.Cog, name="Players"):
         quantities_after = {}
         async with db.pool.acquire() as conn:
             async with conn.transaction():
-                if quantity is None:  # move all items of that name in that specific inv_type
+                if (
+                    quantity is None
+                ):  # move all items of that name in that specific inv_type
                     quantity = await conn.fetchval(
                         """
                         UPDATE players.inventory
@@ -362,9 +417,17 @@ class Players(commands.Cog, name="Players"):
 
                 for inv_type, items in num_of_items_in_inv.items():
                     # transaction has not been committed, items are not updated
-                    if item_to == inv_type == 0 and len(items) >= 32 and item_id not in items:
+                    if (
+                        item_to == inv_type == constants.InventoryType.backpack
+                        and len(items) >= 32
+                        and item_id not in items
+                    ):
                         raise MoveItemException("Backpacks only have 32 slots!")
-                    if item_to == inv_type == 2 and len(items) >= 5 and item_id not in items:
+                    if (
+                        item_to == inv_type == constants.InventoryType.vault
+                        and len(items) >= 5
+                        and item_id not in items
+                    ):
                         raise MoveItemException("Vaults only have 5 slots!")
         return quantities_after
 
@@ -417,7 +480,9 @@ class Players(commands.Cog, name="Players"):
             f"%{item_name}%",
         )
         if not item:
-            await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
+            await interaction.send(
+                embed=Embed(description="The item is not found!"), ephemeral=True
+            )
             return
 
         try:
@@ -446,7 +511,9 @@ class Players(commands.Cog, name="Players"):
         embed.description = f">>> Item: **{item['name']}**"
         embed.description += f"\nQuantity in {[inv.name for inv in constants.InventoryType if inv.value == item_from][0]}: `{quantities_after['from']}`"
         embed.description += f"\nQuantity in {[inv.name for inv in constants.InventoryType if inv.value == item_to][0]}: `{quantities_after['to']}`"
-        embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
+        embed.set_thumbnail(
+            url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png"
+        )
         await interaction.send(embed=embed)
 
 

@@ -79,13 +79,17 @@ class BossBot(commands.Bot):
         await self.db.disconnect()
         print("Bot closed.")
 
-    async def on_application_command_error(self, interaction: Interaction, error: Exception):
+    async def on_application_command_error(
+        self, interaction: Interaction, error: Exception
+    ):
         error = getattr(error, "original", error)
 
         # don't meet application check requirement
         if isinstance(error, nextcord.ApplicationCheckFailure):
             await interaction.send(
-                embed=functions.format_with_embed("You do not have the necessary permissions to use this command."),
+                embed=functions.format_with_embed(
+                    "You do not have the necessary permissions to use this command."
+                ),
                 ephemeral=True,
             )
             return
@@ -169,7 +173,9 @@ async def cmd_check(interaction: Interaction):
         raise functions.DatabaseReconnect()
 
     # Pause execution if command is disabled
-    if interaction.guild_id != constants.DEVS_SERVER_ID:  # only check for disabled commands if its not the dev server.
+    if (
+        interaction.guild_id != constants.DEVS_SERVER_ID
+    ):  # only check for disabled commands if its not the dev server.
         db = bot.db
         res = await db.fetchrow(
             """
@@ -185,7 +191,9 @@ async def cmd_check(interaction: Interaction):
 
             utc = pytz.UTC
 
-            if until is None or until > datetime.now(tz=utc):  # until is None --> permanently disabled
+            if until is None or until > datetime.now(
+                tz=utc
+            ):  # until is None --> permanently disabled
                 embed = Embed()
                 embed.title = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> is disabled!"
 
@@ -210,12 +218,21 @@ async def cmd_check(interaction: Interaction):
         await player.create_profile()
 
         await interaction.send(
-            embed=Embed(
-                description=(
-                    f"Welcome! `greet message`...\n"
-                    f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again to continue"  # TODO: add a /guide command and have players use this instead
-                )
-            )
+            embeds=[
+                functions.format_with_embed(
+                    "> Welcome to BOSS, the Discord bot for a post-apocalyptic world after World War III. "
+                    "\n\n> In this world, everything is tarnished and resources are scarce. "
+                    "The currency system is based on a variety of items that have value in this new world, "
+                    "including scrap metal, ammunition, and other valuable resources that can be traded or used to purchase goods and services."
+                    "\n\n> BOSS is here to help you navigate this harsh world by providing a currency system that allows you to earn, spend, and trade valuable resources. "
+                    "It makes it easy to manage your currency and track your progress as you explore the post-apocalyptic wasteland. "
+                    "Whether you're scavenging for resources, completing missions, or participating in events, BOSS is here to help you earn currency and build your wealth in this new world. "
+                    "So, join us in the post-apocalyptic wasteland and let BOSS be your guide to survival and prosperity."
+                ),
+                functions.format_with_embed(
+                    f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again to continue"
+                ),  # TODO: add a /guide command and have players use this instead
+            ]
         )  # TODO: add a greet message to this
         raise functions.NewPlayer()
 

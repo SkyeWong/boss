@@ -50,12 +50,16 @@ class Exploring(commands.Cog, name="Exploring"):
             7: (21,),  # --rare--  # boar
             3: (20,),  # --downright impossible--  # dragon
         }
-        animal_category = random.choices(list(animals.values()), list(animals.keys()))[0]
+        animal_category = random.choices(list(animals.values()), list(animals.keys()))[
+            0
+        ]
         item_id = random.choice(animal_category)
 
         if item_id is None:
             await interaction.send(
-                embed=Embed(description="You went hunting but found nothing... No dinner tonight ig")
+                embed=Embed(
+                    description="You went hunting but found nothing... No dinner tonight ig"
+                )
             )
             return
 
@@ -161,15 +165,19 @@ class Exploring(commands.Cog, name="Exploring"):
             gold = random.randint(1000, 8000)
             await player.modify_gold(gold)
             await interaction.send(
-                embed=Embed(description=f"Lucky you, you got home safely without injuries, but with 🪙 {gold}"),
+                embed=Embed(
+                    description=f"Lucky you, you got home safely without injuries, but with 🪙 {gold}"
+                ),
                 ephemeral=True,
             )
         else:
             await interaction.send(
-                embed=Embed(description="Someone was lurking around! You got attacked..."),
+                embed=Embed(
+                    description="Someone was lurking around! You got attacked..."
+                ),
                 ephemeral=True,
             )
-            
+
     async def adventure_slave(self, button, interaction: Interaction):
         player = Player(self.bot.db, interaction.user)
         if random.randint(1, 5) > 2:
@@ -178,7 +186,7 @@ class Exploring(commands.Cog, name="Exploring"):
                 embed=functions.format_with_embed(
                     "Wow, you found yourself a slave! However, what he is able to do, I don't know."
                 ),
-                ephemeral=True
+                ephemeral=True,
             )
         else:
             player_gold = await self.bot.db.fetchval(
@@ -196,7 +204,7 @@ class Exploring(commands.Cog, name="Exploring"):
                 embed=functions.format_with_embed(
                     f"Shame on you, he was a bandits. He attacked you and you lost 🪙 {lost_gold}",
                 ),
-                ephemeral=True
+                ephemeral=True,
             )
 
     @nextcord.slash_command()
@@ -230,7 +238,14 @@ class Exploring(commands.Cog, name="Exploring"):
 
             embed = Embed(title="Adventure time!", description=outcome[0])
 
-            view = ConfirmView(slash_interaction=interaction, confirm_func=outcome[1], cancel_func=lambda button, interaction: cooldowns.reset_cooldown("adventure"), embed=embed)
+            view = ConfirmView(
+                slash_interaction=interaction,
+                confirm_func=outcome[1],
+                cancel_func=lambda button, interaction: cooldowns.reset_cooldown(
+                    "adventure"
+                ),
+                embed=embed,
+            )
             await interaction.send(embed=view.embed, view=view)
         else:
             # 40% fail
@@ -266,7 +281,11 @@ class Exploring(commands.Cog, name="Exploring"):
             return sorted([structure[0] for structure in structures])
         # send a list of nearest matches from the list of item
         near_structures = sorted(
-            [structure[0] for structure in structures if structure[0].lower().startswith(data.lower())]
+            [
+                structure[0]
+                for structure in structures
+                if structure[0].lower().startswith(data.lower())
+            ]
         )
         return near_structures
 
@@ -284,7 +303,9 @@ class Exploring(commands.Cog, name="Exploring"):
     ):
         """Visit a structure that you have unlocked!"""
         structure_type, structure_name = structure_name.split(" - ")
-        await interaction.send(f"You visited a {structure_type} called {structure_name}")
+        await interaction.send(
+            f"You visited a {structure_type} called {structure_name}"
+        )
 
 
 def setup(bot: commands.Bot):
