@@ -2,12 +2,12 @@
 from utils.postgres_db import Database
 
 # my modules
-from utils import functions
+from utils import functions, constants
 from utils.constants import SCRAP_METAL, COPPER
 
 # default modules
 import random
-from typing import Union
+from typing import Union, Literal
 
 
 class TradeItem:
@@ -43,7 +43,11 @@ class TradeItem:
 
 
 class TradePrice:
-    def __init__(self, min_price: Union[int, str], max_price: Union[int, str]) -> None:
+    def __init__(self, min_price: Union[int, str], max_price: Union[int, str], type: Literal["scrap_metal", "copper"] = "scrap_metal") -> None:
+        if type not in ("scrap_metal", "copper"):
+            raise ValueError("Currency must be either `scrap_metal` or `copper`.")
+        self.type = type
+        
         if isinstance(min_price, str):
             self.min_price = functions.text_to_num(min_price)
         elif isinstance(min_price, int):
@@ -86,7 +90,7 @@ class Villager:
         for index, value in enumerate((self.demand, self.supply)):
             for i in value:
                 if isinstance(i, TradePrice):
-                    msgs[index] += f"\n`{SCRAP_METAL} {i.price:,}`"
+                    msgs[index] += f"\n`{constants.CURRENCY_EMOJIS[i.type]} {i.price:,}`"
                 elif isinstance(i, TradeItem):
                     msgs[index] += f"\n` {i.quantity}x ` {await i.get_emoji(self.db)} {await i.get_name(self.db)}"
         return msgs[0], msgs[1]

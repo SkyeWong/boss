@@ -170,7 +170,7 @@ class TradeView(BaseView):
                                 return
 
                             required_price = multiplier * item.price
-                            await player.modify_scrap(required_price)
+                            await player.modify_currency(item.type, required_price)
                         elif isinstance(item, TradeItem):
                             owned_quantity = next((x["quantity"] for x in inventory if x["item_id"] == item.item_id), 0)
                             if trade_type == "demand" and owned_quantity < item.quantity:

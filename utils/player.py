@@ -2,8 +2,7 @@
 import nextcord
 
 # default modules
-from datetime import datetime
-import json
+from typing import Literal
 
 # database
 from utils.postgres_db import Database
@@ -42,63 +41,59 @@ class Player:
             self.user.id,
         )
 
-    async def modify_scrap(self, scrap_to_modify: int):
-        """Modify the player's scrap."""
+    async def modify_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
+        """Modify the player's currency, scrap_metal or copper."""
         if await self.is_present():
+            if currency not in ("scrap_metal", "copper"):
+                raise ValueError("Currency must be either `scrap_metal` or `copper`.")
+            
             return await self.db.fetchval(
                 """
                 UPDATE players.players
-                    SET scrap_metal = scrap_metal + $1
-                WHERE player_id = $2
-                RETURNING scrap_metal
+                    SET $1 = $1 + $2
+                WHERE player_id = $3
+                RETURNING $1
                 """,
-                scrap_to_modify,
+                currency,
+                value,
                 self.user.id,
             )
         else:
             raise functions.PlayerNotExist()
-
-    async def modify_copper(self, copper_to_modify: int):
-        """Modify the player's scrap."""
+        
+    async def modify_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
+        """Modify the player's currency, scrap_metal or copper."""
         if await self.is_present():
+            if currency not in ("scrap_metal", "copper"):
+                raise ValueError("Currency must be either `scrap_metal` or `copper`.")
+            
             return await self.db.fetchval(
-                """
+                f"""
                 UPDATE players.players
-                    SET copper = copper + $1
+                SET {currency} = {currency} + $1
                 WHERE player_id = $2
-                RETURNING copper
+                RETURNING {currency}
                 """,
-                copper_to_modify,
+                value,
                 self.user.id,
             )
         else:
             raise functions.PlayerNotExist()
 
-    async def set_scrap(self, scrap_to_set: int):
-        if await self.is_present() == True:
+    async def set_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
+        """Set the player's currency, scrap_metal or copper."""
+        if await self.is_present():
+            if currency not in ("scrap_metal", "copper"):
+                raise ValueError("Currency must be either `scrap_metal` or `copper`.")
+            
             return await self.db.fetchval(
-                """
+                f"""
                 UPDATE players.players
-                    SET scrap_metal = $1
+                SET {currency} = $1
                 WHERE player_id = $2
-                RETURNING scrap_metal
+                RETURNING {currency}
                 """,
-                scrap_to_set,
-                self.user.id,
-            )
-        else:
-            raise functions.PlayerNotExist()
-
-    async def set_copper(self, copper_to_set: int):
-        if await self.is_present() == True:
-            return await self.db.fetchval(
-                """
-                UPDATE players.players
-                    SET copper = $1
-                WHERE player_id = $2
-                RETURNING copper
-                """,
-                copper_to_set,
+                value,
                 self.user.id,
             )
         else:
