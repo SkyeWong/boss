@@ -151,9 +151,7 @@ class Video:
 
         link = f"https://www.youtube.com/watch?v={video_response['id']}"
         published_time = int(
-            datetime.datetime.strptime(
-                video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ"
-            )
+            datetime.datetime.strptime(video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
             .replace(tzinfo=datetime.timezone.utc)
             .astimezone(tz=None)
             .timestamp()
@@ -185,13 +183,7 @@ class Video:
                 # No match for this unit: it's absent
                 duration_vals.update({sep.lower(): 0})
 
-        duration = " ".join(
-            [
-                f"{value}{unit}"
-                for unit, value in duration_vals.items()
-                if not value == 0
-            ]
-        )
+        duration = " ".join([f"{value}{unit}" for unit, value in duration_vals.items() if not value == 0])
 
         views = video_response["statistics"].get("viewCount", 0)
         likes = video_response["statistics"].get("likeCount", 0)
@@ -216,9 +208,7 @@ class VideoView(BaseView):
 
         video_select = [i for i in self.children if i.custom_id == "video_select"][0]
         video_select.options = [
-            SelectOption(
-                label=video.title[:100], description=video.channel_title, value=index
-            )
+            SelectOption(label=video.title[:100], description=video.channel_title, value=index)
             for index, video in enumerate(self.videos)
         ]
 
@@ -229,9 +219,7 @@ class VideoView(BaseView):
         embed.set_author(name=video.channel_title)
         embed.colour = 0xDBFCFF
 
-        embed.set_footer(
-            text=f"Page {self.page + 1}/{len(self.videos)}"
-        )  # + 1 because self.page uses zero-indexing
+        embed.set_footer(text=f"Page {self.page + 1}/{len(self.videos)}")  # + 1 because self.page uses zero-indexing
 
         embed.set_thumbnail(url=video.thumbnail_url)
 
@@ -245,9 +233,7 @@ class VideoView(BaseView):
                 inline=False,
             )
         else:
-            embed.add_field(
-                name="Description", value=f"\n>>> {video.description}", inline=False
-            )
+            embed.add_field(name="Description", value=f"\n>>> {video.description}", inline=False)
 
         embed.add_field(
             name="Publish time",
@@ -302,7 +288,7 @@ class VideoView(BaseView):
         self.disable_buttons()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
-        
+
     @button(emoji="📽️", style=ButtonStyle.grey, custom_id="video")
     async def show_video(self, button: Button, interaction: Interaction):
         await interaction.send(self.videos[self.page].link, ephemeral=True)
@@ -322,7 +308,7 @@ class VideoView(BaseView):
         self.disable_buttons()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
-        
+
     # @button(emoji="📃", style=ButtonStyle.grey, custom_id="description", row=2)
     # async def show_description(self, button: Button, interaction: Interaction):
     #     embed = Embed()
@@ -505,9 +491,7 @@ class Train:
                 sequence = train["seq"]
                 platform = train["plat"]
                 via_racecourse = bool(train.get("route"))
-                arrival_time = datetime.datetime.strptime(
-                    train["time"], "%Y-%m-%d %H:%M:%S"
-                )
+                arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S")
                 arrival_time = hk_tz.localize(arrival_time)
 
                 trains[train_type][index] = cls(
@@ -540,14 +524,10 @@ class NextTrainView(BaseView):
         self.trains = trains
 
         type_button = [i for i in self.children if i.custom_id == "type"][0]
-        if not self.trains[
-            "UP"
-        ]:  # only down directions are available, disable the type button
+        if not self.trains["UP"]:  # only down directions are available, disable the type button
             self.type = "DOWN"
             type_button.disabled = True
-        elif not self.trains[
-            "DOWN"
-        ]:  # only up directions are available, disable the type button
+        elif not self.trains["DOWN"]:  # only up directions are available, disable the type button
             self.type = "UP"
             type_button.disabled = True
         else:  # both directions are available.
@@ -570,9 +550,7 @@ class NextTrainView(BaseView):
         embed.colour = colours.get(train.line, None)  # black for default
 
         arriving_station = [
-            name
-            for name, code in LINE_STATION_CODES[train.line.value].items()
-            if code == train.arriving_station
+            name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.arriving_station
         ][0]
         embed.title = f"Next trains arriving at {arriving_station}"
 
@@ -581,9 +559,7 @@ class NextTrainView(BaseView):
         )  # + 1 because self.page uses zero-indexing
 
         destination_name = [
-            name
-            for name, code in LINE_STATION_CODES[train.line.value].items()
-            if code == train.destination
+            name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.destination
         ][0]
         embed.add_field(
             name="Destination",
@@ -596,9 +572,7 @@ class NextTrainView(BaseView):
         arrival_timestamp = int(train.arrival_time.timestamp())
         hk_tz = pytz.timezone("Asia/Hong_Kong")
         embed.add_field(
-            name="Arrival time"
-            if train.arrival_time > datetime.datetime.now(tz=hk_tz)
-            else "Departure time",
+            name="Arrival time" if train.arrival_time > datetime.datetime.now(tz=hk_tz) else "Departure time",
             value=f"<t:{arrival_timestamp}:t> • <t:{arrival_timestamp}:R>",
             inline=False,
         )

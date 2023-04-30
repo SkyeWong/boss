@@ -41,9 +41,7 @@ class EditItemView(BaseView):
     @button(label="Edit Names", style=ButtonStyle.blurple)
     async def edit_name(self, button: Button, interaction: Interaction):
         model = EditItemModal(self.interaction, self.item)
-        await model.popuplate_inputs(
-            include=("name", "description", "emoji_name", "emoji_id")
-        )
+        await model.popuplate_inputs(include=("name", "description", "emoji_name", "emoji_id"))
         await interaction.response.send_modal(model)
 
     @button(label="Edit Prices")
@@ -69,9 +67,7 @@ class EditItemModal(Modal):
         )
         self.inputs = {}
 
-    async def popuplate_inputs(
-        self, *, include: tuple[str] = None, exclude: tuple[str] = None
-    ):
+    async def popuplate_inputs(self, *, include: tuple[str] = None, exclude: tuple[str] = None):
         """Populate the modal's list of input, and include/exclude any columns that have been provided."""
         # typecast the tuples
         if include is None:
@@ -95,17 +91,9 @@ class EditItemModal(Modal):
                 not include or column_name in include
             ) and column_name not in exclude:  # if no `include` list is provided, ignore that it is not included
                 if column_name == "rarity":
-                    value = [
-                        i.name
-                        for i in constants.ItemRarity
-                        if i.value == self.item[column_name]
-                    ][0]
+                    value = [i.name for i in constants.ItemRarity if i.value == self.item[column_name]][0]
                 elif column_name == "type":
-                    value = [
-                        i.name
-                        for i in constants.ItemType
-                        if i.value == self.item[column_name]
-                    ][0]
+                    value = [i.name for i in constants.ItemType if i.value == self.item[column_name]][0]
                 else:
                     value = self.item[column_name]
                 value = str(value)
@@ -144,9 +132,7 @@ class EditItemModal(Modal):
 
             if column == "emoji_name":
                 if len(inputted_value) > 30:
-                    errors.append(
-                        "The emoji's name must not be more than 30 characters in length."
-                    )
+                    errors.append("The emoji's name must not be more than 30 characters in length.")
                 else:
                     values[column] = inputted_value
 
@@ -201,11 +187,7 @@ class EditItemModal(Modal):
             return
 
         inputted_values = [(column, value) for column, value in values.items()]
-        changed_values = {
-            column: value
-            for column, value in inputted_values
-            if value != self.item[column]
-        }
+        changed_values = {column: value for column, value in inputted_values if value != self.item[column]}
 
         if not changed_values:
             await interaction.send(
@@ -223,9 +205,7 @@ class EditItemModal(Modal):
                 "WHERE item_id = $1 "
                 "RETURNING *"
             )  # basically add each changed column into the query
-            new_item = await db.fetchrow(
-                sql, self.item["item_id"], *changed_values.values()
-            )
+            new_item = await db.fetchrow(sql, self.item["item_id"], *changed_values.values())
 
         except Exception as e:
             await interaction.send(
@@ -238,9 +218,7 @@ class EditItemModal(Modal):
         embed = view.get_item_embed()
         await interaction.edit(embed=embed, view=view)
 
-        embed = Embed(
-            title=f"**{interaction.user.name}** edited the following values of `{self.item['name']}`"
-        )
+        embed = Embed(title=f"**{interaction.user.name}** edited the following values of `{self.item['name']}`")
 
         for column, changed_value in changed_values.items():
             old = str(self.item[column]).replace("\n", " ")
@@ -316,24 +294,16 @@ class ConfirmChangelogSend(ConfirmView):
     async def send_edit_changelog(self, interaction: Interaction):
         client: nextcord.Client = interaction.client
         cmds = client.get_all_application_commands()
-        changelog_cmd: nextcord.SlashApplicationCommand = [
-            cmd for cmd in cmds if cmd.name == "changelog"
-        ][0]
+        changelog_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "changelog"][0]
         edit_changelog_cmd = changelog_cmd.children["edit"]
-        await edit_changelog_cmd.invoke_callback(
-            interaction, message_id=str(self.msg.id)
-        )
+        await edit_changelog_cmd.invoke_callback(interaction, message_id=str(self.msg.id))
 
     async def send_delete_changelog(self, interaction: Interaction):
         client: nextcord.Client = interaction.client
         cmds = client.get_all_application_commands()
-        changelog_cmd: nextcord.SlashApplicationCommand = [
-            cmd for cmd in cmds if cmd.name == "changelog"
-        ][0]
+        changelog_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "changelog"][0]
         delete_changelog_cmd = changelog_cmd.children["delete"]
-        await delete_changelog_cmd.invoke_callback(
-            interaction, message_id=str(self.msg.id)
-        )
+        await delete_changelog_cmd.invoke_callback(interaction, message_id=str(self.msg.id))
 
     async def send_changelog(
         self, button: Button, interaction: Interaction
@@ -343,9 +313,7 @@ class ConfirmChangelogSend(ConfirmView):
         # if content is set, it must not be empty (i.e. "")
         # therefore we use if_else
         if self.ping_role:
-            self.msg = await changelog_channel.send(
-                self.ping_role.mention, embed=self.changelog_embed
-            )
+            self.msg = await changelog_channel.send(self.ping_role.mention, embed=self.changelog_embed)
         else:
             self.msg = await changelog_channel.send(embed=self.changelog_embed)
 
@@ -359,15 +327,11 @@ class ConfirmChangelogSend(ConfirmView):
             delete_btn = Button(label="Delete", style=ButtonStyle.red)
             delete_btn.callback = self.send_delete_changelog
             view.add_item(delete_btn)
-        await interaction.send(
-            f"Sent message, the ID is `{self.msg.id}`", view=view, ephemeral=True
-        )
+        await interaction.send(f"Sent message, the ID is `{self.msg.id}`", view=view, ephemeral=True)
 
     @button(label="View", row=1, style=ButtonStyle.grey)
     async def view_new_embed(self, button: Button, interaction: Interaction):
-        await interaction.send(
-            "The message looks like this:", embed=self.changelog_embed, ephemeral=True
-        )
+        await interaction.send("The message looks like this:", embed=self.changelog_embed, ephemeral=True)
 
 
 class ConfirmChangelogDelete(ConfirmView):
@@ -381,9 +345,7 @@ class ConfirmChangelogDelete(ConfirmView):
                 value=f"<t:{int(message.edited_at.timestamp())}:f>",
             )
         else:
-            embed.add_field(
-                name="Sent at", value=f"<t:{int(message.created_at.timestamp())}:f>"
-            )
+            embed.add_field(name="Sent at", value=f"<t:{int(message.created_at.timestamp())}:f>")
 
         super().__init__(
             slash_interaction=slash_interaction,
@@ -402,9 +364,7 @@ class ConfirmChangelogDelete(ConfirmView):
 
     @button(label="View Message", row=1, style=ButtonStyle.grey)
     async def view_msg(self, button: Button, interaction: Interaction):
-        await interaction.send(
-            "The message looks like this:", embed=self.changelog_embed, ephemeral=True
-        )
+        await interaction.send("The message looks like this:", embed=self.changelog_embed, ephemeral=True)
 
 
 class ConfirmChangelogEdit(ConfirmView):
@@ -448,13 +408,9 @@ class ConfirmChangelogEdit(ConfirmView):
     async def send_edit_changelog(self, interaction: Interaction):
         client: nextcord.Client = interaction.client
         cmds = client.get_all_application_commands()
-        changelog_cmd: nextcord.SlashApplicationCommand = [
-            cmd for cmd in cmds if cmd.name == "changelog"
-        ][0]
+        changelog_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "changelog"][0]
         edit_changelog_cmd = changelog_cmd.children["edit"]
-        await edit_changelog_cmd.invoke_callback(
-            interaction, message_id=str(self.message.id)
-        )
+        await edit_changelog_cmd.invoke_callback(interaction, message_id=str(self.message.id))
 
     async def edit_changelog(
         self, button: Button, interaction: Interaction
@@ -469,18 +425,14 @@ class ConfirmChangelogEdit(ConfirmView):
         edit_btn.callback = self.send_edit_changelog
         view.add_item(edit_btn)
 
-        await interaction.send(
-            "The message has successfully been edited!", view=view, ephemeral=True
-        )
+        await interaction.send("The message has successfully been edited!", view=view, ephemeral=True)
 
     @button(label="Edit", row=1, style=ButtonStyle.blurple)
     async def edit_embed(self, button: Button, interaction: Interaction):
         title = self.new_embed.title
         description = self.new_embed.description
         image_url = self.new_embed.image.url
-        modal = EditChangelogModal(
-            self.interaction, self.message, title, description, image_url
-        )
+        modal = EditChangelogModal(self.interaction, self.message, title, description, image_url)
         await interaction.response.send_modal(modal)
 
     @button(label="Old", row=1, style=ButtonStyle.grey)
@@ -493,9 +445,7 @@ class ConfirmChangelogEdit(ConfirmView):
 
     @button(label="New", row=1, style=ButtonStyle.grey)
     async def view_new_embed(self, button: Button, interaction: Interaction):
-        await interaction.send(
-            "The edited message looks like this:", embed=self.new_embed, ephemeral=True
-        )
+        await interaction.send("The edited message looks like this:", embed=self.new_embed, ephemeral=True)
 
 
 class EditChangelogModal(Modal):
@@ -558,6 +508,4 @@ class EditChangelogModal(Modal):
 
         view = ConfirmChangelogEdit(self.slash_interaction, self.message, new_embed)
         confirm_embed = view.embed
-        await self.slash_interaction.edit_original_message(
-            embed=confirm_embed, view=view
-        )
+        await self.slash_interaction.edit_original_message(embed=confirm_embed, view=view)

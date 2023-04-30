@@ -88,7 +88,7 @@ class Player:
             )
         else:
             raise functions.PlayerNotExist()
-        
+
     async def set_copper(self, copper_to_set: int):
         if await self.is_present() == True:
             return await self.db.fetchval(

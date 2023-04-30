@@ -33,9 +33,7 @@ class HelpView(BaseView):
         self.old_selected_values = ["All"]
 
     def _get_cogs_option(self) -> list[SelectOption]:
-        options: list[SelectOption] = [
-            SelectOption(label="All", emoji="🌐", default=True)
-        ]
+        options: list[SelectOption] = [SelectOption(label="All", emoji="🌐", default=True)]
         for cog_name in self.mapping:
             cog = self.mapping[cog_name][0]
             emoji = getattr(cog, "COG_EMOJI", None)
@@ -56,10 +54,7 @@ class HelpView(BaseView):
         if description:
             embed.description = description
         if set_author:
-            avatar = (
-                self.interaction.client.user.avatar
-                or self.interaction.client.user.default_avatar
-            )
+            avatar = self.interaction.client.user.avatar or self.interaction.client.user.default_avatar
             embed.set_author(name=author_name, icon_url=avatar.url)
         if not command_list:
             for cog_name in self.mapping:
@@ -85,18 +80,14 @@ class HelpView(BaseView):
                         cmd_in_guild = True
             if cmd_in_guild:
                 filtered.append(i)
-        final_cmd_list = filtered[
-            self.get_page_start_index() : self.get_page_end_index() + 1
-        ]
+        final_cmd_list = filtered[self.get_page_start_index() : self.get_page_end_index() + 1]
         for cmd in final_cmd_list:
             value = cmd.description if cmd.description else "..."
             name = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
             if len(cmd.children) > 0:
                 name += " `has subcommands`"
             embed.add_field(name=name, value=f"`➸` {value}", inline=False)
-        embed.set_footer(
-            text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}"
-        )
+        embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}")
         return embed
 
     @select(
@@ -162,17 +153,13 @@ class HelpView(BaseView):
         embed = self.help_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @button(
-        emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True
-    )
+    @button(emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True)
     async def first(self, button: Button, interaction: Interaction):
         self.page = 1
         self.btn_disable()
         await self.get_embed_and_send_msg(interaction)
 
-    @button(
-        emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back"
-    )
+    @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back")
     async def back(self, button: Button, interaction: Interaction):
         self.page -= 1
         self.btn_disable()
@@ -231,7 +218,7 @@ class GuideView(BaseView):
                     "Scrap metal is the basic currency in BOSS, used for everyday transactions. \n"
                     "It's easy to find and earn, but has a relatively low value compared to other types of currency."
                     "Users need to manage their scrap metal wisely to build their wealth and survive.",
-                    False
+                    False,
                 ),
                 EmbedField(
                     "Copper",
@@ -239,24 +226,26 @@ class GuideView(BaseView):
                     "Users can earn copper by scavenging for it or completing tasks and challenges. \n"
                     "As a currency, copper is worth more than basic resources like scrap metal or cloth. "
                     "It can be traded for valuable resources like ammunition, fuel, or medicine. ",
-                    False
-                )
-            ]
-        )
+                    False,
+                ),
+            ],
+        ),
     ]
 
     def __init__(self, interaction: Interaction):
         super().__init__(interaction, timeout=180)
         self.current_page = 0
         self.msg: nextcord.WebhookMessage | nextcord.PartialInteractionMessage = None
-        
+
         choose_page_select = [i for i in self.children if i.custom_id == "choose_page"][0]
         for index, page in enumerate(self.pages):
-            choose_page_select.options.append(SelectOption(
-                label=f"{page.title} ({index + 1}/{len(self.pages)})",
-                value=index,
-                default=index == self.current_page
-            ))
+            choose_page_select.options.append(
+                SelectOption(
+                    label=f"{page.title} ({index + 1}/{len(self.pages)})",
+                    value=index,
+                    default=index == self.current_page,
+                )
+            )
 
     async def send(self):
         embed = self.get_embed()
@@ -274,7 +263,7 @@ class GuideView(BaseView):
                 option.default = True
             else:
                 option.default = False
-            
+
         back_btn = [i for i in self.children if i.custom_id == "back"][0]
         first_btn = [i for i in self.children if i.custom_id == "first"][0]
         if self.current_page == 0:
@@ -291,11 +280,11 @@ class GuideView(BaseView):
         else:
             next_btn.disabled = False
             last_btn.disabled = False
-            
+
     @select(placeholder="Choose a page", options=[], custom_id="choose_page")
     async def choose_page(self, select: Select, interaction: Interaction):
         self.current_page = int(select.values[0])
-        
+
         self.update_view()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)

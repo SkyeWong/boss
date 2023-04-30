@@ -42,9 +42,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
             # return full list
             return sorted([item[0] for item in items])[:25]
         # send a list of nearest matches from the list of item
-        near_items = sorted(
-            [item[0] for item in items if item[0].lower().startswith(data.lower())]
-        )
+        near_items = sorted([item[0] for item in items if item[0].lower().startswith(data.lower())])
         return near_items[:25]
 
     def get_sell_item_embed(self, sold_items: tuple, total_price):
@@ -136,9 +134,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
                 # the item is not found, or the user does not own any
                 if item is None:
                     await interaction.send(
-                        embed=Embed(
-                            description=f"Either you don't own the item `{item_name}` or it doesn't exist"
-                        )
+                        embed=Embed(description=f"Either you don't own the item `{item_name}` or it doesn't exist")
                     )
                     return
 
@@ -160,9 +156,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
             exclude_items,
         )
         if not sellable_items:
-            await interaction.send(
-                embed=Embed(description="You sold nothing! What a shame...")
-            )
+            await interaction.send(embed=Embed(description="You sold nothing! What a shame..."))
             return
 
         total_price = 0
@@ -213,16 +207,12 @@ class Currency(commands.Cog, name="Resource Reserve"):
         )
         if not item:
             await interaction.send(
-                embed=Embed(
-                    description="Either you don't own the item or it does not exist!"
-                ),
+                embed=Embed(description="Either you don't own the item or it does not exist!"),
             )
             return
 
         if not item["sell_price"]:
-            await interaction.send(
-                embed=Embed(description="The item can't be sold! Try trading them.")
-            )
+            await interaction.send(embed=Embed(description="The item can't be sold! Try trading them."))
             return
 
         inv_quantity = item["quantity"]
@@ -255,9 +245,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
         item["quantity"] = quantity
         embed = self.get_sell_item_embed((item,), total_price)
 
-        await interaction.send(
-            f"{interaction.user.mention}, you successfully sold the items!", embed=embed
-        )
+        await interaction.send(f"{interaction.user.mention}, you successfully sold the items!", embed=embed)
 
 
 def setup(bot: commands.Bot):

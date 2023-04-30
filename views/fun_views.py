@@ -21,9 +21,7 @@ class FightPlayer:
 
 
 class FightView(BaseView):
-    def __init__(
-        self, slash_interaction: Interaction, player1: FightPlayer, player2: FightPlayer
-    ):
+    def __init__(self, slash_interaction: Interaction, player1: FightPlayer, player2: FightPlayer):
         super().__init__(interaction=slash_interaction)
         self.players = [player1, player2]
         self._round = 0
@@ -170,9 +168,7 @@ class EmojiView(BaseView):
 
     @select(placeholder="Choose an emoji...", custom_id="emoji_select")
     async def choose_video(self, select: Select, interaction: Interaction):
-        self.emoji_index = int(
-            select.values[0]
-        )  # the value is set to the index of the emoji
+        self.emoji_index = int(select.values[0])  # the value is set to the index of the emoji
 
         self.disable_buttons()
         embed = self.get_embed()
@@ -252,15 +248,11 @@ class TriviaQuestion:
 
         self.correct_answer = html.unescape(correct_answer)
         if len(correct_answer) > 50:
-            raise functions.ComponentLabelTooLong(
-                f"Label of `{correct_answer}` is too long."
-            )
+            raise functions.ComponentLabelTooLong(f"Label of `{correct_answer}` is too long.")
 
         self.incorrect_answers = [html.unescape(i) for i in incorrect_answers]
         if any([len(i) > 50 for i in self.incorrect_answers]):
-            raise functions.ComponentLabelTooLong(
-                f"Label of an incorrect_answer is too long."
-            )
+            raise functions.ComponentLabelTooLong(f"Label of an incorrect_answer is too long.")
 
         self.category = category
         self.difficulty = difficulty
@@ -275,9 +267,7 @@ class TriviaAnswerButton(Button):
 
         view: TriviaView = self.view
 
-        if (
-            self.label == view.question.correct_answer
-        ):  # the user got the question correct
+        if self.label == view.question.correct_answer:  # the user got the question correct
             self.style = ButtonStyle.green
 
             msgs = (
@@ -318,9 +308,7 @@ class TriviaAnswerButton(Button):
             msg = f"{random.choice(msgs)}\nThe correct answer was _{view.question.correct_answer}_."  # choose a random msg and append it with the correct answer
 
             # set the correct answer's button to green
-            correct_btn = [
-                i for i in view.children if i.label == view.question.correct_answer
-            ][0]
+            correct_btn = [i for i in view.children if i.label == view.question.correct_answer][0]
             correct_btn.style = ButtonStyle.green
 
         # disable all buttons
@@ -351,9 +339,7 @@ class TriviaView(BaseView):
         for ans in answers:
             self.add_item(TriviaAnswerButton(ans))
 
-        self.message: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = (
-            None
-        )
+        self.message: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = None
 
         self.is_done = False
 
@@ -379,8 +365,6 @@ class TriviaView(BaseView):
             await self.message.edit(
                 embeds=[
                     embed,
-                    TextEmbed(
-                        "Guess you didn't want to play the trivia after all?"
-                    ),
+                    TextEmbed("Guess you didn't want to play the trivia after all?"),
                 ]
             )

@@ -22,9 +22,7 @@ class MazePlayer:
         self.inventory = {"food": [], "pill": [], "drill": []}
 
         for name, items in self.inventory.items():
-            items.extend(
-                [ITEMS[name](view, 0, 0) for i in range(INITIAL_INVENTORY[name])]
-            )
+            items.extend([ITEMS[name](view, 0, 0) for i in range(INITIAL_INVENTORY[name])])
 
         self.direction = 2
 

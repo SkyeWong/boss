@@ -49,9 +49,7 @@ class Base(commands.Cog, name="Resilient Residence"):
     async def farm_view(
         self,
         interaction: Interaction,
-        user: nextcord.User = SlashOption(
-            description="The user to view the farm of", required=False, default=None
-        ),
+        user: nextcord.User = SlashOption(description="The user to view the farm of", required=False, default=None),
     ):
         """Check your crops' progress."""
         if user is None:
@@ -60,9 +58,7 @@ class Base(commands.Cog, name="Resilient Residence"):
         player = Player(self.bot.db, user)
         view = FarmView(interaction, player)
 
-        await view.send_message(
-            interaction, with_view=True if user == interaction.user else False
-        )
+        await view.send_message(interaction, with_view=True if user == interaction.user else False)
 
     @nextcord.slash_command(
         name="maze",
