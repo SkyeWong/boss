@@ -15,6 +15,7 @@ from utils.postgres_db import Database
 
 # my modules and constants
 from utils import functions
+from utils.functions import TextEmbed, check_if_not_dev_guild
 from utils.player import Player
 from views.template_views import ConfirmView
 
@@ -25,37 +26,35 @@ from maze.maze import Maze
 from village.village import TradeView
 
 
-class Survival(commands.Cog, name="Scavenger's Survival"):
+class Survival(commands.Cog, name="Wasteland Wandering"):
     COG_EMOJI = "🗺️"
 
     def __init__(self, bot):
         self.bot = bot
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 15, SlashBucket.author)
+    @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def hunt(self, interaction: Interaction):
         """Go hunting and bring back some animals if you are lucky!"""
         db: Database = self.bot.db
         player = Player(db, interaction.user)
         # `% getting one of them`: `list of animals`
-        animals = {
-            20: [None],  # --fail--
-            40: (  # --common--
+        animals = [
+            [20, [None]],  # --fail--
+            [40, (  # --common--
                 23,  # duck
                 24,  # rabbit
                 26,  # skunk
-            ),
-            30: (  # --uncommon--
+            )],
+            [30, (  # --uncommon--
                 18,  # deer
                 22,  # cow
                 25,  # sheep
-            ),
-            7: (21,),  # --rare--  # boar
-            3: (20,),  # --downright impossible--  # dragon
-        }
-        animal_category = random.choices(list(animals.values()), list(animals.keys()))[
-            0
+            )],
+            [7, (21,)],  # --rare--  # boar
+            [3, (20,)],  # --downright impossible--  # dragon
         ]
+        animal_category = random.choices([i[1] for i in animals], [i[0] for i in animals])[0]
         item_id = random.choice(animal_category)
 
         if item_id is None:
@@ -81,28 +80,32 @@ class Survival(commands.Cog, name="Scavenger's Survival"):
         await interaction.send(embed=embed)
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 15, SlashBucket.author)
+    @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def dig(self, interaction: Interaction):
         """Dig in the ground and find some buried treasure."""
         db: Database = self.bot.db
         player = Player(db, interaction.user)
-        # `% getting one of them`: `list of animals`
-        items = {
-            80: (  # --fail--
+        # `% getting one of them`: `list of rewards`
+        items = [
+            [90, (  # --fail--
                 None,  # nothing
                 31,  # dirt
-            ),
-            20: (27,),  # --common--  # Anicient Coin
-        }
-        item_category = random.choices(list(items.values()), list(items.keys()))[0]
+            )],
+            [10, (27,)],  # --common--  # Anicient Coin
+        ]
+        item_category = random.choices([i[1] for i in items], [i[0] for i in items])[0]
         item_id = random.choice(item_category)
 
         if item_id is None:
-            await interaction.send(
-                embed=Embed(
-                    description="With that little stick of yours, you shouldn't really expect to find anything."
-                )
-            )
+            fail_msgs = [
+                "With that little stick of yours, you shouldn't really expect to find anything.",
+                "You found nothing! What a waste of time.",
+                "After you saw a spider climbing in the dirt, you gave it up as a bad job.",
+                "Wait... what's that? Aww, it's just another worm."
+            ]
+            await interaction.send(embed=functions.format_with_embed(
+                random.choice(fail_msgs)
+            ))
             return
 
         await player.add_item(item_id)
@@ -117,6 +120,66 @@ class Survival(commands.Cog, name="Scavenger's Survival"):
         embed = Embed(
             description=f"You went bonkers and finally found a **{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}> after hours of work!"
         )
+        await interaction.send(embed=embed)
+        
+    @nextcord.slash_command()
+    @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
+    async def mine(self, interaction: Interaction):
+        """Go mining in the caves!"""
+        db: Database = self.bot.db
+        player = Player(db, interaction.user)
+        # `% getting one of them`: `list of rewards`
+        items = [
+            [40, [None]],  # --fail--
+            [40, (  # --common--
+                44,  # Iron ore
+            )],
+            [15, (  # --rare--
+                45,  # Emerald ore
+            )],
+            [5, (  # --epic--
+                34,  # Diamond ore
+            )]
+        ]
+        item_category = random.choices([i[1] for i in items], [i[0] for i in items])[0]
+        item_id = random.choice(item_category)
+
+        if item_id is None:
+            fail_msgs = [
+                "The cave was too dark. You ran away in a hurry.",
+                "Well, you certainly know how to find the empty spots in a cave.",
+                "What were you doing in your garage for the past 5 hours? You didn't mistake it as a cave... did you?",
+                "You've managed to mine nothing but air. Your pickaxe must be thrilled.",
+                "You mine and you mine, but all you find are rocks.",
+                "Looks like you struck out. Maybe next time you'll get lucky and find a diamond... or not.",
+                "Breaking rocks all day, yet nothing to show for it. You're a real master at mining for disappointment."
+            ]
+            await interaction.send(embed=functions.format_with_embed(
+                random.choice(fail_msgs)
+            ))
+            return
+
+        await player.add_item(item_id)
+        item = await db.fetchrow(
+            """
+            SELECT name, emoji_name, emoji_id
+            FROM utility.items
+            WHERE item_id = $1
+            """,
+            item_id,
+        )
+        if item_id == 33:  # only stone
+            await interaction.send(embed=TextEmbed(f"Looks like you found a... **{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>. How exciting. Maybe try a little deeper next time?"))
+            return
+        
+        success_msgs = [
+            "Wow, you actually found a {item}. I guess even a blind squirrel finds a nut every once in a while.",
+            "You hit the jackpot and obtained a {item}! Just kidding, you got lucky.",
+            "You found a {item}! It's almost like you knew what you were doing... or maybe you just got lucky.",
+            "Well, well, well, looks like you're not as useless as I thought. You found a {item}.",
+            "You found a {item}! It's almost like you have a sixth sense for mining... or maybe you just stumbled upon it.",
+        ]
+        embed = TextEmbed(random.choice(success_msgs).format(item=f"**{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>"))
         await interaction.send(embed=embed)
 
     async def adventure_pyramid(self, button, interaction: Interaction):
@@ -211,7 +274,7 @@ class Survival(commands.Cog, name="Scavenger's Survival"):
             )
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 60, SlashBucket.author, cooldown_id="adventure")
+    @cooldowns.cooldown(1, 60, SlashBucket.author, cooldown_id="adventure", check=check_if_not_dev_guild)
     async def adventure(
         self,
         interaction: Interaction,
@@ -293,7 +356,7 @@ class Survival(commands.Cog, name="Scavenger's Survival"):
         return near_structures
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 60, SlashBucket.author)
+    @cooldowns.cooldown(1, 60, SlashBucket.author, check=check_if_not_dev_guild)
     async def visit(
         self,
         interaction: Interaction,
@@ -311,6 +374,7 @@ class Survival(commands.Cog, name="Scavenger's Survival"):
         )
     
     @nextcord.slash_command()
+    @cooldowns.cooldown(1, 120, SlashBucket.author, check=check_if_not_dev_guild)
     async def trade(self, interaction: Interaction):
         """Trade with villagers for valuable and possibly unique items!"""
         view = TradeView(interaction)
