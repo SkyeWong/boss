@@ -100,7 +100,7 @@ class TradeView(BaseView):
         self.update_view()
         await interaction.response.edit_message(view=self, embed=embed)
         
-    @button(emoji="◀️", style=ButtonStyle.gray, disabled=True, custom_id="back")
+    @button(emoji="◀️", style=ButtonStyle.gray, custom_id="back")
     async def back(self, button: Button, interaction: Interaction):
         if self.current_index == 0:
             self.current_index = len(self.villagers) - 1
