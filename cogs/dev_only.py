@@ -28,10 +28,10 @@ import random
 from collections import defaultdict
 
 
-class DevOnly(commands.Cog, name="Dev Only"):
+class DevOnly(commands.Cog, name="Developer Dashboard"):
     """Commands only for the devs."""
 
-    COG_EMOJI = "👨‍💻"
+    COG_EMOJI = "⚙️"
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot

@@ -94,3 +94,16 @@ Create special channels where users can post items they want to trade, and negot
 
 ### 5. Trade Events
 Host special trade events where users can come together to trade items and currency with each other. The bot could facilitate the event by setting up a special channel, announcing the event to all users, and tracking trades as they happen.
+
+## Cogs
+💰 Resource Reserve (Currency Management)
+🏪 Wasteland Marketplace (Trading and Shop)
+🌟 Reclamation Campaign (Missions and Quests)
+🎉 Survivor Showdown (Events)
+🏆 Apocalypse Elite (Leaderboard)
+📖 BOSS Survival Guide (Help)
+🎲 Gamezone Galore (Fun Commands)
+🕵️‍♂️ Resources Raiding (Web Scraping)
+🏡 Resilient Residence (Base Building)
+🗺️ Wasteland Wanderers (Exploration and Scavenging)
+⚙️ Dev Console (Developer Toolkit)

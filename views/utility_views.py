@@ -115,6 +115,8 @@ class HelpView(BaseView):
             selected_values = ["All"]
         elif "All" in [i for i in self.old_selected_values if i in selected_values]:
             selected_values.remove("All")
+        if len(selected_values) == len(self.mapping):
+            selected_values = ["All"]
 
         if "All" in selected_values:
             for cog_name, (cog, commands) in self.mapping.items():

@@ -39,8 +39,8 @@ import os
 import base64
 
 
-class Fun(commands.Cog, name="Fun"):
-    COG_EMOJI = "🎡"
+class Fun(commands.Cog, name="Gamezone Galore"):
+    COG_EMOJI = "🎮"
 
     def __init__(self):
         self._last_member = None

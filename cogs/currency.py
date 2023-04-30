@@ -17,8 +17,8 @@ from views.template_views import ConfirmView
 # default modules
 
 
-class Currency(commands.Cog, name="Currency"):
-    COG_EMOJI = "🪙"
+class Currency(commands.Cog, name="Resource Reserve"):
+    COG_EMOJI = "💰"
     cooldowns.define_shared_cooldown(1, 8, SlashBucket.author, cooldown_id="sell_items")
 
     def __init__(self, bot):

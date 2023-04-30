@@ -25,8 +25,8 @@ import random
 from collections import defaultdict
 
 
-class Players(commands.Cog, name="Players"):
-    COG_EMOJI = "🦸‍♂️"
+class Players(commands.Cog, name="Apocalypse Elites"):
+    COG_EMOJI = "🏆"
     cooldowns.define_shared_cooldown(
         1, 6, SlashBucket.author, cooldown_id="check_inventory"
     )

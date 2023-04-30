@@ -20,8 +20,8 @@ from views.utility_views import HelpView, GuideView
 import random
 
 
-class Utility(commands.Cog, name="Utility"):
-    COG_EMOJI = "🔨"
+class Utility(commands.Cog, name="Survival Guide"):
+    COG_EMOJI = "📖"
 
     def __init__(self, bot):
         self.bot = bot

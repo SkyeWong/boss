@@ -19,8 +19,8 @@ from maze.maze import Maze
 # default modules
 
 
-class Base(commands.Cog, name="Base"):
-    COG_EMOJI = "🏠"
+class Base(commands.Cog, name="Resilient Residence"):
+    COG_EMOJI = "🏡"
 
     def __init__(self, bot):
         self.bot = bot

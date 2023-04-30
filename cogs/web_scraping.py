@@ -31,8 +31,8 @@ from contextlib import suppress
 from typing import Optional
 
 
-class WebScraping(commands.Cog, name="Web Scraping"):
-    COG_EMOJI = "📶"
+class WebScraping(commands.Cog, name="Resources Raiding"):
+    COG_EMOJI = "🔍"
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot

@@ -25,7 +25,7 @@ from maze.maze import Maze
 from village.village import TradeView
 
 
-class Exploring(commands.Cog, name="Exploring"):
+class Survival(commands.Cog, name="Scavenger's Survival"):
     COG_EMOJI = "🗺️"
 
     def __init__(self, bot):
@@ -39,13 +39,13 @@ class Exploring(commands.Cog, name="Exploring"):
         player = Player(db, interaction.user)
         # `% getting one of them`: `list of animals`
         animals = {
-            30: [None],  # --fail--
+            20: [None],  # --fail--
             40: (  # --common--
                 23,  # duck
                 24,  # rabbit
                 26,  # skunk
             ),
-            20: (  # --uncommon--
+            30: (  # --uncommon--
                 18,  # deer
                 22,  # cow
                 25,  # sheep
@@ -88,11 +88,11 @@ class Exploring(commands.Cog, name="Exploring"):
         player = Player(db, interaction.user)
         # `% getting one of them`: `list of animals`
         items = {
-            90: (  # --fail--
+            80: (  # --fail--
                 None,  # nothing
                 31,  # dirt
             ),
-            10: (27,),  # --common--  # Anicient Coin
+            20: (27,),  # --common--  # Anicient Coin
         }
         item_category = random.choices(list(items.values()), list(items.keys()))[0]
         item_id = random.choice(item_category)
@@ -318,4 +318,4 @@ class Exploring(commands.Cog, name="Exploring"):
 
 
 def setup(bot: commands.Bot):
-    bot.add_cog(Exploring(bot))
+    bot.add_cog(Survival(bot))
