@@ -266,7 +266,6 @@ class Utility(commands.Cog, name="Survival Guide"):
             await interaction.response.send_autocomplete(near_items)
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 12, SlashBucket.author)
     async def item(
         self,
         interaction: Interaction,

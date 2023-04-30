@@ -1,7 +1,8 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands
-from nextcord import Embed, Interaction, SlashOption
+from nextcord import Embed, Interaction, SlashOption, ButtonStyle
+from nextcord.ui import View, Button
 
 # database
 from utils.postgres_db import Database
@@ -352,7 +353,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     async def modify_item(self, interaction: Interaction):
         """Add, edit, or delete an item."""
         pass
-
+        
     @modify_item.subcommand(name="add", description="Add a new item into the game")
     async def add_item(
         self,
@@ -447,8 +448,26 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             raise e
 
         embed = functions.get_item_embed(item)
-        await interaction.send(embed=embed)
-        await interaction.guild.get_channel(988046548309016586).send(embed=embed)
+        
+        view = View(timeout=30)
+        
+        async def send_edit_item(interaction: Interaction):
+            client: nextcord.Client = interaction.client
+            cmds = client.get_all_application_commands()
+            modify_cmd: nextcord.SlashApplicationCommand = [
+                cmd for cmd in cmds if cmd.name == "modify"
+            ][0]
+            edit_item_cmd = modify_cmd.children["item"].children["edit"]
+            await edit_item_cmd.invoke_callback(
+                interaction, item=item["name"]
+            )
+        
+        edit_btn = Button(label="Edit", style=ButtonStyle.blurple)
+        edit_btn.callback = send_edit_item
+        view.add_item(edit_btn)
+        
+        await interaction.send(embed=embed, view=view)
+        await interaction.guild.get_channel(988046548309016586).send(f"A new item is added by {interaction.user.mention}: ", embed=embed)
 
     @modify_item.subcommand(
         name="edit",

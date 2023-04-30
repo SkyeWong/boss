@@ -31,6 +31,8 @@ def delete_field(embed: Embed, field_name: str):
 def check_if_it_is_skye(interaction: Interaction):
     return interaction.user.id == 806334528230129695
 
+def check_if_not_dev_guild(*args, **kwargs):
+    return args[1].guild.id != constants.DEVS_SERVER_ID
 
 def text_to_num(text: str):
     text = text.lower()
@@ -112,7 +114,7 @@ def get_error_message():
 def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
     embed = Embed()
     embed.colour = random.choice(constants.EMBED_COLOURS)
-    embed.title = f"{item['name']}"
+    embed.title = item["name"]
 
     description = ""
     for i in item["description"].splitlines():
@@ -172,6 +174,13 @@ def format_with_embed(
 ):  # TODO: add this to every send(embed=Embed(description="..."))
     """Returns a `nextcord.Embed` with the description set as `text`."""
     return Embed(description=text)
+
+class TextEmbed(Embed):
+    
+    """A `nextcord.Embed` with the description set as `text`."""
+    
+    def __init__(self, text: str):
+        super().__init__(description=text)
 
 
 class BossException(Exception):

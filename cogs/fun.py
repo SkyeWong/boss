@@ -15,6 +15,7 @@ from cooldowns import SlashBucket
 
 # my modules and constants
 from utils import constants, functions
+from utils.functions import check_if_not_dev_guild
 
 # command views
 from views.fun_views import (
@@ -48,7 +49,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
     @nextcord.slash_command(
         name="roll", description="Roll a random number between two of them."
     )
-    @cooldowns.cooldown(1, 20, SlashBucket.author)
+    @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
     async def roll(
         self,
         interaction: Interaction,
@@ -82,7 +83,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
         await interaction.send(embed=embed)
 
     @nextcord.slash_command(name="coinflip", description="Flip a coin!")
-    @cooldowns.cooldown(1, 20, SlashBucket.author)
+    @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
     async def coinflip(self, interaction: Interaction):
         embed = Embed()
         embed.title = "Flipped a coin..."
@@ -99,7 +100,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
     @nextcord.slash_command(
         name="8ball", description="I can tell you the future and make decisions! 🎱"
     )
-    @cooldowns.cooldown(1, 20, SlashBucket.author)
+    @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
     async def eight_ball(
         self,
         interaction: Interaction,
@@ -159,7 +160,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
         name="generate-maze",
         description="Generates a maze using the Mazelib Python library",
     )
-    @cooldowns.cooldown(1, 180, SlashBucket.author)
+    @cooldowns.cooldown(1, 180, SlashBucket.author, check=check_if_not_dev_guild)
     async def gen_maze(
         self,
         interaction: Interaction,
@@ -312,7 +313,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
         )
 
     @nextcord.slash_command(name="fight", description="Fight with another user!")
-    @cooldowns.cooldown(1, 60, SlashBucket.author)
+    @cooldowns.cooldown(1, 60, SlashBucket.author, check=check_if_not_dev_guild)
     async def fight(
         self,
         interaction: Interaction,
@@ -359,7 +360,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
         name="emoji",
         description="Search for emojis!",
     )
-    @cooldowns.cooldown(1, 15, SlashBucket.author)
+    @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def emoji(
         self,
         interaction: Interaction,

@@ -16,6 +16,7 @@ from utils.postgres_db import Database
 # my modules and constants
 from utils.player import Player
 from utils import functions, constants
+from utils.functions import check_if_not_dev_guild
 from utils.functions import MoveItemException
 from views.players_views import InventoryView
 
@@ -35,7 +36,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         self.bot = bot
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 8, SlashBucket.author)
+    @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
     async def profile(
         self,
         interaction: Interaction,
@@ -130,7 +131,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         await interaction.send(embed=profile_ui)
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 8, SlashBucket.author)
+    @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
     async def balance(
         self,
         interaction: Interaction,
@@ -194,7 +195,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         await interaction.send(embed=embed)
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 20, SlashBucket.author)
+    @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
     async def leaderboard(self, interaction: Interaction):
         """See the richest man in the (BOSS) world, who is probably not Elon Musk."""
         lb = await self.bot.db.fetch(
@@ -432,7 +433,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         return quantities_after
 
     @nextcord.slash_command(name="move-item")
-    @cooldowns.cooldown(1, 18, SlashBucket.author)
+    @cooldowns.cooldown(1, 18, SlashBucket.author, check=check_if_not_dev_guild)
     async def move_item(
         self,
         interaction: Interaction,
