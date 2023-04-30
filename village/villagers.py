@@ -69,14 +69,14 @@ class Villager:
         job_type: str,
         demand: list[TradeItem | TradePrice],
         supply: list[TradeItem | TradePrice],
-        remaining_trades: int,
+        num_trades: int,
         db: Database
     ) -> None:
         self.name = name
         self.job_type = job_type
         self.demand = demand
         self.supply = supply
-        self.remaining_trades = remaining_trades
+        self.remaining_trades = num_trades
         self.db = db
         
     async def format_trade(self):
@@ -97,7 +97,7 @@ class Hunter(Villager):
         trades = [  # price is `TradePrice(random * max_quantity * unit price[min], random * max_quantity * unit price[max])`
             {
                 "demand": [TradeItem(26, round(rand * 8))],  # skunk
-                "supply": [TradePrice(round(rand * 8 * 10_000), round(rand * 8 * 15_000))]
+                "supply": [TradePrice(round(rand * 8 * 10_000), round(rand * 8 * 15_000))],
             },
             {
                 "demand": [TradeItem(23, round(rand * 8))],  # duck
@@ -118,7 +118,7 @@ class Hunter(Villager):
             job_type=__class__.__name__, 
             demand=trade["demand"], 
             supply=trade["supply"], 
-            remaining_trades=8,
+            num_trades=trade.get("trades", 8),
             db=db
         )
         
@@ -130,7 +130,7 @@ class Mason(Villager):
         trades = [  # price is `random * quantity * unit price[min AND max]`
             {
                 "demand": [TradeItem(31, round(rand * 10))],  # dirt
-                "supply": [TradePrice(round(rand * 10 * 5), round(rand * 10 * 10))]  
+                "supply": [TradePrice(round(rand * 10 * 5), round(rand * 10 * 10))],
             },
             {
                 "demand": [TradeItem(33, round(rand * 10))],  # stone
@@ -143,7 +143,7 @@ class Mason(Villager):
             job_type=__class__.__name__, 
             demand=trade["demand"], 
             supply=trade["supply"], 
-            remaining_trades=100,
+            num_trades=trade.get("trades", 100),
             db=db
         )
         
@@ -162,7 +162,7 @@ class Armourer(Villager):
             job_type=__class__.__name__, 
             demand=trade["demand"], 
             supply=trade["supply"], 
-            remaining_trades=3,
+            num_trades=3,
             db=db
         )
      
@@ -173,11 +173,13 @@ class Archaeologist(Villager):
         trades = [  # price is `random * quantity * unit price[min AND max]`
             {
                 "demand": [TradeItem(27, round(rand * 2))],  # ancient coin
-                "supply": [TradePrice(round(rand * 2 * 4_000_000), round(rand * 2 * 8_000_000))]
+                "supply": [TradePrice(round(rand * 2 * 4_000_000), round(rand * 2 * 8_000_000))],
+                "trades": 3
             },
             {
                 "demand": [TradeItem(46, round(rand * 5))],  # banknote
-                "supply": [TradePrice(round(rand * 5 * 150_000), round(rand * 5 * 210_000))]
+                "supply": [TradePrice(round(rand * 5 * 150_000), round(rand * 5 * 210_000))],
+                "trades": 10
             }
         ]
         trade = random.choice(trades)
@@ -186,7 +188,7 @@ class Archaeologist(Villager):
             job_type=__class__.__name__, 
             demand=trade["demand"], 
             supply=trade["supply"], 
-            remaining_trades=8,
+            num_trades=trade.get("trades", 100),
             db=db
         )
         
@@ -197,11 +199,12 @@ class Farmer(Villager):
         trades = [  # price is `random * quantity * unit price[min AND max]`
             {
                 "demand": [TradeItem(29, round(rand * 5))],  # wheat
-                "supply": [TradeItem(48, 1)]  # bread
+                "supply": [TradeItem(48, 1)],  # bread
+                "trades": 8
             },
             {
                 "demand": [TradeItem(29, round(rand * 5))],  # wheat
-                "supply": [TradePrice(round(rand * 5 * 20_000), round(rand * 5 * 40_000))]
+                "supply": [TradePrice(round(rand * 5 * 20_000), round(rand * 5 * 40_000))],
             },
             {
                 "demand": [TradeItem(30, round(rand * 5))],  # cabbage
@@ -218,6 +221,6 @@ class Farmer(Villager):
             job_type=__class__.__name__, 
             demand=trade["demand"], 
             supply=trade["supply"], 
-            remaining_trades=15,
+            num_trades=trade.get("trades", 15),
             db=db
         )
