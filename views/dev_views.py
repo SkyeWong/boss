@@ -33,9 +33,9 @@ def _get_item_embed(item: Record):
     prices_txt = ""
     for k, price in prices.items():
         if not price or price == 0:
-            prices_txt += f"**{k.upper()}** - Unknown\n"
+            prices_txt += f"`{k.capitalize()}`: Unknown\n"
         else:
-            prices_txt += f"**{k.upper()}** - ◎ {int(price):,}\n"
+            prices_txt += f"`{k.capitalize()}`: ◎ {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
 
     # **rarity**
