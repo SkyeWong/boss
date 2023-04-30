@@ -6,36 +6,43 @@ from utils import functions
 
 # default modules
 import random
+from typing import Union
 
 
 class TradeItem:
     def __init__(self, item_id: int, quantity: int) -> None:
         self.item_id = item_id
         self.quantity = quantity
+        self._name = None
+        self._emoji = None
         
     async def get_name(self, db: Database):
-        return await db.fetchval(
-            """
-            SELECT name
-            FROM utility.items
-            WHERE item_id = $1
-            """,
-            self.item_id,
-        )
+        if self._name is None:
+            self._name = await db.fetchval(
+                """
+                SELECT name
+                FROM utility.items
+                WHERE item_id = $1
+                """,
+                self.item_id,
+            )
+        return self._name
         
     async def get_emoji(self, db: Database):
-        return await db.fetchval(
-            """
-            SELECT CONCAT('<:', emoji_name, ':', emoji_id, '>') AS emoji
-            FROM utility.items
-            WHERE item_id = $1
-            """,
-            self.item_id,
-        )
+        if self._emoji is None:
+            self._emoji = await db.fetchval(
+                """
+                SELECT CONCAT('<:', emoji_name, ':', emoji_id, '>') AS emoji
+                FROM utility.items
+                WHERE item_id = $1
+                """,
+                self.item_id,
+            )
+        return self._emoji
         
 
 class TradePrice:
-    def __init__(self, min_price: int| str, max_price: int | str) -> None:
+    def __init__(self, min_price: Union[int, str], max_price: Union[int, str]) -> None:
         if isinstance(min_price, str):
             self.min_price = functions.text_to_num(min_price)
         elif isinstance(min_price, int):
@@ -45,13 +52,7 @@ class TradePrice:
             self.max_price = functions.text_to_num(max_price)
         elif isinstance(max_price, int):
             self.max_price = max_price
-        self._price = None
-    
-    @property
-    def price(self):
-        if self._price is None:
-            self._price = random.randint(self.min_price, self.max_price)
-        return self._price
+        self.price = random.randint(self.min_price, self.max_price)
         
         
 class Villager:
@@ -68,12 +69,14 @@ class Villager:
         job_type: str,
         demand: list[TradeItem | TradePrice],
         supply: list[TradeItem | TradePrice],
+        remaining_trades: int,
         db: Database
     ) -> None:
         self.name = name
         self.job_type = job_type
         self.demand = demand
         self.supply = supply
+        self.remaining_trades = remaining_trades
         self.db = db
         
     async def format_trade(self):
@@ -110,7 +113,14 @@ class Hunter(Villager):
             },
         ]
         trade = random.choice(trades)
-        super().__init__(name, __class__.__name__, trade["demand"], trade["supply"], db)
+        super().__init__(
+            name=name, 
+            job_type=__class__.__name__, 
+            demand=trade["demand"], 
+            supply=trade["supply"], 
+            remaining_trades=8,
+            db=db
+        )
         
         
 class Mason(Villager):
@@ -128,7 +138,14 @@ class Mason(Villager):
             }
         ]
         trade = random.choice(trades)
-        super().__init__(name, __class__.__name__, trade["demand"], trade["supply"], db)
+        super().__init__(
+            name=name, 
+            job_type=__class__.__name__, 
+            demand=trade["demand"], 
+            supply=trade["supply"], 
+            remaining_trades=100,
+            db=db
+        )
         
         
 class Armourer(Villager):    
@@ -140,7 +157,14 @@ class Armourer(Villager):
             }
         ]
         trade = random.choice(trades)
-        super().__init__(name, __class__.__name__, trade["demand"], trade["supply"], db)
+        super().__init__(
+            name=name, 
+            job_type=__class__.__name__, 
+            demand=trade["demand"], 
+            supply=trade["supply"], 
+            remaining_trades=3,
+            db=db
+        )
      
         
 class Archaeologist(Villager):
@@ -157,7 +181,14 @@ class Archaeologist(Villager):
             }
         ]
         trade = random.choice(trades)
-        super().__init__(name, __class__.__name__, trade["demand"], trade["supply"], db)
+        super().__init__(
+            name=name, 
+            job_type=__class__.__name__, 
+            demand=trade["demand"], 
+            supply=trade["supply"], 
+            remaining_trades=8,
+            db=db
+        )
         
         
 class Farmer(Villager):    
@@ -182,4 +213,11 @@ class Farmer(Villager):
             },
         ]
         trade = random.choice(trades)
-        super().__init__(name, __class__.__name__, trade["demand"], trade["supply"], db)
+        super().__init__(
+            name=name, 
+            job_type=__class__.__name__, 
+            demand=trade["demand"], 
+            supply=trade["supply"], 
+            remaining_trades=15,
+            db=db
+        )

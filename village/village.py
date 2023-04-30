@@ -73,6 +73,7 @@ class TradeView(BaseView):
         embed.set_author(name="Trading")
         villager = self.current_villager
         embed.title = f"{villager.name} - {villager.job_type}"
+        embed.description = f"_{villager.remaining_trades} trades left._"
         
         demand_msg, supply_msg = await villager.format_trade()
                 
@@ -103,47 +104,59 @@ class TradeView(BaseView):
         
     @button(label="Trade", style=ButtonStyle.blurple, custom_id="trade")
     async def trade(self, button: Button, interaction: Interaction):
+        current_villager = self.current_villager
+        remaining_trades = current_villager.remaining_trades
+        
+        if remaining_trades <= 0:
+            await interaction.send(embed=TextEmbed(f"{current_villager.name} is out of stock. Maybe try again later."), ephemeral=True)
+            return
+        
         db: Database = interaction.client.db
         player = Player(db, interaction.user)
+        
         async with db.pool.acquire() as conn:
-            async with conn.transaction():  # use transaction in case of error
-                # remove "demanded" items and add "supplied" items
-                for k, v in {"demand": self.current_villager.demand, "supply": self.current_villager.supply}.items():
-                    # set the multiplier which will be used to calculate the resources required/given by the villager
-                    if k == "demand": 
-                        multiplier = -1
-                    elif k == "supply":
-                        multiplier = 1
-                    for item in v:  # a Trade can have more than 1 items involved, here we process every one
-                        if isinstance(item, TradePrice):  # this item involves scrap metal
-                            player_scrap = await db.fetchval(
-                                """
-                                SELECT scrap_metal
-                                FROM players.players
-                                WHERE player_id = $1
-                                """,
-                                interaction.user.id,
-                            )
-                            # only check if user does not have enough scrap metal when scrap metal is on demand.
-                            if k == "demand" and player_scrap < item.price:
+            async with conn.transaction():
+                player_scrap = await db.fetchval(
+                    """
+                    SELECT scrap_metal
+                    FROM players.players
+                    WHERE player_id = $1
+                    """,
+                    interaction.user.id,
+                )
+                
+                inventory = await db.fetch(
+                    """
+                    SELECT item_id, quantity
+                    FROM players.inventory
+                    WHERE player_id = $1 AND inv_type = 0
+                    """,
+                    interaction.user.id,
+                )
+
+                for trade_type, trade_items in {"demand": current_villager.demand, "supply": current_villager.supply}.items():
+                    multiplier = -1 if trade_type == "demand" else 1
+                    for item in trade_items:
+                        if isinstance(item, TradePrice):
+                            if trade_type == "demand" and player_scrap < item.price:
                                 await interaction.send(embed=TextEmbed("You don't have enough scrap metal."), ephemeral=True)
                                 return
+                            
                             required_price = multiplier * item.price
                             await player.modify_scrap(required_price)
-                        elif isinstance(item, TradeItem):  # this item involves a BOSS item
-                            owned_quantity = await db.fetchval(
-                                """
-                                SELECT quantity
-                                FROM players.inventory
-                                WHERE player_id = $1 AND inv_type = 0 AND item_id = $2
-                                """,
-                                interaction.user.id, item.item_id
-                            )  # will be `None` if no record is found
-                            if k == "demand" and (owned_quantity is None or owned_quantity < item.quantity):
+                        elif isinstance(item, TradeItem):
+                            owned_quantity = next((x["quantity"] for x in inventory if x["item_id"] == item.item_id), 0)
+                            if trade_type == "demand" and owned_quantity < item.quantity:
                                 await interaction.send(embed=TextEmbed(f"You are {item.quantity - (owned_quantity if owned_quantity else 0)} short in {await item.get_emoji(db)} {await item.get_name(db)}."), ephemeral=True)
                                 return
+                            
                             required_quantity = multiplier * item.quantity
                             await player.add_item(item.item_id, required_quantity)
                             
-        demand_msg, supply_msg = await self.current_villager.format_trade()
+        demand_msg, supply_msg = await current_villager.format_trade()
         await interaction.send(embed=TextEmbed(f"You successfully received: {supply_msg}"), ephemeral=True)
+        current_villager.remaining_trades -= 1
+        
+        embed = await self.get_embed()
+        self.update_view()
+        await self.msg.edit(embed=embed, view=self)
