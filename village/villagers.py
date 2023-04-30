@@ -170,15 +170,15 @@ class Farmer(Villager):
             },
             {
                 "demand": [TradeItem(29, round(rand * 5))],  # wheat
-                "supply": [TradePrice(round(rand * 5 * 20_000, round(rand * 5 * 40_000)))]
+                "supply": [TradePrice(round(rand * 5 * 20_000), round(rand * 5 * 40_000))]
             },
             {
                 "demand": [TradeItem(30, round(rand * 5))],  # cabbage
-                "supply": [TradePrice(round(rand * 5 * 40_000, round(rand * 5 * 60_000)))]
+                "supply": [TradePrice(round(rand * 5 * 40_000), round(rand * 5 * 60_000))]
             },
             {
                 "demand": [TradeItem(30, round(rand * 5))],  # carrot
-                "supply": [TradePrice(round(rand * 5 * 25_000, round(rand * 5 * 35_000)))]
+                "supply": [TradePrice(round(rand * 5 * 25_000), round(rand * 5 * 35_000))]
             },
         ]
         trade = random.choice(trades)
