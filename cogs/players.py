@@ -16,6 +16,7 @@ from utils.postgres_db import Database
 # my modules and constants
 from utils.player import Player
 from utils import functions, constants
+from utils.constants import SCRAP_METAL, COPPER
 from utils.functions import check_if_not_dev_guild
 from utils.functions import MoveItemException
 from views.players_views import InventoryView
@@ -64,7 +65,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
 
         profile = await db.fetchrow(
             """
-            SELECT scrap_metal, experience
+            SELECT scrap_metal, copper, experience
             FROM players.players
             WHERE player_id = $1
             """,
@@ -106,7 +107,10 @@ class Players(commands.Cog, name="Apocalypse Elites"):
             item_worth = 0
 
         profile_ui.add_field(
-            name="Scrap Metal", value=f"`◎ {numerize.numerize(profile['scrap_metal'])}`"
+            name="Scrap Metal", value=f"{SCRAP_METAL} `{numerize.numerize(profile['scrap_metal'])}`"
+        )
+        profile_ui.add_field(
+            name="Copper", value=f"{COPPER} `{numerize.numerize(profile['copper'])}`"
         )
         experience_progress_bar_filled = round((experience % 100) / 10)
         profile_ui.add_field(
@@ -120,12 +124,12 @@ class Players(commands.Cog, name="Apocalypse Elites"):
             name="Items",
             value=f"Unique: `{unique_items}`\n"
             f"Total: `{total_items}`\n"
-            f"Worth: `◎ {numerize.numerize(item_worth)}`\n",
+            f"Worth: {SCRAP_METAL} `{numerize.numerize(item_worth)}`\n",
             inline=False,
         )
         profile_ui.add_field(
             name="Net worth",
-            value=f"`◎ {numerize.numerize(item_worth + profile['scrap_metal'])}`",
+            value=f"{SCRAP_METAL} `{numerize.numerize(item_worth + profile['scrap_metal'])}`",
             inline=False,
         )
         await interaction.send(embed=profile_ui)
@@ -157,9 +161,9 @@ class Players(commands.Cog, name="Apocalypse Elites"):
             )
             return
 
-        scrap_metal = await db.fetchval(
+        scrap_metal, copper = await db.fetchrow(
             """
-            SELECT scrap_metal
+            SELECT scrap_metal, copper
             FROM players.players
             WHERE player_id = $1
             """,
@@ -188,10 +192,13 @@ class Players(commands.Cog, name="Apocalypse Elites"):
             item_worth = 0
 
         embed.description = (
-            f"**Scrap Metal**: ◎ {scrap_metal:,}\n"
-            f"**Item worth**: ◎ {item_worth:,}\n\n"
-            f"**Net worth**: ◎ {item_worth + scrap_metal:,}"
+            f"**Scrap Metal**: {SCRAP_METAL} {scrap_metal:,}\n"
+            f"**Copper**: {COPPER} {copper:,}\n"
+            f"**Item worth**: {SCRAP_METAL} {item_worth:,}\n\n"
+            f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * 25:,}"
         )
+        embed.set_footer(text="Items are valued with scrap metals. 1 copper is worth 25 scrap metals.")
+        
         await interaction.send(embed=embed)
 
     @nextcord.slash_command()

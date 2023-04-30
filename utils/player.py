@@ -58,6 +58,22 @@ class Player:
         else:
             raise functions.PlayerNotExist()
 
+    async def modify_copper(self, copper_to_modify: int):
+        """Modify the player's scrap."""
+        if await self.is_present():
+            return await self.db.fetchval(
+                """
+                UPDATE players.players
+                    SET copper = copper + $1
+                WHERE player_id = $2
+                RETURNING copper
+                """,
+                copper_to_modify,
+                self.user.id,
+            )
+        else:
+            raise functions.PlayerNotExist()
+
     async def set_scrap(self, scrap_to_set: int):
         if await self.is_present() == True:
             return await self.db.fetchval(
@@ -68,6 +84,21 @@ class Player:
                 RETURNING scrap_metal
                 """,
                 scrap_to_set,
+                self.user.id,
+            )
+        else:
+            raise functions.PlayerNotExist()
+        
+    async def set_copper(self, copper_to_set: int):
+        if await self.is_present() == True:
+            return await self.db.fetchval(
+                """
+                UPDATE players.players
+                    SET copper = $1
+                WHERE player_id = $2
+                RETURNING copper
+                """,
+                copper_to_set,
                 self.user.id,
             )
         else:

@@ -12,6 +12,7 @@ from utils.postgres_db import Database
 
 # my modules and constants
 from utils.player import Player
+from utils.constants import SCRAP_METAL, COPPER
 from views.template_views import ConfirmView
 
 # default modules
@@ -57,10 +58,10 @@ class Currency(commands.Cog, name="Resource Reserve"):
         max_quantity_length = len(str(max(quantities)))
 
         for item in sold_items:
-            embed.description += f"` {item['quantity']: >{max_quantity_length}}x ` <:{item['emoji_name']}:{item['emoji_id']}> {item['name']} (◎ {item['sell_price'] * item['quantity']:,})\n"
+            embed.description += f"` {item['quantity']: >{max_quantity_length}}x ` <:{item['emoji_name']}:{item['emoji_id']}> {item['name']} ({SCRAP_METAL} {item['sell_price'] * item['quantity']:,})\n"
 
         embed.description += "─" * (len(embed.title) + 5)
-        embed.description += f"\n**`Total`**: ◎ __{total_price:,}__"
+        embed.description += f"\n**`Total`**: {SCRAP_METAL} __{total_price:,}__"
         return embed
 
     async def sell_all_player_items(self, button, interaction: Interaction):

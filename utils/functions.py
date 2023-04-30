@@ -6,6 +6,7 @@ import nextcord
 
 # constants
 from utils import constants
+from utils.constants import SCRAP_METAL, COPPER
 
 # inbuilt modules
 import math
@@ -146,7 +147,7 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
         if not price or price == 0:
             prices_txt += f"`{k.capitalize()}`: Unknown\n"
         else:
-            prices_txt += f"`{k.capitalize()}`: ◎ {int(price):,}\n"
+            prices_txt += f"`{k.capitalize()}`: {SCRAP_METAL} {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
     
     item_rarity = [i.name for i in constants.ItemRarity if i.value == item["rarity"]][0]

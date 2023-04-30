@@ -3,6 +3,7 @@ from utils.postgres_db import Database
 
 # my modules
 from utils import functions
+from utils.constants import SCRAP_METAL, COPPER
 
 # default modules
 import random
@@ -84,7 +85,7 @@ class Villager:
         for index, value in enumerate((self.demand, self.supply)):
             for i in value:
                 if isinstance(i, TradePrice):
-                    msgs[index] += f"\n`◎ {i.price:,}`"
+                    msgs[index] += f"\n`{SCRAP_METAL} {i.price:,}`"
                 elif isinstance(i, TradeItem):
                     msgs[index] += f"\n` {i.quantity}x ` {await i.get_emoji(self.db)} {await i.get_name(self.db)}"
         return msgs[0], msgs[1]

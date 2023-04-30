@@ -12,7 +12,7 @@ import parsedatetime as pdt
 # my modules and constants
 from utils.player import Player
 from utils import functions, constants
-from utils.functions import MoveItemException
+from utils.functions import MoveItemException, TextEmbed
 
 # views and modals
 from views.dev_views import (
@@ -95,15 +95,15 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         """Edit a user's profile."""
         pass
 
-    @modify_user.subcommand(name="gold", description="Modify or set a user's gold")
-    async def modify_gold(
+    @modify_user.subcommand(name="scrap-metal", description="Modify or set a user's scrap metal")
+    async def modify_scrap(
         self,
         interaction: Interaction,
-        gold: str = SlashOption(name="gold", required=True),
+        scrap_metal: str = SlashOption(name="scrap-metal", required=True),
         user_id: str = SlashOption(name="user-id", required=False, default=None),
         set_or_modify: int = SlashOption(
             name="set-or-modify",
-            description="Changes the user's gold by a certain value or sets it to the value. DEFAULT: MODIFY",
+            description="Changes the user's scrap metal by a certain value or sets it to the value. DEFAULT: MODIFY",
             choices={"set": 0, "modify": 1},
             required=False,
             default=1,
@@ -126,11 +126,11 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
 
         player = Player(self.bot.db, user)
         try:
-            gold = functions.text_to_num(gold)
-        except functions.MoveItemException as e:
+            scrap_metal = functions.text_to_num(scrap_metal)
+        except functions.TextToNumException as e:
             await interaction.send(
                 embed=Embed(
-                    title="Can't set the gold to that, try again",
+                    title="Can't set the `scrap metal` to that, try again",
                     description=f"Error:\n{e.args[0]}",
                 ),
                 ephemeral=True,
@@ -138,23 +138,76 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         else:
             if not await player.is_present():
                 await interaction.send(
-                    embed=Embed(
-                        description="The user doesn't play BOSS! what a boomer."
-                    ),
+                    embed=TextEmbed(description="The user doesn't play BOSS! what a boomer."),
                     ephemeral=True,
                 )
                 return
 
             if set_or_modify == 0:
-                new_gold = await player.set_scrap(gold)
-                embed = Embed(
-                    description=f"{interaction.user.mention} set `{user.name}`'s gold to **`{new_gold}`**"
-                )
+                new_scrap = await player.set_scrap(scrap_metal)
+                embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s scrap metal to **`{new_scrap}`**")
             else:
-                new_gold = await player.modify_scrap(gold)
-                embed = Embed(
-                    description=f"{interaction.user.mention} set `{user.name}`'s gold to **`{new_gold}`**, modified by {gold}"
+                new_scrap = await player.modify_scrap(scrap_metal)
+                embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s scrap metal to **`{new_scrap}`**, modified by {scrap_metal}")
+
+            await interaction.send(embed=embed)
+            channel = await self.bot.fetch_channel(988046548309016586)
+            await channel.send(embed=embed)
+            
+    @modify_user.subcommand(name="copper", description="Modify or set a user's copper")
+    async def modify_copper(
+        self,
+        interaction: Interaction,
+        copper: str = SlashOption(),
+        user_id: str = SlashOption(name="user-id", required=False),
+        set_or_modify: int = SlashOption(
+            name="set-or-modify",
+            description="Changes the user's copper by a certain value or sets it to the value. DEFAULT: MODIFY",
+            choices={"set": 0, "modify": 1},
+            required=False,
+            default=1,
+        ),
+    ):
+        if user_id is None:
+            user_id = interaction.user.id
+        else:
+            user_id = int(user_id)
+        try:
+            user = await self.bot.fetch_user(user_id)
+        except (nextcord.NotFound, nextcord.HTTPException):
+            await interaction.send(
+                embed=Embed(
+                    description="Either an internal error occured or you entered an incorrect user_id."
+                ),
+                ephemeral=True,
+            )
+            return
+
+        player = Player(self.bot.db, user)
+        try:
+            copper = functions.text_to_num(copper)
+        except functions.TextToNumException as e:
+            await interaction.send(
+                embed=Embed(
+                    title="Can't set the `copper` to that, try again",
+                    description=f"Error:\n{e.args[0]}",
+                ),
+                ephemeral=True,
+            )
+        else:
+            if not await player.is_present():
+                await interaction.send(
+                    embed=TextEmbed(description="The user doesn't play BOSS! what a boomer."),
+                    ephemeral=True,
                 )
+                return
+            
+            if set_or_modify == 0:
+                new_copper = await player.set_copper(copper)
+                embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s copper to **`{new_copper}`**")
+            else:
+                new_copper = await player.modify_copper(copper)
+                embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s copper to **`{new_copper}`**, modified by {copper}")
 
             await interaction.send(embed=embed)
             channel = await self.bot.fetch_channel(988046548309016586)
