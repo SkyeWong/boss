@@ -19,51 +19,14 @@ from views.template_views import BaseView, ConfirmView
 
 
 def _get_item_embed(item: Record):
-    embed = Embed()
-    embed.colour = random.choice(constants.EMBED_COLOURS)
-    embed.title = item["name"]
-    embed.description = f">>> _{item['description']}_"
-
-    prices = {
-        "buy": item["buy_price"],
-        "sell": item["sell_price"],
-        "trade": item["trade_price"],
-    }
-
-    prices_txt = ""
-    for k, price in prices.items():
-        if not price or price == 0:
-            prices_txt += f"`{k.capitalize()}`: Unknown\n"
-        else:
-            prices_txt += f"`{k.capitalize()}`: ◎ {int(price):,}\n"
-    embed.add_field(name="Prices", value=prices_txt, inline=False)
-
-    # **rarity**
-    # 0 - common
-    # 1 - uncommon
-    # 2 - rare
-    # 3 - epic
-    # 4 - legendary
-    # 5 - godly
-    rarity = ["common", "uncommon", "rare", "epic", "legendary", "godly"]
-    embed.add_field(name="Rarity", value=rarity[item["rarity"]], inline=True)
-
-    # **type**
-    # 0 - tool
-    # 1 - collectable
-    # 2 - power-up
-    # 3 - sellable
-    # 4 - bundle
-    types = ["tool", "collectable", "power-up", "sellable", "bundle"]
-    embed.add_field(name="Type", value=types[item["type"]], inline=True)
+    embed = functions.get_item_embed(item)
 
     embed.add_field(
         name="Emoji",
-        value=f"\<:{item['emoji_name']}:{item['emoji_id']}>",
+        value=f"` <:{item['emoji_name']}:{item['emoji_id']}> `",
         inline=False,
     )
     embed.add_field(name="ID (cannot be edited)", value=item["item_id"], inline=False)
-    embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
     return embed
 
 

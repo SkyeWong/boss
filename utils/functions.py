@@ -148,16 +148,18 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
         else:
             prices_txt += f"`{k.capitalize()}`: ◎ {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
-
+    
+    item_rarity = [i.name for i in constants.ItemRarity if i.value == item["rarity"]][0]
     embed.add_field(
         name="Rarity",
-        value=[i.name for i in constants.ItemRarity if i.value == item["rarity"]][0],
+        value=item_rarity.replace("_", " ").capitalize(),
         inline=True,
     )
 
+    item_type = [i.name for i in constants.ItemType if i.value == item["type"]][0]
     embed.add_field(
         name="Type",
-        value=[i.name for i in constants.ItemType if i.value == item["type"]][0],
+        value=item_type.replace("_", " ").capitalize(),
         inline=True,
     )
     embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")

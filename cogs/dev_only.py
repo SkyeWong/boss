@@ -449,7 +449,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
 
         embed = functions.get_item_embed(item)
         
-        view = View(timeout=30)
+        view = View()
         
         async def send_edit_item(interaction: Interaction):
             client: nextcord.Client = interaction.client

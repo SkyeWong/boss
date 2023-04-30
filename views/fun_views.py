@@ -133,7 +133,7 @@ class EmojiView(BaseView):
             f"\n➼ `Guild` - {emoji.guild.name}"
             f"\n➼ `ID`    - {emoji.id}"
             f"\n➼ `Url`   - [{emoji.url}]({emoji.url})"
-            f"\n➼ `Mention syntax` - \{str(emoji)}",
+            f"\n➼ `Mention syntax` - ` {str(emoji)} `",
         )
         return embed
 

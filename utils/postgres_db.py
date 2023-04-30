@@ -48,7 +48,7 @@ class Database:
             print(
                 f"\033[1;36m{self.params['user']}\033[0m has connected to the \033[0;34mneon.db database!\033[0m"
             )
-            return self.pool
+        return self.pool
 
     async def disconnect(self):
         """Disconnect to the database."""
