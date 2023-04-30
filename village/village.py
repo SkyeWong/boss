@@ -42,7 +42,7 @@ class TradeView(BaseView):
         
         self.msg: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = None
         
-    async def roll_new_villagers(self, quantity: Optional[int] = 5) -> list[str]:
+    async def roll_new_villagers(self, quantity: Optional[int] = 10) -> list[str]:
         params = {
             "nameType": "firstname",
             "quantity": quantity
@@ -61,7 +61,7 @@ class TradeView(BaseView):
         self.villagers = villagers
         
     async def send(self):
-        await self.roll_new_villagers()
+        await self.roll_new_villagers(quantity=random.randint(8, 15))
         self.current_villager = self.villagers[0]
         
         embed = await self.get_embed()
