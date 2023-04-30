@@ -29,7 +29,7 @@ from collections import defaultdict
 
 class Players(commands.Cog, name="Apocalypse Elites"):
     COG_EMOJI = "🏆"
-    cooldowns.define_shared_cooldown(1, 6, SlashBucket.author, cooldown_id="check_inventory")
+    cooldowns.define_shared_cooldown(1, 6, SlashBucket.author, cooldown_id="check_inventory", check=check_if_not_dev_guild)
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
