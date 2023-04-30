@@ -140,7 +140,7 @@ class TradeView(BaseView):
                                 interaction.user.id, item.item_id
                             )  # will be `None` if no record is found
                             if k == "demand" and (owned_quantity is None or owned_quantity < item.quantity):
-                                await interaction.send(embed=TextEmbed(f"You are {item.quantity - owned_quantity} short in {await item.get_emoji(db)} {await item.get_name(db)}."), ephemeral=True)
+                                await interaction.send(embed=TextEmbed(f"You are {item.quantity - (owned_quantity if owned_quantity else 0)} short in {await item.get_emoji(db)} {await item.get_name(db)}."), ephemeral=True)
                                 return
                             required_quantity = multiplier * item.quantity
                             await player.add_item(item.item_id, required_quantity)
