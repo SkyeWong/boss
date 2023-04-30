@@ -145,12 +145,12 @@ class DevOnly(commands.Cog, name="Dev Only"):
                 return
 
             if set_or_modify == 0:
-                new_gold = await player.set_gold(gold)
+                new_gold = await player.set_scrap(gold)
                 embed = Embed(
                     description=f"{interaction.user.mention} set `{user.name}`'s gold to **`{new_gold}`**"
                 )
             else:
-                new_gold = await player.modify_gold(gold)
+                new_gold = await player.modify_scrap(gold)
                 embed = Embed(
                     description=f"{interaction.user.mention} set `{user.name}`'s gold to **`{new_gold}`**, modified by {gold}"
                 )

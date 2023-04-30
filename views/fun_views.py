@@ -209,7 +209,7 @@ class EmojiView(BaseView):
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
 
-    @button(label="Less", style=ButtonStyle.gray, custom_id="less", row=2)
+    @button(label="Previous list", style=ButtonStyle.gray, custom_id="less", row=2)
     async def less(self, button: Button, interaction: Interaction):
         self.page -= 1
         self.emoji_index = 0  # reset the page because its a new page
@@ -218,7 +218,7 @@ class EmojiView(BaseView):
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
 
-    @button(label="More", style=ButtonStyle.gray, custom_id="more", row=2)
+    @button(label="Next list", style=ButtonStyle.gray, custom_id="more", row=2)
     async def more(self, button: Button, interaction: Interaction):
         self.page += 1
         self.emoji_index = 0  # reset the page because its a new page

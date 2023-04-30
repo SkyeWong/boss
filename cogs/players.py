@@ -63,7 +63,7 @@ class Players(commands.Cog, name="Players"):
 
         profile = await db.fetchrow(
             """
-            SELECT gold, experience
+            SELECT scrap_metal, experience
             FROM players.players
             WHERE player_id = $1
             """,
@@ -97,7 +97,7 @@ class Players(commands.Cog, name="Players"):
                 INNER JOIN players.players
                 ON inv.player_id = players.player_id
             WHERE inv.player_id = $1
-            GROUP BY players.gold
+            GROUP BY players.scrap_metal
             """,
             user.id,
         )
@@ -105,7 +105,7 @@ class Players(commands.Cog, name="Players"):
             item_worth = 0
 
         profile_ui.add_field(
-            name="Gold", value=f"`◎ {numerize.numerize(profile['gold'])}`"
+            name="Scrap Metal", value=f"`◎ {numerize.numerize(profile['scrap_metal'])}`"
         )
         experience_progress_bar_filled = round((experience % 100) / 10)
         profile_ui.add_field(
@@ -124,7 +124,7 @@ class Players(commands.Cog, name="Players"):
         )
         profile_ui.add_field(
             name="Net worth",
-            value=f"`◎ {numerize.numerize(item_worth + profile['gold'])}`",
+            value=f"`◎ {numerize.numerize(item_worth + profile['scrap_metal'])}`",
             inline=False,
         )
         await interaction.send(embed=profile_ui)
@@ -156,9 +156,9 @@ class Players(commands.Cog, name="Players"):
             )
             return
 
-        gold = await db.fetchval(
+        scrap_metal = await db.fetchval(
             """
-            SELECT gold
+            SELECT scrap_metal
             FROM players.players
             WHERE player_id = $1
             """,
@@ -187,9 +187,9 @@ class Players(commands.Cog, name="Players"):
             item_worth = 0
 
         embed.description = (
-            f"**Gold**: ◎ {gold:,}\n"
+            f"**Scrap Metal**: ◎ {scrap_metal:,}\n"
             f"**Item worth**: ◎ {item_worth:,}\n\n"
-            f"**Net worth**: ◎ {item_worth + gold:,}"
+            f"**Net worth**: ◎ {item_worth + scrap_metal:,}"
         )
         await interaction.send(embed=embed)
 
@@ -199,7 +199,7 @@ class Players(commands.Cog, name="Players"):
         """See the richest man in the (BOSS) world, who is probably not Elon Musk."""
         lb = await self.bot.db.fetch(
             """
-            SELECT players.player_id, COALESCE(SUM(items.trade_price * inv.quantity)::bigint, 0) + players.gold As net_worth
+            SELECT players.player_id, COALESCE(SUM(items.trade_price * inv.quantity)::bigint, 0) + players.scrap_metal As net_worth
                 FROM players.players
                 LEFT JOIN players.inventory AS inv
                     ON inv.player_id = players.player_id

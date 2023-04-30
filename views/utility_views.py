@@ -1,7 +1,7 @@
 # nextcord
 import nextcord
 from nextcord import Embed, Interaction, SelectOption, ButtonStyle
-from nextcord.ui import View, Button, button, select
+from nextcord.ui import Button, button, Select, select
 
 # default modules
 import random
@@ -212,7 +212,7 @@ class GuidePage(Embed):
 
 
 class GuideView(BaseView):
-    pages = [
+    pages: list[GuidePage] = [
         GuidePage(
             title="Introduction",
             description="Welcome to BOSS, the Discord bot for a post-apocalyptic wasteland. \n"
@@ -222,14 +222,39 @@ class GuideView(BaseView):
         ),
         GuidePage(
             title="Currency System",
-            description="The currency system includes multiple types of currency, each with its own value and uses. Users can earn currency by completing tasks or challenges, and spend currency on a variety of items and upgrades. The bot also offers a currency exchange feature, where users can trade one type of currency for another. With a user-friendly account system and dynamic economy, the currency system in BOSS provides a realistic and engaging experience for users.",
-        ),
+            description="The currency system includes multiple types of currency, each with its own value and uses.",
+            fields=[
+                EmbedField(
+                    "Scrap Metal",
+                    "Scrap metal is the basic currency in BOSS, used for everyday transactions. \n"
+                    "It's easy to find and earn, but has a relatively low value compared to other types of currency."
+                    "Users need to manage their scrap metal wisely to build their wealth and survive.",
+                    False
+                ),
+                EmbedField(
+                    "Copper",
+                    "Copper is a valuable and versatile currency in BOSS, used for creating and repairing weapons, armor, and electronic devices. "
+                    "Users can earn copper by scavenging for it or completing tasks and challenges. \n"
+                    "As a currency, copper is worth more than basic resources like scrap metal or cloth. "
+                    "It can be traded for valuable resources like ammunition, fuel, or medicine. ",
+                    False
+                )
+            ]
+        )
     ]
 
     def __init__(self, interaction: Interaction):
         super().__init__(interaction, timeout=180)
         self.current_page = 0
         self.msg: nextcord.WebhookMessage | nextcord.PartialInteractionMessage = None
+        
+        choose_page_select = [i for i in self.children if i.custom_id == "choose_page"][0]
+        for index, page in enumerate(self.pages):
+            choose_page_select.options.append(SelectOption(
+                label=f"{page.title} ({index + 1}/{len(self.pages)})",
+                value=index,
+                default=index == self.current_page
+            ))
 
     async def send(self):
         embed = self.get_embed()
@@ -240,6 +265,14 @@ class GuideView(BaseView):
         return self.pages[self.current_page]
 
     def update_view(self):
+        choose_page_select = [i for i in self.children if i.custom_id == "choose_page"][0]
+        for option in choose_page_select.options:
+            option: SelectOption
+            if option.value == self.current_page:
+                option.default = True
+            else:
+                option.default = False
+            
         back_btn = [i for i in self.children if i.custom_id == "back"][0]
         first_btn = [i for i in self.children if i.custom_id == "first"][0]
         if self.current_page == 0:
@@ -256,6 +289,14 @@ class GuideView(BaseView):
         else:
             next_btn.disabled = False
             last_btn.disabled = False
+            
+    @select(placeholder="Choose a page", options=[], custom_id="choose_page")
+    async def choose_page(self, select: Select, interaction: Interaction):
+        self.current_page = int(select.values[0])
+        
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="⏮️", style=ButtonStyle.blurple, custom_id="first", disabled=True)
     async def first(self, button: Button, interaction: Interaction):
@@ -287,5 +328,4 @@ class GuideView(BaseView):
 
         self.update_view()
         embed = self.get_embed()
-        await interaction.response.edit_message(view=self, embed=embed)
         await interaction.response.edit_message(view=self, embed=embed)

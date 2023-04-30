@@ -93,7 +93,7 @@ class Currency(commands.Cog, name="Currency"):
                 total_price = 0
                 for item in sold_items:
                     total_price += item["sell_price"] * item["quantity"]
-                await player.modify_gold(total_price)
+                await player.modify_scrap(total_price)
         return total_price
 
     @nextcord.slash_command()
@@ -249,7 +249,7 @@ class Currency(commands.Cog, name="Currency"):
 
                 player = Player(db, interaction.user)
                 total_price = item["sell_price"] * quantity
-                await player.modify_gold(total_price)
+                await player.modify_scrap(total_price)
         item = dict(item)
         item["quantity"] = quantity
         embed = self.get_sell_item_embed((item,), total_price)

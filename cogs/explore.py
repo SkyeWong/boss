@@ -21,6 +21,9 @@ from views.template_views import ConfirmView
 # maze
 from maze.maze import Maze
 
+# trade
+from village.village import TradeView
+
 
 class Exploring(commands.Cog, name="Exploring"):
     COG_EMOJI = "🗺️"
@@ -159,14 +162,14 @@ class Exploring(commands.Cog, name="Exploring"):
                 ephemeral=True,
             )
 
-    async def adventure_gold(self, button, interaction: Interaction):
+    async def adventure_scrap_metal(self, button, interaction: Interaction):
         player = Player(self.bot.db, interaction.user)
         if random.randint(1, 5) > 2:
-            gold = random.randint(1000, 8000)
-            await player.modify_gold(gold)
+            scrap_metal = random.randint(1000, 8000)
+            await player.modify_scrap(scrap_metal)
             await interaction.send(
                 embed=Embed(
-                    description=f"Lucky you, you got home safely without injuries, but with 🪙 {gold}"
+                    description=f"Lucky you, you got home safely without injuries, but with 🪙 {scrap_metal}"
                 ),
                 ephemeral=True,
             )
@@ -189,20 +192,20 @@ class Exploring(commands.Cog, name="Exploring"):
                 ephemeral=True,
             )
         else:
-            player_gold = await self.bot.db.fetchval(
+            player_scrap = await self.bot.db.fetchval(
                 """
-                SELECT gold
+                SELECT scrap_metal
                 FROM players.players
                 WHERE player_id = $1
                 """,
                 interaction.user.id,
             )
-            # use min() with user's gold so the gold will not be negative
-            lost_gold = min(player_gold, random.randint(120, 800))
-            await player.modify_gold(-lost_gold)
+            # use min() with user's scrap_metal so the scrap_metal will not be negative
+            lost_scrap = min(player_scrap, random.randint(120, 800))
+            await player.modify_scrap(-lost_scrap)
             await interaction.send(
                 embed=functions.format_with_embed(
-                    f"Shame on you, he was a bandits. He attacked you and you lost 🪙 {lost_gold}",
+                    f"Shame on you, he was a bandits. He attacked you and you lost 🪙 {lost_scrap}",
                 ),
                 ephemeral=True,
             )
@@ -230,8 +233,8 @@ class Exploring(commands.Cog, name="Exploring"):
                     self.adventure_village,
                 ),
                 50: (
-                    "A bag of gold was lying on the ground. You saw no one around you. Have you finally decided on whether to snatch it yet?",
-                    self.adventure_gold,
+                    "A bag of scrap_metal was lying on the ground. You saw no one around you. Have you finally decided on whether to snatch it yet?",
+                    self.adventure_scrap_metal,
                 ),
             }
             outcome = random.choices(list(outcomes.values()), list(outcomes.keys()))[0]
@@ -306,6 +309,12 @@ class Exploring(commands.Cog, name="Exploring"):
         await interaction.send(
             f"You visited a {structure_type} called {structure_name}"
         )
+    
+    @nextcord.slash_command()
+    async def trade(self, interaction: Interaction):
+        """Trade with villagers for valuable and possibly unique items!"""
+        view = TradeView(interaction)
+        await view.send()
 
 
 def setup(bot: commands.Bot):

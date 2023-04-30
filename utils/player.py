@@ -42,32 +42,32 @@ class Player:
             self.user.id,
         )
 
-    async def modify_gold(self, gold_to_modify: int):
-        """Modify the player's gold."""
+    async def modify_scrap(self, scrap_to_modify: int):
+        """Modify the player's scrap."""
         if await self.is_present():
             return await self.db.fetchval(
                 """
                 UPDATE players.players
-                    SET gold = gold + $1
+                    SET scrap_metal = scrap_metal + $1
                 WHERE player_id = $2
-                RETURNING gold
+                RETURNING scrap_metal
                 """,
-                gold_to_modify,
+                scrap_to_modify,
                 self.user.id,
             )
         else:
             raise functions.PlayerNotExist()
 
-    async def set_gold(self, gold_to_set: int):
+    async def set_scrap(self, scrap_to_set: int):
         if await self.is_present() == True:
             return await self.db.fetchval(
                 """
                 UPDATE players.players
-                    SET gold = $1
+                    SET scrap_metal = $1
                 WHERE player_id = $2
-                RETURNING gold
+                RETURNING scrap_metal
                 """,
-                gold_to_set,
+                scrap_to_set,
                 self.user.id,
             )
         else:
