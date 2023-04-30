@@ -169,12 +169,6 @@ def format_with_link(text: str):
     return f"[`{text}`](https://boss-bot.onrender.com/)"
 
 
-def format_with_embed(
-    text: str,
-):  # TODO: add this to every send(embed=Embed(description="..."))
-    """Returns a `nextcord.Embed` with the description set as `text`."""
-    return Embed(description=text)
-
 class TextEmbed(Embed):
     
     """A `nextcord.Embed` with the description set as `text`."""

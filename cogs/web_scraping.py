@@ -9,6 +9,7 @@ import googleapiclient.discovery
 from pytube import Search
 
 from utils import functions
+from utils.functions import TextEmbed
 
 # views
 from views.scraping_views import (
@@ -416,7 +417,7 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
         # `line` is verified by discord, we only need to check `station`
         if station not in LINE_STATION_CODES[line].values():
             await interaction.send(
-                embed=functions.format_with_embed(
+                embed=TextEmbed(
                     "Please input a valid line-station pair."
                 )
             )
@@ -434,13 +435,13 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
             if url := train_res.get("url"):
                 msg += f"\n{url}"
             await interaction.send(
-                embed=functions.format_with_embed(f"{msg}\nPlease try again.")
+                embed=TextEmbed(f"{msg}\nPlease try again.")
             )
             return
 
         if train_res.get("sys_time") == "-":  # data is absent.
             await interaction.send(
-                embed=functions.format_with_embed("The data is currently unavailable.")
+                embed=TextEmbed("The data is currently unavailable.")
             )
             return
 

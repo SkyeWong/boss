@@ -103,7 +103,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                 "After you saw a spider climbing in the dirt, you gave it up as a bad job.",
                 "Wait... what's that? Aww, it's just another worm."
             ]
-            await interaction.send(embed=functions.format_with_embed(
+            await interaction.send(embed=TextEmbed(
                 random.choice(fail_msgs)
             ))
             return
@@ -130,11 +130,11 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         player = Player(db, interaction.user)
         # `% getting one of them`: `list of rewards`
         items = [
-            [40, [None]],  # --fail--
+            [30, [None]],  # --fail--
             [40, (  # --common--
                 44,  # Iron ore
             )],
-            [15, (  # --rare--
+            [25, (  # --rare--
                 45,  # Emerald ore
             )],
             [5, (  # --epic--
@@ -154,7 +154,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                 "Looks like you struck out. Maybe next time you'll get lucky and find a diamond... or not.",
                 "Breaking rocks all day, yet nothing to show for it. You're a real master at mining for disappointment."
             ]
-            await interaction.send(embed=functions.format_with_embed(
+            await interaction.send(embed=TextEmbed(
                 random.choice(fail_msgs)
             ))
             return
@@ -173,10 +173,10 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             return
         
         success_msgs = [
-            "Wow, you actually found a {item}. I guess even a blind squirrel finds a nut every once in a while.",
+            "Wow, you actually found a {item}. I suppose even a blind squirrel finds a nut every once in a while.",
             "You hit the jackpot and obtained a {item}! Just kidding, you got lucky.",
             "You found a {item}! It's almost like you knew what you were doing... or maybe you just got lucky.",
-            "Well, well, well, looks like you're not as useless as I thought. You found a {item}.",
+            "Well, looks like you're not as useless as I thought. You found a {item}.",
             "You found a {item}! It's almost like you have a sixth sense for mining... or maybe you just stumbled upon it.",
         ]
         embed = TextEmbed(random.choice(success_msgs).format(item=f"**{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>"))
@@ -249,7 +249,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         if random.randint(1, 5) > 2:
             await player.add_item(32)
             await interaction.send(
-                embed=functions.format_with_embed(
+                embed=TextEmbed(
                     "Wow, you found yourself a slave! However, what he is able to do, I don't know."
                 ),
                 ephemeral=True,
@@ -267,7 +267,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             lost_scrap = min(player_scrap, random.randint(120, 800))
             await player.modify_scrap(-lost_scrap)
             await interaction.send(
-                embed=functions.format_with_embed(
+                embed=TextEmbed(
                     f"Shame on you, he was a bandits. He attacked you and you lost 🪙 {lost_scrap}",
                 ),
                 ephemeral=True,

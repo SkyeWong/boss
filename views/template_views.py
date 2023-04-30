@@ -3,11 +3,11 @@ import nextcord
 from nextcord import Embed, Interaction, ButtonStyle
 from nextcord.ui import View, Button, button
 
-# default modules
-import random
-
 # my modules and constants
 from utils import constants, functions
+from utils.functions import TextEmbed
+
+# default modules
 
 
 class BaseView(View):
@@ -30,7 +30,7 @@ class BaseView(View):
             if command := self.interaction.application_command:
                 msg += f"\nUse </{command.qualified_name}:{list(command.command_ids.values())[0]}>"
             await interaction.send(
-                embed=functions.format_with_embed(msg),
+                embed=TextEmbed(msg),
                 ephemeral=True,
             )
             return False

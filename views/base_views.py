@@ -11,6 +11,7 @@ from utils.postgres_db import Database
 from views.template_views import BaseView
 from utils.player import Player
 from utils import constants, functions
+from utils.functions import TextEmbed
 
 # default modules
 from io import BytesIO
@@ -216,7 +217,7 @@ class FarmView(BaseView):
         # Check if the player exists
         if not await self.player.is_present():
             await interaction.send(
-                embed=functions.format_with_embed(
+                embed=TextEmbed(
                     "The user hasn't started playing BOSS yet! Maybe invite them over?"
                 ),
                 ephemeral=True,
@@ -228,7 +229,7 @@ class FarmView(BaseView):
         # Check if the player has started his farm
         if not self.farm:
             await interaction.send(
-                embed=functions.format_with_embed(
+                embed=TextEmbed(
                     "The user hasn't started his/her farm yet!"
                 )
             )
@@ -316,7 +317,7 @@ class FarmView(BaseView):
 
         if self.farm_width * self.farm_height == 12:
             await interaction.send(
-                embed=functions.format_with_embed("Max size reached!"), ephemeral=True
+                embed=TextEmbed("Max size reached!"), ephemeral=True
             )
             return
 
@@ -349,7 +350,7 @@ class FarmView(BaseView):
         await interaction.response.edit_message(**await view.get_msg())
 
         await interaction.send(
-            embed=functions.format_with_embed(
+            embed=TextEmbed(
                 f"Farm size is now increased to `{view.farm_width}x{view.farm_height}`!"
             ),
             ephemeral=True,
@@ -554,7 +555,7 @@ class PlantView(BaseView):
 
             if not empty_tiles:
                 await interaction.send(
-                    embed=functions.format_with_embed(
+                    embed=TextEmbed(
                         "There are no empty tiles! Harvest crops that are unready to remove them."
                     ),
                     ephemeral=True,
@@ -605,7 +606,7 @@ class PlantView(BaseView):
                     planted_crops += 1
                 else:  # the tile is actually filled, the user must have used 2 views at the same time
                     await interaction.send(
-                        embed=functions.format_with_embed(
+                        embed=TextEmbed(
                             "You can only plant crops in empty tiles!"
                         ),
                         ephemeral=True,
@@ -647,7 +648,7 @@ class PlantView(BaseView):
         ][0]
 
         await interaction.send(
-            embed=functions.format_with_embed(
+            embed=TextEmbed(
                 f"Planted {planted_crops} **{type_name}** {type_emoji}!"
             ),
             ephemeral=True,
@@ -838,7 +839,7 @@ class HarvestView(BaseView):
 
             if not ready_tiles:
                 await interaction.send(
-                    embed=functions.format_with_embed(
+                    embed=TextEmbed(
                         "There are no fully grown crops!"
                     ),
                     ephemeral=True,

@@ -5,6 +5,7 @@ from nextcord.ui import Button, button, Select, select
 
 # my modules and constants
 from utils import constants, functions
+from utils.functions import TextEmbed
 from views.template_views import BaseView
 
 # default modules
@@ -326,7 +327,7 @@ class TriviaAnswerButton(Button):
         for i in view.children:
             i.disabled = True
         # add a new embed with the msg to the message
-        view.message.embeds.append(functions.format_with_embed(msg))
+        view.message.embeds.append(TextEmbed(msg))
         await view.message.edit(embeds=view.message.embeds, view=view)
         # set the view to be done so that on_timeout() will not edit the message again.
         view.is_done = True
@@ -378,7 +379,7 @@ class TriviaView(BaseView):
             await self.message.edit(
                 embeds=[
                     embed,
-                    functions.format_with_embed(
+                    TextEmbed(
                         "Guess you didn't want to play the trivia after all?"
                     ),
                 ]

@@ -13,6 +13,7 @@ from utils.postgres_db import Database
 # my modules and constants
 from utils.player import Player
 from utils import functions, constants
+from utils.functions import TextEmbed
 
 from views.utility_views import HelpView, GuideView
 
@@ -117,7 +118,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                 cmd_name = cmd_name[1:]  # remove "$" prefix
                 if len(cmd_name) < 3:
                     await interaction.send(
-                        embed=functions.format_with_embed(
+                        embed=TextEmbed(
                             "Use search terms at least 3 characters long."
                         )
                     )
@@ -142,7 +143,7 @@ class Utility(commands.Cog, name="Survival Guide"):
 
                 if not cmds:
                     await interaction.send(
-                        embed=functions.format_with_embed(
+                        embed=TextEmbed(
                             f"There are no commands matching _{cmd_name}_. Use </help:964753444164501505> for a list of available commands"
                         )
                     )
@@ -183,7 +184,7 @@ class Utility(commands.Cog, name="Survival Guide"):
 
                 if cmd is None:  # no exact match of command
                     await interaction.send(
-                        embed=functions.format_with_embed(
+                        embed=TextEmbed(
                             "The command is not found! Use </help:964753444164501505> for a list of available commands"
                         )
                     )

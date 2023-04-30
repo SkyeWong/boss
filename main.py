@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 # nextcord
 import nextcord
 from nextcord.ext import commands
-from nextcord import Embed, Interaction, ApplicationCheckFailure
+from nextcord import Embed, Interaction
 
 # nextcord cooldowns
 from cooldowns import CallableOnCooldown
@@ -17,6 +17,7 @@ import pytz
 
 # my modules
 from utils import functions, constants
+from utils.functions import TextEmbed
 from utils.player import Player
 from utils.postgres_db import Database
 from views.scraping_views import PersistentWeatherView
@@ -87,7 +88,7 @@ class BossBot(commands.Bot):
         # don't meet application check requirement
         if isinstance(error, nextcord.ApplicationCheckFailure):
             await interaction.send(
-                embed=functions.format_with_embed(
+                embed=TextEmbed(
                     "You do not have the necessary permissions to use this command."
                 ),
                 ephemeral=True,
@@ -157,7 +158,7 @@ async def cmd_check(interaction: Interaction):
     # Reconnect to the database if it is not
     if bot.db.reconnecting or not bot.db.connected:
         msg = await interaction.send(
-            embed=functions.format_with_embed(
+            embed=TextEmbed(
                 "We are reconnecting to the database, please be patient and wait for a few seconds."
             ),
             ephemeral=True,
@@ -165,7 +166,7 @@ async def cmd_check(interaction: Interaction):
         await bot.db.connect()
 
         await msg.edit(
-            embed=functions.format_with_embed(
+            embed=TextEmbed(
                 "We have successfully connected to the database! "
                 f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again."
             )
@@ -219,7 +220,7 @@ async def cmd_check(interaction: Interaction):
 
         await interaction.send(
             embeds=[
-                functions.format_with_embed(
+                TextEmbed(
                     "> Welcome to BOSS, the Discord bot for a post-apocalyptic world after World War III. "
                     "\n\n> In this world, everything is tarnished and resources are scarce. "
                     "The currency system is based on a variety of items that have value in this new world, "
@@ -229,7 +230,7 @@ async def cmd_check(interaction: Interaction):
                     "Whether you're scavenging for resources, completing missions, or participating in events, BOSS is here to help you earn currency and build your wealth in this new world. "
                     "So, join us in the post-apocalyptic wasteland and let BOSS be your guide to survival and prosperity."
                 ),
-                functions.format_with_embed(
+                TextEmbed(
                     f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again to continue"
                 ),  # TODO: add a /guide command and have players use this instead
             ]

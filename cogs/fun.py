@@ -15,7 +15,7 @@ from cooldowns import SlashBucket
 
 # my modules and constants
 from utils import constants, functions
-from utils.functions import check_if_not_dev_guild
+from utils.functions import check_if_not_dev_guild, TextEmbed
 
 # command views
 from views.fun_views import (
@@ -487,7 +487,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
 
                     if question_res["response_code"] != 0:  # error response code
                         await interaction.send(
-                            embed=functions.format_with_embed(
+                            embed=TextEmbed(
                                 "An error occured. Please try again"
                             ),
                             ephemeral=True,
@@ -527,7 +527,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
                 key = base64.b64decode(key)
             except:
                 await interaction.send(
-                    embed=functions.format_with_embed(
+                    embed=TextEmbed(
                         "The key is not properly encoded in base64."
                     )
                 )
@@ -538,7 +538,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
             cipher = AES.new(key, AES.MODE_ECB)
         except:
             await interaction.send(
-                embed=functions.format_with_embed("The key is invalid!")
+                embed=TextEmbed("The key is invalid!")
             )
             return
 
@@ -579,7 +579,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
                 data[k] = base64.b64decode(v)
             except:
                 await interaction.send(
-                    embed=functions.format_with_embed(
+                    embed=TextEmbed(
                         f"The {k} is not properly encoded in base64."
                     )
                 )
@@ -590,7 +590,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
             cipher = AES.new(data["key"], AES.MODE_ECB)
         except:
             await interaction.send(
-                embed=functions.format_with_embed("The key is invalid!")
+                embed=TextEmbed("The key is invalid!")
             )
             return
 
@@ -599,7 +599,7 @@ class Fun(commands.Cog, name="Gamezone Galore"):
             unpadded_data = unpad(data, AES.block_size).decode("UTF-8")
         except:
             await interaction.send(
-                embed=functions.format_with_embed(
+                embed=TextEmbed(
                     "The message could not be decrypted. Are you sure that both of you are using the same key AND initalization vector?"
                 ),
                 ephemeral=True,
