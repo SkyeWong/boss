@@ -1,4 +1,4 @@
-#nextcord
+# nextcord
 import nextcord
 from nextcord.ext import tasks
 
@@ -50,26 +50,35 @@ class TradeItem:
 
 
 class TradePrice:
-    def __init__(self, price: Union[int, str], type: Literal["scrap_metal", "copper"] = "scrap_metal") -> None:
+    def __init__(
+        self,
+        price: Union[int, str],
+        type: Literal["scrap_metal", "copper"] = "scrap_metal",
+    ) -> None:
         if type not in ("scrap_metal", "copper"):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
         self.type = type
-        
+
         if isinstance(price, str):
             self.price = functions.text_to_num(price)
         elif isinstance(price, int):
             self.price = price
-        
+
     @classmethod
-    def from_range(cls, min_price: Union[int, str], max_price: Union[int, str], type: Literal["scrap_metal", "copper"] = "scrap_metal") -> None:
+    def from_range(
+        cls,
+        min_price: Union[int, str],
+        max_price: Union[int, str],
+        type: Literal["scrap_metal", "copper"] = "scrap_metal",
+    ) -> None:
         if type not in ("scrap_metal", "copper"):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
-        
+
         if isinstance(min_price, str):
             min_price = functions.text_to_num(min_price)
         if isinstance(max_price, str):
             max_price = functions.text_to_num(max_price)
-            
+
         return cls(random.randint(min_price, max_price), type)
 
 
@@ -114,15 +123,25 @@ class Villager:
 class Hunter(Villager):
     def __init__(self, name: str, db: Database) -> None:
         rand = random.uniform(0.8, 1)
+        # fmt: off
         trades = (
             [  # price is `TradePrice(random * max_quantity * unit price[min], random * max_quantity * unit price[max])`
                 {
                     "demand": [TradeItem(26, round(rand * 8))],  # skunk
                     "supply": [TradePrice.from_range(round(rand * 8 * 10_000), round(rand * 8 * 15_000))],
                 },
-                {"demand": [TradeItem(23, round(rand * 8))], "supply": [TradePrice.from_range("50k", "120k")]},  # duck
-                {"demand": [TradeItem(25, round(rand * 8))], "supply": [TradePrice.from_range("210k", "300k")]},  # sheep
-                {"demand": [TradeItem(18, 1)], "supply": [TradePrice.from_range("40k", "70k")]},  # deer
+                {
+                    "demand": [TradeItem(23, round(rand * 8))],  # duck
+                    "supply": [TradePrice.from_range(round(rand * 8 * 18_000), round(rand * 8 * 25_000))],
+                },  
+                {
+                    "demand": [TradeItem(25, round(rand * 8))],  # sheep
+                    "supply": [TradePrice.from_range(round(rand * 8 * 28_000), round(rand * 8 * 42_000))],
+                },  
+                {
+                    "demand": [TradeItem(18, round(rand * 8))],  # deer
+                    "supply": [TradePrice.from_range(round(rand * 8 * 40_000), round(rand * 8 * 70_000))],
+                },  
             ]
         )
         trade = random.choice(trades)
@@ -135,11 +154,13 @@ class Hunter(Villager):
             villager_id=None,
             db=db,
         )
+        # fmt: on
 
 
 class Mason(Villager):
     def __init__(self, name: str, db: Database) -> None:
         rand = random.uniform(0.8, 1)
+        # fmt: off
         trades = [  # price is `random * quantity * unit price[min AND max]`
             {
                 "demand": [TradeItem(31, round(rand * 10))],  # dirt
@@ -160,11 +181,29 @@ class Mason(Villager):
             villager_id=None,
             db=db,
         )
+        # fmt: on
 
 
 class Armourer(Villager):
     def __init__(self, name: str, db: Database) -> None:
-        trades = [{"demand": [TradePrice.from_range("420m", "999m")], "supply": [TradeItem(4, 1)]}]  # aqua defender
+        rand = random.uniform(0.8, 1)
+        # fmt: off
+        trades = [  # price is `random * quantity * unit price[min AND max]`
+            {
+                "demand": [
+                    TradePrice.from_range("420m", "999m"),
+                    TradeItem(34, round(rand * 5)),  # diamond ore
+                ],
+                "supply": [TradeItem(4, 1)]  # aqua defender
+            },
+            {
+                "demand": [
+                    TradePrice.from_range("8m", "20m"),
+                    TradeItem(44, round(rand * 5)),  # iron ore
+                ],
+                "supply": [TradeItem(49, 1)]  # iron sword
+            }
+        ]
         trade = random.choice(trades)
         super().__init__(
             name=name,
@@ -175,11 +214,13 @@ class Armourer(Villager):
             villager_id=None,
             db=db,
         )
+        # fmt: on
 
 
 class Archaeologist(Villager):
     def __init__(self, name: str, db: Database) -> None:
         rand = random.uniform(0.8, 1)
+        # fmt: off
         trades = [  # price is `random * quantity * unit price[min AND max]`
             {
                 "demand": [TradeItem(27, round(rand * 2))],  # ancient coin
@@ -202,11 +243,13 @@ class Archaeologist(Villager):
             villager_id=None,
             db=db,
         )
+        # fmt: on
 
 
 class Farmer(Villager):
     def __init__(self, name: str, db: Database) -> None:
         rand = random.uniform(0.8, 1)
+        # fmt: off
         trades = [  # price is `random * quantity * unit price[min AND max]`
             {"demand": [TradeItem(29, round(rand * 5))], "supply": [TradeItem(48, 1)], "trades": 8},  # wheat  # bread
             {
@@ -214,12 +257,24 @@ class Farmer(Villager):
                 "supply": [TradePrice.from_range(round(rand * 5 * 20_000), round(rand * 5 * 40_000))],
             },
             {
+                "demand": [TradePrice.from_range(round(rand * 5 * 30_000), round(rand * 5 * 45_000))],
+                "supply": [TradeItem(29, round(rand * 5))],  # wheat
+            },
+            {
                 "demand": [TradeItem(30, round(rand * 5))],  # cabbage
                 "supply": [TradePrice.from_range(round(rand * 5 * 40_000), round(rand * 5 * 60_000))],
             },
             {
-                "demand": [TradeItem(30, round(rand * 5))],  # carrot
+                "supply": [TradePrice.from_range(round(rand * 5 * 50_000), round(rand * 5 * 65_000))],
+                "demand": [TradeItem(30, round(rand * 5))],  # cabbage
+            },
+            {
+                "demand": [TradeItem(47, round(rand * 5))],  # carrot
                 "supply": [TradePrice.from_range(round(rand * 5 * 25_000), round(rand * 5 * 35_000))],
+            },
+            {
+                "supply": [TradePrice.from_range(round(rand * 5 * 35_000), round(rand * 5 * 40_000))],
+                "demand": [TradeItem(47, round(rand * 5))],  # carrot
             },
         ]
         trade = random.choice(trades)
@@ -232,3 +287,4 @@ class Farmer(Villager):
             villager_id=None,
             db=db,
         )
+        # fmt: on

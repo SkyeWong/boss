@@ -66,7 +66,9 @@ class InventoryView(BaseView):
         for item in inv[self.get_page_start_index() : self.get_page_end_index() + 1]:
             item_type = [i.name for i in constants.ItemType if i.value == item["type"]][0]
             item_rarity = [i.name for i in constants.ItemRarity if i.value == item["rarity"]][0]
-            embed.description += f"\n\n**<:{item['emoji_name']}:{item['emoji_id']}>  {item['name']}** ─ {item['quantity']}\n"
+            embed.description += (
+                f"\n\n**<:{item['emoji_name']}:{item['emoji_id']}>  {item['name']}** ─ {item['quantity']}\n"
+            )
             embed.description += f"➸ `{item_rarity} {item_type}`".replace("_", " ").title()
         embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.inv) / self.items_per_page)}")
         return embed

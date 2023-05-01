@@ -373,7 +373,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         """Trade with villagers for valuable and possibly unique items!"""
         view = TradeView(interaction)
         await view.send()
-        
+
     @tasks.loop(hours=3)
     async def update_villagers(self):
         # get a list of names
@@ -388,34 +388,47 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         for name in names:
             job_type = random.choice(Villager.__subclasses__())
             villagers.append(job_type(name, self.bot.db))
-            
-        # update villagers to database      
+
+        # update villagers to database
         db: Database = self.bot.db
         if db.pool is None:
             return
-        
+
         async with db.pool.acquire() as conn:
             async with conn.transaction():
-                await conn.execute("""
+                await conn.execute(
+                    """
                     TRUNCATE table trades.villagers;
                     TRUNCATE table trades.villager_remaining_trades;
-                """)
+                """
+                )
                 # insert the villagers and their trades
-                await conn.executemany("""
+                await conn.executemany(
+                    """
                     INSERT INTO trades.villagers (id, name, job_title, demands, supplies, num_trades)
                     VALUES ($1, $2, $3, $4, $5, $6)
                 """,
-                [
-                    (
-                        i + 1, 
-                        villager.name,
-                        villager.job_title,
-                        [(item.item_id, item.quantity, None, None) if isinstance(item, TradeItem) else (None, None, item.price, item.type) for item in villager.demand],
-                        [(item.item_id, item.quantity, None, None) if isinstance(item, TradeItem) else (None, None, item.price, item.type) for item in villager.supply],
-                        villager.remaining_trades
-                    ) 
-                    for i, villager in enumerate(villagers)
-                ]
+                    [
+                        (
+                            i + 1,
+                            villager.name,
+                            villager.job_title,
+                            [
+                                (item.item_id, item.quantity, None, None)
+                                if isinstance(item, TradeItem)
+                                else (None, None, item.price, item.type)
+                                for item in villager.demand
+                            ],
+                            [
+                                (item.item_id, item.quantity, None, None)
+                                if isinstance(item, TradeItem)
+                                else (None, None, item.price, item.type)
+                                for item in villager.supply
+                            ],
+                            villager.remaining_trades,
+                        )
+                        for i, villager in enumerate(villagers)
+                    ],
                 )
         print(f"\033[1;30mUpdated villagers at {datetime.datetime.now()}.\033[0m")
 

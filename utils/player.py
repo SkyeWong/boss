@@ -46,7 +46,7 @@ class Player:
         if await self.is_present():
             if currency not in ("scrap_metal", "copper"):
                 raise ValueError("Currency must be either `scrap_metal` or `copper`.")
-            
+
             return await self.db.fetchval(
                 """
                 UPDATE players.players
@@ -60,13 +60,13 @@ class Player:
             )
         else:
             raise functions.PlayerNotExist()
-        
+
     async def modify_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
         """Modify the player's currency, scrap_metal or copper."""
         if await self.is_present():
             if currency not in ("scrap_metal", "copper"):
                 raise ValueError("Currency must be either `scrap_metal` or `copper`.")
-            
+
             return await self.db.fetchval(
                 f"""
                 UPDATE players.players
@@ -85,7 +85,7 @@ class Player:
         if await self.is_present():
             if currency not in ("scrap_metal", "copper"):
                 raise ValueError("Currency must be either `scrap_metal` or `copper`.")
-            
+
             return await self.db.fetchval(
                 f"""
                 UPDATE players.players

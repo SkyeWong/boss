@@ -29,7 +29,9 @@ from collections import defaultdict
 
 class Players(commands.Cog, name="Apocalypse Elites"):
     COG_EMOJI = "🏆"
-    cooldowns.define_shared_cooldown(1, 6, SlashBucket.author, cooldown_id="check_inventory", check=check_if_not_dev_guild)
+    cooldowns.define_shared_cooldown(
+        1, 6, SlashBucket.author, cooldown_id="check_inventory", check=check_if_not_dev_guild
+    )
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -187,7 +189,9 @@ class Players(commands.Cog, name="Apocalypse Elites"):
             f"**Item worth**: {SCRAP_METAL} {item_worth:,}\n\n"
             f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * 25:,}"
         )
-        embed.set_footer(text=f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals.")
+        embed.set_footer(
+            text=f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals."
+        )
 
         await interaction.send(embed=embed)
 

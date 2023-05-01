@@ -267,23 +267,23 @@ class Currency(commands.Cog, name="Resource Reserve"):
         """Convert from one currency to another."""
         if from_currency not in ("scrap_metal", "copper") or to_currency not in ("scrap_metal", "copper"):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
-        
+
         try:
             amount = functions.text_to_num(amount)
         except functions.TextToNumException:
             await interaction.send(embed=TextEmbed("The amount is invalid."))
             return
-        
+
         if from_currency == "scrap_metal":
             exchange_rate = constants.COPPER_SCRAP_RATE + random.uniform(0, +2.5)
             op = operator.truediv
         elif from_currency == "copper":
             exchange_rate = constants.COPPER_SCRAP_RATE + random.uniform(-2.5, 0)
             op = operator.mul
-            
+
         exchange_rate = round(exchange_rate, 2)
         exchanged_amount = round(op(amount, exchange_rate))
-        
+
         db: Database = interaction.client.db
         player = Player(db, interaction.user)
 
@@ -291,32 +291,31 @@ class Currency(commands.Cog, name="Resource Reserve"):
             async with conn.transaction():
                 from_amount = await player.modify_currency(from_currency, -amount)
                 to_amount = await player.modify_currency(to_currency, exchanged_amount)
-                
-        from_currency_msg = from_currency.replace('_', ' ')
-        to_currency_msg = to_currency.replace('_', ' ')
-        
+
+        from_currency_msg = from_currency.replace("_", " ")
+        to_currency_msg = to_currency.replace("_", " ")
+
         embed = Embed()
-        embed.description = f"The current exchange rate is **{exchange_rate}** {to_currency_msg} for 1 {from_currency_msg}.\n" \
-                            f"You got **{exchanged_amount:,} {constants.CURRENCY_EMOJIS[to_currency]}**."
-                            
+        embed.description = (
+            f"The current exchange rate is **{exchange_rate}** {to_currency_msg} for 1 {from_currency_msg}.\n"
+            f"You got **{exchanged_amount:,} {constants.CURRENCY_EMOJIS[to_currency]}**."
+        )
+
         embed.add_field(
             name="Current Balance",
             value=f"{from_currency_msg.title()}: {constants.CURRENCY_EMOJIS[from_currency]} `{from_amount:,}`\n"
-                  f"{to_currency_msg.title()}: {constants.CURRENCY_EMOJIS[to_currency]} `{to_amount:,}`\n"
+            f"{to_currency_msg.title()}: {constants.CURRENCY_EMOJIS[to_currency]} `{to_amount:,}`\n",
         )
         await interaction.send(embed=embed)
 
     @exchange_currency_cmd.subcommand(name="to-copper")
     async def exchange_to_copper(
-        self, 
+        self,
         interaction: Interaction,
-        scrap_metal: str=SlashOption(
-            name="scrap-metal",
-            description="Amount of scrap metal to exchange"
-        )
+        scrap_metal: str = SlashOption(name="scrap-metal", description="Amount of scrap metal to exchange"),
     ):
         """Convert your scrap metals to coppers."""
-        
+
         await self.exchange_currencies(
             interaction,
             "scrap_metal",
@@ -326,15 +325,12 @@ class Currency(commands.Cog, name="Resource Reserve"):
 
     @exchange_currency_cmd.subcommand(name="to-scrap")
     async def exchange_to_scrap(
-        self, 
+        self,
         interaction: Interaction,
-        copper: str=SlashOption(
-            name="copper",
-            description="Amount of copper to exchange"
-        )
+        copper: str = SlashOption(name="copper", description="Amount of copper to exchange"),
     ):
         """Convert your coppers to scrap metals."""
-        
+
         await self.exchange_currencies(
             interaction,
             "copper",

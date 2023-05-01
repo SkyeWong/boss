@@ -50,18 +50,29 @@ class TradeView(BaseView):
                     num_trades
                 )) AS remaining_trades
             FROM trades.villagers
-            """, self.interaction.user.id
+            """,
+            self.interaction.user.id,
         )
         for i in res:
             self.villagers.append(
                 Villager(
                     i["id"],
-                    i["name"], 
-                    i["job_title"], 
-                    [TradeItem(j["item_id"], j["quantity"]) if j.get("item_id") else TradePrice(j["price"], j["type"]) for j in i["demands"]],
-                    [TradeItem(j["item_id"], j["quantity"]) if j.get("item_id") else TradePrice(j["price"], j["type"]) for j in i["supplies"]],
+                    i["name"],
+                    i["job_title"],
+                    [
+                        TradeItem(j["item_id"], j["quantity"])
+                        if j.get("item_id")
+                        else TradePrice(j["price"], j["type"])
+                        for j in i["demands"]
+                    ],
+                    [
+                        TradeItem(j["item_id"], j["quantity"])
+                        if j.get("item_id")
+                        else TradePrice(j["price"], j["type"])
+                        for j in i["supplies"]
+                    ],
                     i["remaining_trades"],
-                    db
+                    db,
                 )
             )
 
@@ -76,32 +87,33 @@ class TradeView(BaseView):
         demand_msg, supply_msg = await villager.format_trade()
         embed.add_field(name="I receive", value=demand_msg, inline=False)
         embed.add_field(name="You receive", value=supply_msg, inline=False)
-        
+
         return embed
-    
+
     async def get_items_str(self, items: list[TradeItem | TradePrice]):
         db = self.interaction.client.db
         item_strings = [
-            f"{i.quantity} {await i.get_name(db)}" if isinstance(i, TradeItem)  # eg: "5 Aqua Defender"
-            else f"{i.price:,} {i.type.replace('_', ' ')}"                      # eg: "123,456,789 Copper"
+            f"{i.quantity} {await i.get_name(db)}"
+            if isinstance(i, TradeItem)  # eg: "5 Aqua Defender"
+            else f"{i.price:,} {i.type.replace('_', ' ')}"  # eg: "123,456,789 Copper"
             for i in items
         ]
-        return ', '.join(item_strings)
+        return ", ".join(item_strings)
 
     async def update_view(self):
         choose_villager_select = [i for i in self.children if i.custom_id == "choose_villager"][0]
         choose_villager_select.options = []
-        
+
         for index, villager in enumerate(self.villagers):
             description = ""
             demand_items = self.get_items_str(villager.demand)
             supply_items = self.get_items_str(villager.supply)
-            
+
             if any([isinstance(i, TradeItem) for i in villager.demand]):
                 description = f"Buying {demand_items} for {supply_items}"
             else:
                 description = f"Selling {supply_items} for {demand_items}"
-                
+
             choose_villager_select.options.append(
                 SelectOption(
                     label=f"{villager.name} - {villager.job_title}",
@@ -206,7 +218,7 @@ class TradeView(BaseView):
 
                             required_quantity = multiplier * item.quantity
                             await player.add_item(item.item_id, required_quantity)
-                            
+
                 current_villager.remaining_trades = await db.fetchval(
                     """
                     INSERT INTO trades.villager_remaining_trades AS t (player_id, villager_id, remaining_trades)
@@ -219,7 +231,8 @@ class TradeView(BaseView):
                         SET remaining_trades = t.remaining_trades - 1
                     RETURNING remaining_trades
                     """,
-                    player.user.id, current_villager.villager_id
+                    player.user.id,
+                    current_villager.villager_id,
                 )
 
         embed = await self.get_embed()
