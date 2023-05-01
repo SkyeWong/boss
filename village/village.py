@@ -108,13 +108,13 @@ class TradeView(BaseView):
 
         for index, villager in enumerate(self.villagers):
             description = ""
-            demand_items = await self.get_items_str(villager.demand)
-            supply_items = await self.get_items_str(villager.supply)
 
-            if any([isinstance(i, TradeItem) for i in villager.demand]):
-                description = f"Buying {demand_items} for {supply_items}"
+            if any([isinstance(i, TradeItem) for i in villager.supply]):
+                supply_items = await self.get_items_str(villager.supply)
+                description = f"Selling {supply_items}"
             else:
-                description = f"Selling {supply_items} for {demand_items}"
+                demand_items = await self.get_items_str(villager.demand)
+                description = f"Buying {demand_items}"
 
             if len(description) > 100:
                 description = f"{description[:97]}..."
