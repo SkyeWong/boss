@@ -30,7 +30,7 @@ class TradeView(BaseView):
         self.current_villager = self.villagers[0]
 
         embed = await self.get_embed()
-        self.update_view()
+        await self.update_view()
         await self.interaction.send(embed=embed, view=self)
 
     async def get_villagers(self) -> None:
@@ -78,15 +78,34 @@ class TradeView(BaseView):
         embed.add_field(name="You receive", value=supply_msg, inline=False)
         
         return embed
+    
+    async def get_items_str(self, items: list[TradeItem | TradePrice]):
+        db = self.interaction.client.db
+        item_strings = [
+            f"{i.quantity} {await i.get_name(db)}" if isinstance(i, TradeItem)  # eg: "5 Aqua Defender"
+            else f"{i.price:,} {i.type.replace('_', ' ')}"                      # eg: "123,456,789 Copper"
+            for i in items
+        ]
+        return ', '.join(item_strings)
 
-    def update_view(self):
+    async def update_view(self):
         choose_villager_select = [i for i in self.children if i.custom_id == "choose_villager"][0]
         choose_villager_select.options = []
+        
         for index, villager in enumerate(self.villagers):
+            description = ""
+            demand_items = self.get_items_str(villager.demand)
+            supply_items = self.get_items_str(villager.supply)
+            
+            if any([isinstance(i, TradeItem) for i in villager.demand]):
+                description = f"Buying {demand_items} for {supply_items}"
+            else:
+                description = f"Selling {supply_items} for {demand_items}"
+                
             choose_villager_select.options.append(
                 SelectOption(
                     label=f"{villager.name} - {villager.job_title}",
-                    # description=f"{villager.demand} --> {villager.supply}",
+                    description=description,
                     value=index,
                     default=villager == self.current_villager,
                 )
@@ -98,7 +117,7 @@ class TradeView(BaseView):
         self.current_villager = self.villagers[self.current_index]
 
         embed = await self.get_embed()
-        self.update_view()
+        await self.update_view()
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="◀️", style=ButtonStyle.gray, custom_id="back")
@@ -110,7 +129,7 @@ class TradeView(BaseView):
         self.current_villager = self.villagers[self.current_index]
 
         embed = await self.get_embed()
-        self.update_view()
+        await self.update_view()
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="▶️", style=ButtonStyle.grey, custom_id="next")
@@ -122,7 +141,7 @@ class TradeView(BaseView):
         self.current_villager = self.villagers[self.current_index]
 
         embed = await self.get_embed()
-        self.update_view()
+        await self.update_view()
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(label="Trade", style=ButtonStyle.blurple, custom_id="trade")
@@ -204,7 +223,6 @@ class TradeView(BaseView):
                 )
 
         embed = await self.get_embed()
-        self.update_view()
         await interaction.response.edit_message(embed=embed, view=self)
 
         demand_msg, supply_msg = await current_villager.format_trade()
