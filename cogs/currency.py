@@ -275,10 +275,10 @@ class Currency(commands.Cog, name="Resource Reserve"):
             return
         
         if from_currency == "scrap_metal":
-            exchange_rate = 25 + random.uniform(0, +2.5)
+            exchange_rate = constants.COPPER_SCRAP_RATE + random.uniform(0, +2.5)
             op = operator.truediv
         elif from_currency == "copper":
-            exchange_rate = 25 + random.uniform(-2.5, 0)
+            exchange_rate = constants.COPPER_SCRAP_RATE + random.uniform(-2.5, 0)
             op = operator.mul
             
         exchange_rate = round(exchange_rate, 2)
@@ -297,7 +297,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
         
         embed = Embed()
         embed.description = f"The current exchange rate is **{exchange_rate}** {to_currency_msg} for 1 {from_currency_msg}.\n" \
-                            f"You got **{exchanged_amount} {constants.CURRENCY_EMOJIS[to_currency]}**."
+                            f"You got **{exchanged_amount:,} {constants.CURRENCY_EMOJIS[to_currency]}**."
                             
         embed.add_field(
             name="Current Balance",

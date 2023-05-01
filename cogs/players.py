@@ -183,21 +183,21 @@ class Players(commands.Cog, name="Apocalypse Elites"):
 
         embed.description = (
             f"**Scrap Metal**: {SCRAP_METAL} {scrap_metal:,}\n"
-            f"**Copper**: {COPPER} {copper:,}\n"
+            f"**Copper**: {COPPER} {copper:,}\n\n"
             f"**Item worth**: {SCRAP_METAL} {item_worth:,}\n\n"
             f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * 25:,}"
         )
-        embed.set_footer(text="Items are valued with scrap metals. 1 copper is worth 25 scrap metals.")
+        embed.set_footer(text=f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals.")
 
         await interaction.send(embed=embed)
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
     async def leaderboard(self, interaction: Interaction):
-        """See the richest man in the (BOSS) world, who is probably not Elon Musk."""
+        """See the richest men in the (BOSS) world, who is probably not Elon Musk."""
         lb = await self.bot.db.fetch(
             """
-            SELECT players.player_id, COALESCE(SUM(items.trade_price * inv.quantity)::bigint, 0) + players.scrap_metal As net_worth
+            SELECT players.player_id, COALESCE(SUM(items.trade_price * inv.quantity)::bigint, 0) + players.scrap_metal + players.copper * 25 As net_worth
                 FROM players.players
                 LEFT JOIN players.inventory AS inv
                     ON inv.player_id = players.player_id

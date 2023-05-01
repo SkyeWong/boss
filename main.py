@@ -47,6 +47,7 @@ class BossBot(commands.Bot):
         )
         self.persistent_views_added = False
 
+        self.villagers = None
         self.db = Database()
         self.pool = self.db.pool
 

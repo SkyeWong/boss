@@ -6,8 +6,6 @@ from nextcord.ui import Button, button, Select, select
 # database
 from utils.postgres_db import Database
 
-import aiohttp
-
 # my modules and constants
 from views.template_views import BaseView
 from utils.player import Player
@@ -18,62 +16,67 @@ from utils.functions import TextEmbed
 from village.villagers import *
 
 # default modules
-from typing import Optional
-import random
-
-
-class Village(BaseView):
-    def __init__(self, slash_interaction: Interaction):
-        super().__init__(slash_interaction, timeout=60)
-
-    async def send(self):
-        embed = self.get_embed()
-        self.msg = await self.interaction.send(embed=embed, view=self)
-
-    @button(label="Trade", style=ButtonStyle.blurple, custom_id="trade")
-    async def trade(self, button: Button, interaction: Interaction):
-        pass
 
 
 class TradeView(BaseView):
-    def __init__(self, slash_interaction: Interaction):
-        super().__init__(slash_interaction, timeout=60)
+    def __init__(self, interaction: Interaction):
+        super().__init__(interaction, timeout=60)
         self.villagers: list[Villager] = []
         self.current_villager: Villager = None
         self.current_index = 0
 
     async def send(self):
-        await self.roll_new_villagers(quantity=random.randint(8, 15))
+        await self.get_villagers()
         self.current_villager = self.villagers[0]
 
         embed = await self.get_embed()
         self.update_view()
         await self.interaction.send(embed=embed, view=self)
 
-    async def roll_new_villagers(self, quantity: Optional[int] = 10) -> list[str]:
-        params = {"nameType": "firstname", "quantity": quantity}
-        headers = {"X-Api-Key": "2a4f04bc0708472d9791240ca7d39476"}
-        async with aiohttp.ClientSession() as session:
-            async with session.get("https://randommer.io/api/Name", params=params, headers=headers) as response:
-                names = await response.json()
-
-        villagers = []
-        for name in names:
-            job_type = random.choice(Villager.__subclasses__())
-            villagers.append(job_type(name, self.interaction.client.db))
-        self.villagers = villagers
+    async def get_villagers(self) -> None:
+        db: Database = self.interaction.client.db
+        res = await db.fetch(
+            """
+            SELECT 
+                name, 
+                job_title, 
+                id, 
+                demands, 
+                supplies, 
+                (SELECT COALESCE(
+                    (SELECT remaining_trades
+                    FROM trades.villager_remaining_trades
+                    WHERE player_id = $1 AND villager_id = id),
+                    num_trades
+                )) AS remaining_trades
+            FROM trades.villagers
+            """, self.interaction.user.id
+        )
+        for i in res:
+            self.villagers.append(
+                Villager(
+                    i["id"],
+                    i["name"], 
+                    i["job_title"], 
+                    [TradeItem(j["item_id"], j["quantity"]) if j.get("item_id") else TradePrice(j["price"], j["type"]) for j in i["demands"]],
+                    [TradeItem(j["item_id"], j["quantity"]) if j.get("item_id") else TradePrice(j["price"], j["type"]) for j in i["supplies"]],
+                    i["remaining_trades"],
+                    db
+                )
+            )
 
     async def get_embed(self):
         embed = Embed()
         embed.set_author(name="Trading")
         villager = self.current_villager
-        embed.title = f"{villager.name} - {villager.job_type}"
+        embed.title = f"{villager.name} - {villager.job_title}"
         embed.description = f"_{villager.remaining_trades} trades left._"
+        embed.set_footer(text="Villagers' trade reset every 3 hours.")
 
         demand_msg, supply_msg = await villager.format_trade()
-
         embed.add_field(name="I receive", value=demand_msg, inline=False)
         embed.add_field(name="You receive", value=supply_msg, inline=False)
+        
         return embed
 
     def update_view(self):
@@ -82,7 +85,7 @@ class TradeView(BaseView):
         for index, villager in enumerate(self.villagers):
             choose_villager_select.options.append(
                 SelectOption(
-                    label=f"{villager.name} - {villager.job_type}",
+                    label=f"{villager.name} - {villager.job_title}",
                     # description=f"{villager.demand} --> {villager.supply}",
                     value=index,
                     default=villager == self.current_villager,
@@ -138,7 +141,7 @@ class TradeView(BaseView):
 
         async with db.pool.acquire() as conn:
             async with conn.transaction():
-                player_scrap = await db.fetchval(
+                player_scrap = await conn.fetchval(
                     """
                     SELECT scrap_metal
                     FROM players.players
@@ -147,7 +150,7 @@ class TradeView(BaseView):
                     interaction.user.id,
                 )
 
-                inventory = await db.fetch(
+                inventory = await conn.fetch(
                     """
                     SELECT item_id, quantity
                     FROM players.inventory
@@ -184,8 +187,22 @@ class TradeView(BaseView):
 
                             required_quantity = multiplier * item.quantity
                             await player.add_item(item.item_id, required_quantity)
+                            
+                current_villager.remaining_trades = await db.fetchval(
+                    """
+                    INSERT INTO trades.villager_remaining_trades AS t (player_id, villager_id, remaining_trades)
+                    VALUES (
+                        $1, 
+                        $2, 
+                        (SELECT num_trades FROM trades.villagers WHERE id = $2) - 1
+                    )
+                    ON CONFLICT(player_id, villager_id) DO UPDATE
+                        SET remaining_trades = t.remaining_trades - 1
+                    RETURNING remaining_trades
+                    """,
+                    player.user.id, current_villager.villager_id
+                )
 
-        current_villager.remaining_trades -= 1
         embed = await self.get_embed()
         self.update_view()
         await interaction.response.edit_message(embed=embed, view=self)

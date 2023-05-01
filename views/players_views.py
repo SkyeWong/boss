@@ -29,7 +29,7 @@ class InventoryView(BaseView):
         db: Database = self.interaction.client.db
         self.inv = await db.fetch(
             """
-            SELECT items.name, items.emoji_name, items.emoji_id, items.type, inv.quantity
+            SELECT items.name, items.emoji_name, items.emoji_id, items.rarity, items.type, inv.quantity
                 FROM players.inventory as inv
                 INNER JOIN utility.items
                 ON inv.item_id = items.item_id
@@ -46,12 +46,12 @@ class InventoryView(BaseView):
 
         inv_type = [i.name for i in constants.InventoryType if i.value == self.inv_type][0]
 
-        embed = Embed()
+        embed = Embed(description="")
         embed.set_author(
             name=f"{user.name}'s {inv_type}",
             icon_url=user.display_avatar.url,
         )
-        embed.colour = random.choice(constants.EMBED_COLOURS)
+        embed.colour = self.message.embeds[0].colour if self.message else random.choice(constants.EMBED_COLOURS)
         storage_emojis_url = [
             "https://i.imgur.com/AsS2mHU.png",  # backpack
             "https://i.imgur.com/UU7ixCv.png",  # chest
@@ -65,11 +65,9 @@ class InventoryView(BaseView):
 
         for item in inv[self.get_page_start_index() : self.get_page_end_index() + 1]:
             item_type = [i.name for i in constants.ItemType if i.value == item["type"]][0]
-            embed.add_field(
-                name=f"<:{item['emoji_name']}:{item['emoji_id']}>  {item['name']} ─ {item['quantity']}\n",
-                value=f"─ {item_type}",
-                inline=False,
-            )
+            item_rarity = [i.name for i in constants.ItemRarity if i.value == item["rarity"]][0]
+            embed.description += f"\n\n**<:{item['emoji_name']}:{item['emoji_id']}>  {item['name']}** ─ {item['quantity']}\n"
+            embed.description += f"➸ `{item_rarity} {item_type}`".replace("_", " ").title()
         embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.inv) / self.items_per_page)}")
         return embed
 
