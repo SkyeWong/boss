@@ -46,9 +46,9 @@ def text_to_num(text: str):
         "k": 1_000,  # thousands
         "m": 1_000_000,  # millions
         "b": 1_000_000_000,  # billions
-        "t": 1_000_000_000_000, # trillions
+        "t": 1_000_000_000_000,  # trillions
     }
-       
+
     text = text.split()
     gold = 0
     for i in text:
