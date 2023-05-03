@@ -396,7 +396,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         view = TradeView(interaction)
         await view.send()
 
-    @tasks.loop(hours=3)
+    @tasks.loop(hours=1)
     async def update_villagers(self):
         # get a list of names
         params = {"nameType": "firstname", "quantity": 10}
