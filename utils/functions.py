@@ -38,15 +38,20 @@ def check_if_not_dev_guild(*args, **kwargs):
 
 
 def text_to_num(text: str):
+    # lower the strings and remove commas and whitespace
     text = text.lower()
+    text = text.replace(" ", "")
+    text = text.replace(",", "")
+    d = {
+        "k": 1_000,  # thousands
+        "m": 1_000_000,  # millions
+        "b": 1_000_000_000,  # billions
+        "t": 1_000_000_000_000, # trillions
+    }
+       
     text = text.split()
     gold = 0
     for i in text:
-        d = {
-            "k": 1000,  # thousands
-            "m": 1000000,  # millions
-            "b": 1000000000,  # billions
-        }
         i = i.lower()
         if not isinstance(i, str):
             # Non-strings are bad are missing data in poster's submission
