@@ -82,7 +82,7 @@ class TradeView(BaseView):
         villager = self.current_villager
         embed.title = f"{villager.name} - {villager.job_title}"
         embed.description = f"_{villager.remaining_trades} trades left._"
-        comment = await self.interaction.client.db.execute(
+        comment = await self.interaction.client.db.fetchval(
             "SELECT obj_description('trades.villagers'::regclass) AS desc"
         )
         embed.set_footer(text=f"Villagers' trade reset every hour. {comment}")
