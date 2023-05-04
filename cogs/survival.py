@@ -454,7 +454,12 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                         for i, villager in enumerate(villagers)
                     ],
                 )
-        print(f"\033[1;30mUpdated villagers at {datetime.datetime.now()}.\033[0m")
+
+        now = datetime.datetime.now()
+        print(f"\033[1;30mUpdated villagers at {now}.\033[0m")
+        await db.execute(
+            "COMMENT ON TABLE trades.villagers IS $1", f"Last updated at {now}"
+        )
 
     @update_villagers.before_loop
     async def before_update_villagers(self):
