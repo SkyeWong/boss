@@ -82,7 +82,7 @@ class TradeView(BaseView):
         villager = self.current_villager
         embed.title = f"{villager.name} - {villager.job_title}"
         embed.description = f"_{villager.remaining_trades} trades left._"
-        embed.set_footer(text="Villagers' trade reset every 3 hours.")
+        embed.set_footer(text="Villagers' trade reset every hour.")
 
         demand_msg, supply_msg = await villager.format_trade()
         embed.add_field(name="I receive", value=demand_msg, inline=False)

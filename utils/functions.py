@@ -38,6 +38,17 @@ def check_if_not_dev_guild(*args, **kwargs):
 
 
 def text_to_num(text: str):
+    """Converts a text representation of a number into the actual number. Note that the decimals will be dropped.
+
+    Args:
+        text (str): The text to convert
+
+    Raises:
+        TextToNumException: a invalid number is passed.
+
+    Returns:
+        res: The converted number.
+    """
     # lower the strings and remove commas and whitespace
     text = text.lower()
     text = text.replace(" ", "")
@@ -50,14 +61,14 @@ def text_to_num(text: str):
     }
 
     text = text.split()
-    gold = 0
+    res = 0
     for i in text:
         i = i.lower()
         if not isinstance(i, str):
             # Non-strings are bad are missing data in poster's submission
             raise TextToNumException(f"text_to_num() must be passed str, not {i.__class__.__qualname__}")
         elif i.isnumeric():
-            gold += int(i)
+            res += int(i)
         elif i[-1] in d:
             # separate out the K, M, or B
             num, magnitude = i[:-1], i[-1]
@@ -66,10 +77,10 @@ def text_to_num(text: str):
                 num = float(num)
             except ValueError:
                 raise TextToNumException(f"text_to_num() received a non-number prefix before {magnitude}")
-            gold += num * d[magnitude]
+            res += num * d[magnitude]
         else:
             raise TextToNumException(f"text_to_num() is passed an incorrect magnitude.")
-    return math.floor(gold)
+    return math.floor(res)
 
 
 def sec_to_txt(seconds):
