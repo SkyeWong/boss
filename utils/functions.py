@@ -236,3 +236,7 @@ class PlayerNotExist(BossException):
 
 class ComponentLabelTooLong(BossException):
     pass
+
+
+class NegativeBalance(BossException):
+    pass

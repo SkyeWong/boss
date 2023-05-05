@@ -150,12 +150,12 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             if set_or_modify == 0:
                 new_scrap = await player.set_currency("scrap_metal", scrap_metal)
                 embed = TextEmbed(
-                    f"{interaction.user.mention} set `{user.name}`'s scrap metal to **`{new_scrap}`**"
+                    f"{interaction.user.mention} set `{user.name}`'s scrap metal to **`{new_scrap:,}`**"
                 )
             else:
                 new_scrap = await player.modify_currency("scrap_metal", scrap_metal)
                 embed = TextEmbed(
-                    f"{interaction.user.mention} set `{user.name}`'s scrap metal to **`{new_scrap}`**, modified by {scrap_metal}"
+                    f"{interaction.user.mention} set `{user.name}`'s scrap metal to **`{new_scrap:,}`**, modified by {scrap_metal:,}"
                 )
 
             await interaction.send(embed=embed)
@@ -215,12 +215,12 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             if set_or_modify == 0:
                 new_copper = await player.set_currency("copper", copper)
                 embed = TextEmbed(
-                    f"{interaction.user.mention} set `{user.name}`'s copper to **`{new_copper}`**"
+                    f"{interaction.user.mention} set `{user.name}`'s copper to **`{new_copper:,}`**"
                 )
             else:
                 new_copper = await player.modify_currency("copper", copper)
                 embed = TextEmbed(
-                    f"{interaction.user.mention} set `{user.name}`'s copper to **`{new_copper}`**, modified by {copper}"
+                    f"{interaction.user.mention} set `{user.name}`'s copper to **`{new_copper:,}`**, modified by {copper:,}"
                 )
 
             await interaction.send(embed=embed)

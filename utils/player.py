@@ -6,6 +6,7 @@ from typing import Literal
 
 # database
 from utils.postgres_db import Database
+import asyncpg
 
 from utils import functions
 
@@ -41,7 +42,9 @@ class Player:
             self.user.id,
         )
 
-    async def modify_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
+    async def modify_currency(
+        self, currency: Literal["scrap_metal", "copper"], value: int
+    ):
         """Modify the player's currency, scrap_metal or copper."""
         if await self.is_present():
             if currency not in ("scrap_metal", "copper"):
@@ -61,41 +64,51 @@ class Player:
         else:
             raise functions.PlayerNotExist()
 
-    async def modify_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
+    async def modify_currency(
+        self, currency: Literal["scrap_metal", "copper"], value: int
+    ):
         """Modify the player's currency, scrap_metal or copper."""
         if await self.is_present():
             if currency not in ("scrap_metal", "copper"):
                 raise ValueError("Currency must be either `scrap_metal` or `copper`.")
 
-            return await self.db.fetchval(
-                f"""
-                UPDATE players.players
-                SET {currency} = {currency} + $1
-                WHERE player_id = $2
-                RETURNING {currency}
-                """,
-                value,
-                self.user.id,
-            )
+            try:
+                return await self.db.fetchval(
+                    f"""
+                    UPDATE players.players
+                    SET {currency} = {currency} + $1
+                    WHERE player_id = $2
+                    RETURNING {currency}
+                    """,
+                    value,
+                    self.user.id,
+                )
+            except asyncpg.exceptions.CheckViolationError:
+                raise functions.NegativeBalance()
         else:
             raise functions.PlayerNotExist()
 
-    async def set_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
+    async def set_currency(
+        self, currency: Literal["scrap_metal", "copper"], value: int
+    ):
         """Set the player's currency, scrap_metal or copper."""
         if await self.is_present():
             if currency not in ("scrap_metal", "copper"):
                 raise ValueError("Currency must be either `scrap_metal` or `copper`.")
 
-            return await self.db.fetchval(
-                f"""
-                UPDATE players.players
-                SET {currency} = $1
-                WHERE player_id = $2
-                RETURNING {currency}
-                """,
-                value,
-                self.user.id,
-            )
+            try:
+                return await self.db.fetchval(
+                    f"""
+                    UPDATE players.players
+                    SET {currency} = $1
+                    WHERE player_id = $2
+                    RETURNING {currency}
+                    """,
+                    value,
+                    self.user.id,
+                )
+            except asyncpg.exceptions.CheckViolationError:
+                raise functions.NegativeBalance()
         else:
             raise functions.PlayerNotExist()
 

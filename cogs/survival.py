@@ -28,12 +28,13 @@ from village.villagers import Villager, TradeItem, TradePrice
 # default modules
 import random
 import datetime
+import pytz
 
 
 class Survival(commands.Cog, name="Wasteland Wandering"):
     COG_EMOJI = "🗺️"
 
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.update_villagers.start()
 
@@ -454,19 +455,18 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                         for i, villager in enumerate(villagers)
                     ],
                 )
-
-        now = datetime.datetime.now()
+        utc = pytz.timezone("UTC")
+        now = datetime.datetime.now(tz=utc).strftime("%Z %H:%M")
         print(f"\033[1;30mUpdated villagers at {now}.\033[0m")
-        await db.execute(
-            "COMMENT ON TABLE trades.villagers IS $1", f"Last updated at {now}"
-        )
+        comment = f"Last updated at {now}"
+        await db.execute(f"COMMENT ON TABLE trades.villagers IS '{comment}'")
 
     @update_villagers.before_loop
     async def before_update_villagers(self):
         now = datetime.datetime.now()
         # Wait until the start of the next hour before starting the task loop
         start_of_next_hour = (now + datetime.timedelta(hours=1)).replace(
-            minutes=0, second=0, microsecond=0
+            minute=0, second=0, microsecond=0
         )
         await nextcord.utils.sleep_until(start_of_next_hour)
 
