@@ -181,7 +181,7 @@ class TradeView(BaseView):
         db: Database = interaction.client.db
         player = Player(db, interaction.user)
 
-        async with db.pool.acquire() as conn:
+        async with db.acquire() as conn:
             async with conn.transaction():
                 player_scrap = await conn.fetchval(
                     """

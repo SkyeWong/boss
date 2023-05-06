@@ -45,13 +45,17 @@ class Database:
                 self.pool = await asyncpg.create_pool(DSN_DB.format(**self.params))
             finally:
                 self.reconnecting = False
-            print(f"\033[1;36m{self.params['user']}\033[0m has connected to the \033[0;34mneon.db database!\033[0m")
+            print(
+                f"\033[1;36m{self.params['user']}\033[0m has connected to the \033[0;34mneon.db database!\033[0m"
+            )
         return self.pool
 
     async def disconnect(self):
         """Disconnect to the database."""
         if self.pool:
-            releases = [self.pool.release(conn) for conn in self.listeners] + [self.pool.close()]
+            releases = [self.pool.release(conn) for conn in self.listeners] + [
+                self.pool.close()
+            ]
             await asyncio.gather(*releases, return_exceptions=True)
 
     async def fetch(self, sql, *args):
@@ -88,6 +92,13 @@ class Database:
         except (asyncpg.exceptions.InterfaceError, AttributeError):
             await self.connect()
             return await self.pool.executemany(sql, *args)
+
+    async def acquire(self):
+        try:
+            return await self.pool.acquire()
+        except (asyncpg.exceptions.InterfaceError, AttributeError):
+            await self.connect()
+            return await self.pool.acquire()
 
     async def __aenter__(self) -> Pool:
         return await self.connect()
