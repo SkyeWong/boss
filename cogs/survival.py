@@ -460,6 +460,9 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         print(f"\033[1;30mUpdated villagers at {now}.\033[0m")
         comment = f"Last updated at {now}"
         await db.execute(f"COMMENT ON TABLE trades.villagers IS '{comment}'")
+        await self.bot.get_guild(919223073054539858).get_channel(
+            988046548309016586
+        ).send(embed=TextEmbed(f"villagers updated at {now}"))
 
     @update_villagers.before_loop
     async def before_update_villagers(self):

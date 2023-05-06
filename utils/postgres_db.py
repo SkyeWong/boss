@@ -12,7 +12,7 @@ db = None
 
 
 class Database:
-    """A connection pool to access data in BOSS neon.tech database."""
+    """A connection pool to access data in BOSS neon.tech database with methods which automatically reconnects."""
 
     def __init__(self, **kwargs):
         self.params = {
