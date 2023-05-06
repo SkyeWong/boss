@@ -11,9 +11,10 @@ import aiohttp
 
 # database
 from utils.postgres_db import Database
+import asyncpg
 
 # my modules and constants
-from utils import functions, constants
+from utils import constants
 from utils.functions import TextEmbed, check_if_not_dev_guild
 from utils.player import Player
 from views.template_views import ConfirmView
@@ -23,7 +24,7 @@ from maze.maze import Maze
 
 # trade
 from village.village import TradeView
-from village.villagers import Villager, TradeItem, TradePrice
+from village.villagers import Villager, TradeItem
 
 # default modules
 import random
@@ -37,6 +38,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.update_villagers.start()
+        self.update_villagers.add_exception_type(asyncpg.PostgresConnectionError)
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
