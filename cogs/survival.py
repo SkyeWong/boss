@@ -38,7 +38,10 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.update_villagers.start()
-        self.update_villagers.add_exception_type(asyncpg.PostgresConnectionError)
+        self.update_villagers.add_exception_type(
+            asyncpg.PostgresConnectionError,
+            asyncpg.exceptions.InterfaceError,
+        )
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
