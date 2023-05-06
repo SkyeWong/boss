@@ -348,7 +348,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         """
         db: Database = self.bot.db
         quantities_after = {}
-        async with db.acquire() as conn:
+        async with await db.acquire() as conn:
             async with conn.transaction():
                 if quantity is None:  # move all items of that name in that specific inv_type
                     quantity = await conn.fetchval(

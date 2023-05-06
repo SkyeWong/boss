@@ -339,7 +339,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             return
 
         try:
-            async with db.acquire() as conn:
+            async with await db.acquire() as conn:
                 async with conn.transaction():
                     # moves item to to_place
                     quantities = await conn.fetchrow(

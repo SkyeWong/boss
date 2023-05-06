@@ -70,7 +70,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
         return embed
 
     async def sell_all_player_items(self, button, interaction: Interaction):
-        async with self.bot.db.acquire() as conn:
+        async with await self.bot.db.acquire() as conn:
             async with conn.transaction():
                 sold_items = await conn.fetch(
                     """
@@ -240,7 +240,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
             await interaction.send(embed=embed)
             return
 
-        async with db.acquire() as conn:
+        async with await db.acquire() as conn:
             async with conn.transaction():
                 await conn.execute(
                     """
@@ -313,7 +313,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
         db: Database = interaction.client.db
         player = Player(db, interaction.user)
 
-        async with db.acquire() as conn:
+        async with await db.acquire() as conn:
             async with conn.transaction():
                 try:
                     from_amount = await player.modify_currency(from_currency, -amount)

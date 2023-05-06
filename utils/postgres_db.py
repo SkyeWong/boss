@@ -95,10 +95,10 @@ class Database:
 
     async def acquire(self):
         try:
-            return await self.pool.acquire()
+            return self.pool.acquire()
         except (asyncpg.exceptions.InterfaceError, AttributeError):
             await self.connect()
-            return await self.pool.acquire()
+            return self.pool.acquire()
 
     async def __aenter__(self) -> Pool:
         return await self.connect()
