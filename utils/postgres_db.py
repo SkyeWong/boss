@@ -58,33 +58,31 @@ class Database:
             ]
             await asyncio.gather(*releases, return_exceptions=True)
 
-    async def _execute_method(self, method_name, *args):
+    async def _execute_method(self, method, *args):
         try:
-            method = getattr(self.pool, method_name)
             result = await method(*args)
         except (asyncpg.exceptions.InterfaceError, AttributeError):
             await self.connect()
-            method = getattr(self.pool, method_name)
             result = await method(*args)
         return result
 
     async def fetch(self, sql, *args):
-        return await self._execute_method("fetch", sql, *args)
+        return await self._execute_method(self.pool.fetch, sql, *args)
 
     async def fetchrow(self, sql, *args):
-        return await self._execute_method("fetchrow", sql, *args)
+        return await self._execute_method(self.pool.fetchrow, sql, *args)
 
     async def fetchval(self, sql, *args):
-        return await self._execute_method("fetchval", sql, *args)
+        return await self._execute_method(self.pool.fetchval, sql, *args)
 
     async def execute(self, sql, *args):
-        return await self._execute_method("execute", sql, *args)
+        return await self._execute_method(self.pool.execute, sql, *args)
 
     async def executemany(self, sql, *args):
-        await self._execute_method("executemany", sql, *args)
+        await self._execute_method(self.pool.executemany, sql, *args)
 
     async def acquire(self):
-        return await self._execute_method("acquire")
+        return await self._execute_method(self.pool.acquire)
 
     async def __aenter__(self) -> Pool:
         await self.connect()
