@@ -24,7 +24,6 @@ from views.scraping_views import (
 )
 
 # default modules
-import json
 import datetime
 import html
 import pytz

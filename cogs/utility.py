@@ -126,7 +126,10 @@ class Utility(commands.Cog, name="Survival Guide"):
                 for i in interaction.client.get_all_application_commands():
                     # prioritise subcommands
                     if subcmds := [
-                        j for j in i.children.values() if cmd_name in j.qualified_name
+                        j
+                        for j in i.children.values()
+                        if cmd_name in j.qualified_name
+                        or cmd_name.lower() in j.description.lower()
                     ]:
                         cmds.extend(subcmds)
                     elif subsubcmds := [

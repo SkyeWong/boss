@@ -85,7 +85,9 @@ class TradeView(BaseView):
         comment = await self.interaction.client.db.fetchval(
             "SELECT obj_description('trades.villagers'::regclass) AS desc"
         )
-        embed.set_footer(text=f"Villagers' trade reset every hour. \n{comment}")
+        time = datetime.datetime.strptime(comment, "%Z %H:%M")
+        embed.set_footer(text=f"Villagers' trade reset every hour. Last updated at")
+        embed.timestamp = time
 
         demand_msg, supply_msg = await villager.format_trade()
         embed.add_field(name="I receive", value=demand_msg, inline=False)
