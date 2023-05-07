@@ -38,11 +38,13 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
         self.bot = bot
         self._last_member = None
 
-        response = (
-            requests.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json")
-            .json()
-            .get("DYN_DAT_MINDS_RHRREAD")
+        response = requests.get(
+            "https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json"
         )
+        if response.status_code != 200:
+            print("Failed to fetch data from HK Observatory")
+            return
+
         self.location_list = {}
         for k, v in response.items():
             if "LocationName" in k:
