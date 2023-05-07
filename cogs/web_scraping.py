@@ -44,6 +44,7 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
         if response.status_code != 200:
             print("Failed to fetch data from HK Observatory")
             return
+        response = response.json().get("DYN_DAT_MINDS_RHRREAD")
 
         self.location_list = {}
         for k, v in response.items():
