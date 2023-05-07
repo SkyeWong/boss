@@ -123,24 +123,22 @@ class Utility(commands.Cog, name="Survival Guide"):
                     return
 
                 cmds = []
+                search_command = (
+                    lambda command: cmd_name in command.qualified_name
+                    or cmd_name.lower() in command.description.lower()
+                )
                 for i in interaction.client.get_all_application_commands():
                     # prioritise subcommands
-                    if subcmds := [
-                        j
-                        for j in i.children.values()
-                        if cmd_name in j.qualified_name
-                        or cmd_name.lower() in j.description.lower()
-                    ]:
+                    if subcmds := [j for j in i.children.values() if search_command(j)]:
                         cmds.extend(subcmds)
                     elif subsubcmds := [
                         k
-                        for k in i.children.values()
-                        for k in k.children.values()
-                        if cmd_name in k.qualified_name
-                        or cmd_name.lower() in k.description.lower()
+                        for j in i.children.values()
+                        for k in j.children.values()
+                        if search_command(k)
                     ]:
                         cmds.extend(subsubcmds)
-                    elif cmd_name in i.qualified_name:
+                    elif search_command(i):
                         cmds.append(i)
 
                 if not cmds:
