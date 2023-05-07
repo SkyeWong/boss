@@ -86,7 +86,7 @@ class TradeView(BaseView):
             "SELECT obj_description('trades.villagers'::regclass) AS desc"
         )
         time = datetime.datetime.strptime(comment, "%y-%m-%d %H:%M %Z")
-        embed.set_footer(text=f"Villagers' trade reset every hour. Last updated at")
+        embed.set_footer(text=f"Trades reset every hour. Last updated")
         embed.timestamp = time
 
         demand_msg, supply_msg = await villager.format_trade()
