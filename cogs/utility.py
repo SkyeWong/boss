@@ -133,7 +133,8 @@ class Utility(commands.Cog, name="Survival Guide"):
                         k
                         for k in i.children.values()
                         for k in k.children.values()
-                        if cmd_name in k.qualified_name or cmd_name in k.description
+                        if cmd_name in k.qualified_name
+                        or cmd_name.lower() in k.description.lower()
                     ]:
                         cmds.extend(subsubcmds)
                     elif cmd_name in i.qualified_name:
