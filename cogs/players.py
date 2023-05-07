@@ -369,7 +369,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         """
         db: Database = self.bot.db
         quantities_after = {}
-        async with await db.pool.acquire() as conn:
+        async with db.pool.acquire() as conn:
             async with conn.transaction():
                 if (
                     quantity is None

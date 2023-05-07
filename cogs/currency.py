@@ -240,7 +240,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
             await interaction.send(embed=embed)
             return
 
-        async with await db.pool.acquire() as conn:
+        async with db.pool.acquire() as conn:
             async with conn.transaction():
                 await conn.execute(
                     """
@@ -313,7 +313,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
         db: Database = interaction.client.db
         player = Player(db, interaction.user)
 
-        async with await db.pool.acquire() as conn:
+        async with db.pool.acquire() as conn:
             async with conn.transaction():
                 try:
                     from_amount = await player.modify_currency(from_currency, -amount)

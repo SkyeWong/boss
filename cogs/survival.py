@@ -425,7 +425,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             return
 
         await db.connect()
-        async with await db.pool.acquire() as conn:
+        async with db.pool.acquire() as conn:
             async with conn.transaction():
                 await conn.execute(
                     """
