@@ -85,7 +85,7 @@ class TradeView(BaseView):
         comment = await self.interaction.client.db.fetchval(
             "SELECT obj_description('trades.villagers'::regclass) AS desc"
         )
-        time = datetime.datetime.strptime(comment, "%y-%#m-%#d %#H:%#M %Z")
+        time = datetime.datetime.strptime(comment, "%y-%m-%d %H:%M %Z")
         embed.set_footer(text=f"Villagers' trade reset every hour. Last updated at")
         embed.timestamp = time
 
