@@ -24,7 +24,6 @@ from views.scraping_views import (
 )
 
 # default modules
-import json
 import datetime
 import html
 import pytz
@@ -39,10 +38,11 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
         self.bot = bot
         self._last_member = None
 
-        response = requests.get(
-            "https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json"
-        ).content.decode("utf-8")
-        response: dict[dict] = json.loads(response).get("DYN_DAT_MINDS_RHRREAD")
+        response = (
+            requests.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json")
+            .json()
+            .get("DYN_DAT_MINDS_RHRREAD")
+        )
         self.location_list = {}
         for k, v in response.items():
             if "LocationName" in k:
@@ -62,9 +62,9 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
             async with session.get(
                 "https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json"
             ) as response:
-                html = await response.text()
+                html = await response.json()
 
-        temp_list: dict[dict] = json.loads(html).get("DYN_DAT_MINDS_RHRREAD")
+        temp_list: dict[dict] = html.get("DYN_DAT_MINDS_RHRREAD")
 
         date = temp_list.get("BulletinDate")[language]
         time = temp_list.get("BulletinTime")[language]
@@ -91,9 +91,9 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
             async with session.get(
                 "https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json"
             ) as response:
-                html = await response.text()
+                html = await response.json()
 
-        response: dict[dict] = json.loads(html).get("DYN_DAT_MINDS_FLW")
+        response: dict[dict] = html.get("DYN_DAT_MINDS_FLW")
         date = response.get("BulletinDate")[language]
         time = response.get("BulletinTime")[language]
         hk_tz = pytz.timezone("Asia/Hong_Kong")
