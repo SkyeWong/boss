@@ -462,7 +462,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                     ],
                 )
         utc = pytz.timezone("UTC")
-        now = datetime.datetime.now(tz=utc).strftime("%y %-m %-d %-H:%-M %Z")
+        now = datetime.datetime.now(tz=utc).strftime("%y-%#m-%#d %#H:%#M %Z")
         print(f"\033[1;30mUpdated villagers at {now}.\033[0m")
         await db.execute(f"COMMENT ON TABLE trades.villagers IS '{now}'")
         await self.bot.get_guild(919223073054539858).get_channel(
