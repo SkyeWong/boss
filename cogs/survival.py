@@ -424,7 +424,8 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         if db.pool is None:
             return
 
-        async with await db.acquire() as conn:
+        await db.connect()
+        async with await db.pool.acquire() as conn:
             async with conn.transaction():
                 await conn.execute(
                     """

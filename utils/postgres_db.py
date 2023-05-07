@@ -81,9 +81,6 @@ class Database:
     async def executemany(self, sql, *args):
         await self._execute_method(self.pool.executemany, sql, *args)
 
-    async def acquire(self):
-        return await self._execute_method(self.pool.acquire)
-
     async def __aenter__(self) -> Pool:
         await self.connect()
         return self.pool
