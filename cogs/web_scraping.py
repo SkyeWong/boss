@@ -24,6 +24,7 @@ from views.scraping_views import (
 )
 
 # default modules
+import json
 import datetime
 import html
 import pytz
@@ -38,26 +39,26 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
         self.bot = bot
         self._last_member = None
 
-        response = requests.get(
-            "https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json"
-        )
-        if response.status_code != 200:
-            print("Failed to fetch data from HK Observatory")
-            return
-        response = response.json().get("DYN_DAT_MINDS_RHRREAD")
+        try:
+            response = requests.get(
+                "https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json"
+            )
+            response = response.json().get("DYN_DAT_MINDS_RHRREAD")
 
-        self.location_list = {}
-        for k, v in response.items():
-            if "LocationName" in k:
-                if not v["Val_Eng"] or not v["Val_Chi"]:
-                    self.location_list[k.replace("LocationName", "")] = k.replace(
-                        "LocationName", ""
-                    )
-                else:
-                    self.location_list[
-                        html.unescape(f"{v['Val_Eng']} - {v['Val_Chi']}")
-                    ] = k.replace("LocationName", "")
-        self.location_list = dict(sorted(self.location_list.items()))
+            self.location_list = {}
+            for k, v in response.items():
+                if "LocationName" in k:
+                    if not v["Val_Eng"] or not v["Val_Chi"]:
+                        self.location_list[k.replace("LocationName", "")] = k.replace(
+                            "LocationName", ""
+                        )
+                    else:
+                        self.location_list[
+                            html.unescape(f"{v['Val_Eng']} - {v['Val_Chi']}")
+                        ] = k.replace("LocationName", "")
+            self.location_list = dict(sorted(self.location_list.items()))
+        except:
+            print("Failed to update location list from HKO")
         self.announce_temp.start()
 
     async def get_temperature(self, location: str, language="Val_Eng"):
@@ -86,8 +87,22 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
                 return temp_time, location_name
 
         humidty = temp_list.get("HongKongObservatoryRelativeHumidity")[language]
+        messages = []
+        # using 2 seperate for loops to make sure `Message` always goes first.
+        for k, v in temp_list.items():
+            if "Message" in k and v[language] != "":
+                messages.append(v[language])
+        for k, v in temp_list.items():
+            if "AdditionalInformation" in k and v[language] != "":
+                messages.append(v[language])
 
-        return temp_time, location_name, float(temp), float(humidty)
+        return (
+            temp_time,
+            location_name,
+            float(temp),
+            float(humidty),
+            "\n".join(messages),
+        )
 
     async def get_weather_forecast(self, language="Val_Eng"):
         async with aiohttp.ClientSession() as session:
@@ -135,7 +150,8 @@ class WebScraping(commands.Cog, name="Resources Raiding"):
                 name="Unavailable",
                 value=f"Required information is not available for the location `{temp[1]}`",
             )
-
+        if temp[4]:
+            embed.add_field(name="Message", value=temp[4], inline=False)
         embed.timestamp = temp[0]
 
         return embed
