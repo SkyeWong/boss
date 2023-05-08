@@ -405,7 +405,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
     @tasks.loop(hours=1)
     async def update_villagers(self):
         # get a list of names
-        params = {"nameType": "firstname", "quantity": 10}
+        params = {"nameType": "firstname", "quantity": random.randint(10, 18)}
         headers = {"X-Api-Key": "2a4f04bc0708472d9791240ca7d39476"}
         async with aiohttp.ClientSession() as session:
             async with session.get(

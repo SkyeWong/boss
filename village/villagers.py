@@ -114,9 +114,13 @@ class Villager:
         for index, value in enumerate((self.demand, self.supply)):
             for i in value:
                 if isinstance(i, TradePrice):
-                    msgs[index] += f"\n{constants.CURRENCY_EMOJIS[i.type]} ` {i.price:,} `"
+                    msgs[
+                        index
+                    ] += f"\n{constants.CURRENCY_EMOJIS[i.type]} ` {i.price:,} `"
                 elif isinstance(i, TradeItem):
-                    msgs[index] += f"\n` {i.quantity}x ` {await i.get_emoji(self.db)} {await i.get_name(self.db)}"
+                    msgs[
+                        index
+                    ] += f"\n` {i.quantity}x ` {await i.get_emoji(self.db)} {await i.get_name(self.db)}"
         return msgs[0], msgs[1]
 
 
@@ -124,26 +128,48 @@ class Hunter(Villager):
     def __init__(self, name: str, db: Database) -> None:
         rand = random.uniform(0.8, 1)
         # fmt: off
-        trades = (
-            [  # price is `TradePrice(random * max_quantity * unit price[min], random * max_quantity * unit price[max])`
-                {
-                    "demand": [TradeItem(26, round(rand * 8))],  # skunk
-                    "supply": [TradePrice.from_range(round(rand * 8 * 10_000), round(rand * 8 * 15_000))],
-                },
-                {
-                    "demand": [TradeItem(23, round(rand * 8))],  # duck
-                    "supply": [TradePrice.from_range(round(rand * 8 * 18_000), round(rand * 8 * 25_000))],
-                },  
-                {
-                    "demand": [TradeItem(25, round(rand * 8))],  # sheep
-                    "supply": [TradePrice.from_range(round(rand * 8 * 28_000), round(rand * 8 * 42_000))],
-                },  
-                {
-                    "demand": [TradeItem(18, round(rand * 8))],  # deer
-                    "supply": [TradePrice.from_range(round(rand * 8 * 40_000), round(rand * 8 * 70_000))],
-                },  
-            ]
-        )
+        # price is `TradePrice(random * max_quantity * unit price[min], random * max_quantity * unit price[max])`
+        inital_trades = [
+            {
+                "demand": [TradeItem(26, round(rand * 8))],  # skunk
+                "supply": [TradePrice.from_range(round(rand * 8 * 10_000), round(rand * 8 * 15_000))],
+            },
+            {
+                "demand": [TradeItem(23, round(rand * 8))],  # duck
+                "supply": [TradePrice.from_range(round(rand * 8 * 18_000), round(rand * 8 * 25_000))],
+            },  
+            {
+                "demand": [TradeItem(25, round(rand * 8))],  # sheep
+                "supply": [TradePrice.from_range(round(rand * 8 * 28_000), round(rand * 8 * 42_000))],
+            },  
+            {
+                "demand": [TradeItem(24, round(rand * 8))],  # rabbit
+                "supply": [TradePrice.from_range(round(rand * 8 * 36_000), round(rand * 8 * 40_000))],
+            },  
+            {
+                "demand": [TradeItem(22, round(rand * 8))],  # cow
+                "supply": [TradePrice.from_range(round(rand * 8 * 35_000), round(rand * 8 * 45_000))],
+            },  
+            {
+                "demand": [TradeItem(18, round(rand * 8))],  # deer
+                "supply": [TradePrice.from_range(round(rand * 8 * 40_000), round(rand * 8 * 70_000))],
+            },  
+            {
+                "demand": [TradeItem(21, round(rand * 8))],  # boar
+                "supply": [TradePrice.from_range(round(rand * 8 * 70_000), round(rand * 8 * 95_000))],
+            },  
+            {
+                "demand": [TradeItem(20, round(rand * 8))],  # dragon
+                "supply": [TradePrice.from_range(round(rand * 8 * 700_000), round(rand * 8 * 950_000))],
+            },  
+        ]
+        
+        trades = []
+        # flip the trades so that players can buy animals from hunters as well
+        for i in inital_trades:
+            trades.append(i)
+            trades.append({"demand": i["supply"], "supply": i["demand"]})
+            
         trade = random.choice(trades)
         super().__init__(
             name=name,
