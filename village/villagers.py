@@ -14,15 +14,21 @@ from utils.constants import SCRAP_METAL, COPPER
 # default modules
 import random
 import datetime
-from typing import Union, Literal
+from typing import Union, Literal, Optional
 
 
 class TradeItem:
-    def __init__(self, item_id: int, quantity: int) -> None:
+    def __init__(
+        self,
+        item_id: int,
+        quantity: int,
+        name: Optional[str] = None,
+        emoji: Optional[str] = None,
+    ) -> None:
         self.item_id = item_id
         self.quantity = quantity
-        self._name = None
-        self._emoji = None
+        self._name = name
+        self._emoji = emoji
 
     async def get_name(self, db: Database):
         if self._name is None:
@@ -47,6 +53,11 @@ class TradeItem:
                 self.item_id,
             )
         return self._emoji
+
+    def __mul__(self, other):
+        return self.__class__(
+            self.item_id, round(self.quantity * other), self._name, self._emoji
+        )
 
 
 class TradePrice:
@@ -80,6 +91,9 @@ class TradePrice:
             max_price = functions.text_to_num(max_price)
 
         return cls(random.randint(min_price, max_price), type)
+
+    def __mul__(self, other):
+        return self.__class__(self.price * other, self.type)
 
 
 class Villager:
@@ -129,7 +143,7 @@ class Hunter(Villager):
         rand = random.uniform(0.8, 1)
         # fmt: off
         # price is `TradePrice(random * max_quantity * unit price[min], random * max_quantity * unit price[max])`
-        inital_trades = [
+        buy_trades = [
             {
                 "demand": [TradeItem(26, round(rand * 8))],  # skunk
                 "supply": [TradePrice.from_range(round(rand * 8 * 10_000), round(rand * 8 * 15_000))],
@@ -165,10 +179,15 @@ class Hunter(Villager):
         ]
         
         trades = []
-        # flip the trades so that players can buy animals from hunters as well
-        for i in inital_trades:
+        # flip the trades so that hunters sell animals as well. 
+        # decrease the amount of animals supplied,
+        # but increase the price.
+        for i in buy_trades:
             trades.append(i)
-            trades.append({"demand": i["supply"], "supply": i["demand"]})
+            trades.append({
+                "demand": [j * 0.8 for j in i["supply"]], 
+                "supply": [k * 1.2 for k in i["demand"]]
+            })
             
         trade = random.choice(trades)
         super().__init__(
