@@ -447,13 +447,13 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                             [
                                 (item.item_id, item.quantity, None, None)
                                 if isinstance(item, TradeItem)
-                                else (None, None, item.price, item.type)
+                                else (None, None, item.price, item.currency_type)
                                 for item in villager.demand
                             ],
                             [
                                 (item.item_id, item.quantity, None, None)
                                 if isinstance(item, TradeItem)
-                                else (None, None, item.price, item.type)
+                                else (None, None, item.price, item.currency_type)
                                 for item in villager.supply
                             ],
                             villager.remaining_trades,

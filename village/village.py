@@ -100,7 +100,7 @@ class TradeView(BaseView):
         item_strings = [
             f"{i.quantity} {await i.get_name(db)}"
             if isinstance(i, TradeItem)  # eg: "5 Aqua Defender"
-            else f"{i.price:,} {i.type.replace('_', ' ')}"  # eg: "123,456,789 Copper"
+            else f"{i.price:,} {i.currency_type.replace('_', ' ')}"  # eg: "123,456,789 Copper"
             for i in items
         ]
         return ", ".join(item_strings)
@@ -220,7 +220,9 @@ class TradeView(BaseView):
                                 return
 
                             required_price = multiplier * item.price
-                            await player.modify_currency(item.type, required_price)
+                            await player.modify_currency(
+                                item.currency_type, required_price
+                            )
                         elif isinstance(item, TradeItem):
                             owned_quantity = next(
                                 (
