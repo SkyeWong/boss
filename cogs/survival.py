@@ -15,6 +15,7 @@ import asyncpg
 
 # my modules and constants
 from utils import constants
+from utils.constants import CURRENCY_EMOJIS
 from utils.functions import TextEmbed, check_if_not_dev_guild
 from utils.player import Player
 from views.template_views import ConfirmView
@@ -211,8 +212,8 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
     async def adventure_village(self, button, interaction: Interaction):
         if random.randint(1, 5) > 2:
             await interaction.send(
-                embed=Embed(
-                    description="OH GOD they are **FOES**! They chased you for 10 km, luckily you outran them."
+                embed=TextEmbed(
+                    "OH GOD they are **FOES**! They chased you for 10 km, luckily you outran them."
                 ),
                 ephemeral=True,
             )
@@ -237,8 +238,8 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                 village["structure_id"],
             )
             await interaction.send(
-                embed=Embed(
-                    description=f"It turns out you came across the lovely village, **{village['name']}**.\n"
+                embed=TextEmbed(
+                    f"It turns out you came across the lovely village, **{village['name']}**.\n"
                     "The villagers are very willing to meet you and trade with you!\n"
                     "Use </visit:1081863670189006868> to visit the village."
                 ),
@@ -249,18 +250,16 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         player = Player(self.bot.db, interaction.user)
         if random.randint(1, 5) > 2:
             scrap_metal = random.randint(1000, 8000)
-            await player.modify_scrap(scrap_metal)
+            await player.modify_currency("scrap_metal", scrap_metal)
             await interaction.send(
-                embed=Embed(
-                    description=f"Lucky you, you got home safely without injuries, but with 🪙 {scrap_metal}"
+                embed=TextEmbed(
+                    f"Lucky you, you got home safely without injuries, but with {CURRENCY_EMOJIS['scrap_metal']} {scrap_metal}"
                 ),
                 ephemeral=True,
             )
         else:
             await interaction.send(
-                embed=Embed(
-                    description="Someone was lurking around! You got attacked..."
-                ),
+                embed=TextEmbed("Someone was lurking around! You got attacked..."),
                 ephemeral=True,
             )
 
@@ -285,10 +284,10 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             )
             # use min() with user's scrap_metal so the scrap_metal will not be negative
             lost_scrap = min(player_scrap, random.randint(120, 800))
-            await player.modify_scrap(-lost_scrap)
+            await player.modify_currency("scrap_metal", -lost_scrap)
             await interaction.send(
                 embed=TextEmbed(
-                    f"Shame on you, he was a bandits. He attacked you and you lost 🪙 {lost_scrap}",
+                    f"Shame on you, he was a bandits. He attacked you and you lost {CURRENCY_EMOJIS['scrap_metal']} {lost_scrap}",
                 ),
                 ephemeral=True,
             )
@@ -318,7 +317,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                     self.adventure_village,
                 ),
                 50: (
-                    "A bag of scrap_metal was lying on the ground. You saw no one around you. Have you finally decided on whether to snatch it yet?",
+                    "A bag of scrap metals was lying on the ground. You saw no one around you. Have you finally decided on whether to snatch it yet?",
                     self.adventure_scrap_metal,
                 ),
             }
@@ -344,7 +343,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                 "After getting scared by a rock that seems to [move by itself](https://www.youtube.com/watch?v=iu8vnVz5cYQ), you fled towards your shack.",
                 "What's happening? You wanted to move, but your body just doesn't seem to obey your mind.",
             )
-            await interaction.send(embed=Embed(description=random.choice(msg)))
+            await interaction.send(embed=TextEmbed(random.choice(msg)))
             cooldowns.reset_cooldown("adventure")
 
     async def choose_structure_autocomplete(self, interaction: Interaction, data: str):
