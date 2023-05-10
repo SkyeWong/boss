@@ -94,7 +94,7 @@ class TradePrice:
 
         if isinstance(price, str):
             self.price = functions.text_to_num(price)
-        elif isinstance(price, int):
+        else:
             self.price = price
 
     @classmethod
@@ -150,8 +150,8 @@ class TradePrice:
         if currency_type not in ("scrap_metal", "copper"):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
         rand_price = round(rand_factor * quantity * unit_price)
-        price_min = int(rand_price * 0.8)
-        price_max = int(rand_price * 1.2)
+        price_min = round(rand_price * 0.8)
+        price_max = round(rand_price * 1.2)
         return cls.from_range(price_min, price_max, currency_type)
 
     def __mul__(self, other):
