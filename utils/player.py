@@ -88,6 +88,12 @@ class Player:
         else:
             raise functions.PlayerNotExist()
 
+    async def modify_scrap(self, value: int):
+        return await self.modify_currency("scrap_metal", value)
+
+    async def modify_copper(self, value: int):
+        return await self.modify_currency("copper", value)
+
     async def set_currency(
         self, currency: Literal["scrap_metal", "copper"], value: int
     ):
@@ -111,6 +117,12 @@ class Player:
                 raise functions.NegativeBalance()
         else:
             raise functions.PlayerNotExist()
+
+    async def set_scrap(self, value: int):
+        return await self.set_currency("scrap_metal", value)
+
+    async def set_copper(self, value: int):
+        return await self.set_currency("copper", value)
 
     async def get_farm(self):
         """
