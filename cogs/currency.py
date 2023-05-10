@@ -196,9 +196,8 @@ class Currency(commands.Cog, name="Resource Reserve"):
             autocomplete_callback=choose_backpack_autocomplete,
         ),
         quantity: int = SlashOption(
-            description="Amount of items to sell",
+            description="Amount of items to sell. Defaults to selling every one of the item.",
             required=False,
-            default=1,
             min_value=1,
         ),
     ):
@@ -231,6 +230,8 @@ class Currency(commands.Cog, name="Resource Reserve"):
             return
 
         inv_quantity = item["quantity"]
+        if quantity is None:
+            quantity = inv_quantity
         if inv_quantity < quantity:
             embed = Embed()
             embed.description = (
