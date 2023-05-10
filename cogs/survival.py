@@ -395,7 +395,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         )
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 120, SlashBucket.author, check=check_if_not_dev_guild)
+    @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def trade(self, interaction: Interaction):
         """Trade with villagers for valuable and possibly unique items!"""
         view = TradeView(interaction)
