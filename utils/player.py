@@ -89,9 +89,11 @@ class Player:
             raise functions.PlayerNotExist()
 
     async def modify_scrap(self, value: int):
+        """The shorthand function for `Player.modify_currency("scrap_metal", value)`."""
         return await self.modify_currency("scrap_metal", value)
 
     async def modify_copper(self, value: int):
+        """The shorthand function for `Player.modify_currency("copper", value)`."""
         return await self.modify_currency("copper", value)
 
     async def set_currency(
@@ -119,16 +121,19 @@ class Player:
             raise functions.PlayerNotExist()
 
     async def set_scrap(self, value: int):
+        """The shorthand function for `Player.set_currency("scrap_metal", value)`."""
         return await self.set_currency("scrap_metal", value)
 
     async def set_copper(self, value: int):
+        """The shorthand function for `Player.set_currency("copper", value)`."""
         return await self.set_currency("copper", value)
 
     async def get_farm(self):
         """
         Fetches the player's farm.
 
-        Returns a `tuple` containing the crops, farm_width, and farm_height."""
+        Returns a `tuple` containing the crops, farm_width, and farm_height.
+        """
         if await self.is_present():
             return await self.db.fetchrow(
                 """
