@@ -88,7 +88,7 @@ class TradeView(BaseView):
         time = datetime.datetime.strptime(comment, "%y-%m-%d %H:%M %Z")
         embed.set_footer(
             text="Trade with items in your backpack!\n"
-            "Trades reset every hour. Last updated"
+            "Villagers reset every hour. Last updated"
         )
         embed.timestamp = time
 
