@@ -79,9 +79,7 @@ class Utility(commands.Cog, name="Survival Guide"):
             if cmd_in_guild == True:
                 cmd_names.append(base_cmd.name)
             if hasattr(base_cmd, "children") and len(base_cmd.children) > 0:
-                cmd_names.extend(
-                    self.get_all_subcmd_names(interaction.guild_id, base_cmd)
-                )
+                cmd_names.extend(self.get_all_subcmd_names(interaction.guild_id, base_cmd))
         cmd_names.sort()
         if not data:
             # return full list
@@ -117,9 +115,7 @@ class Utility(commands.Cog, name="Survival Guide"):
             if cmd_name.startswith("$"):  # search for commands, not just exact matches
                 cmd_name = cmd_name[1:]  # remove "$" prefix
                 if len(cmd_name) < 3:
-                    await interaction.send(
-                        embed=TextEmbed("Use search terms at least 3 characters long.")
-                    )
+                    await interaction.send(embed=TextEmbed("Use search terms at least 3 characters long."))
                     return
 
                 cmds = []
@@ -132,10 +128,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                     if subcmds := [j for j in i.children.values() if search_command(j)]:
                         cmds.extend(subcmds)
                     elif subsubcmds := [
-                        k
-                        for j in i.children.values()
-                        for k in j.children.values()
-                        if search_command(k)
+                        k for j in i.children.values() for k in j.children.values() if search_command(k)
                     ]:
                         cmds.extend(subsubcmds)
                     elif search_command(i):
@@ -168,9 +161,7 @@ class Utility(commands.Cog, name="Survival Guide"):
 
                 for i in interaction.client.get_all_application_commands():
                     # search for the command name
-                    if (
-                        i.is_global or interaction.guild_id in i.guild_ids
-                    ):  # command is available to user
+                    if i.is_global or interaction.guild_id in i.guild_ids:  # command is available to user
                         if i.name == cmd_name:  # matched exact command
                             cmd = i
                             break
@@ -194,9 +185,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                 embed = Embed()
                 name = cmd.qualified_name
                 embed.title = f"Info of </{name}:{list(cmd.command_ids.values())[0]}>"
-                embed.set_author(
-                    name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url
-                )
+                embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
 
                 if len(cmd.children) > 0:
                     # this command has subcommands, send a list of the subcommands
@@ -211,9 +200,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                     view.btn_disable()
 
                     # remove the select menu to choose between cogs
-                    select = [i for i in view.children if i.custom_id == "cog_select"][
-                        0
-                    ]
+                    select = [i for i in view.children if i.custom_id == "cog_select"][0]
                     view.remove_item(select)
                     await interaction.send(embed=embed, view=view)
                 else:
@@ -286,9 +273,7 @@ class Utility(commands.Cog, name="Survival Guide"):
         db: Database = self.bot.db
         item = await db.fetchrow(sql, f"%{itemname.lower()}%")
         if not item:
-            await interaction.send(
-                embed=Embed(description="The item is not found!"), ephemeral=True
-            )
+            await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
         else:
             res = await db.fetch(
                 """
@@ -299,10 +284,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                 interaction.user.id,
                 item["item_id"],
             )
-            owned_quantities = {
-                constants.InventoryType(inv_type).name: quantity
-                for inv_type, quantity in res
-            }
+            owned_quantities = {constants.InventoryType(inv_type).name: quantity for inv_type, quantity in res}
             embed = functions.get_item_embed(item, owned_quantities)
             await interaction.send(embed=embed)
 

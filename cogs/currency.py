@@ -47,9 +47,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
             # return full list
             return sorted([item[0] for item in items])[:25]
         # send a list of nearest matches from the list of item
-        near_items = sorted(
-            [item[0] for item in items if item[0].lower().startswith(data.lower())]
-        )
+        near_items = sorted([item[0] for item in items if item[0].lower().startswith(data.lower())])
         return near_items[:25]
 
     def get_sell_item_embed(self, sold_items: tuple, total_price):
@@ -141,9 +139,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
                 # the item is not found, or the user does not own any
                 if item is None:
                     await interaction.send(
-                        embed=Embed(
-                            description=f"Either you don't own the item `{item_name}` or it doesn't exist"
-                        )
+                        embed=Embed(description=f"Either you don't own the item `{item_name}` or it doesn't exist")
                     )
                     return
 
@@ -165,9 +161,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
             exclude_items,
         )
         if not sellable_items:
-            await interaction.send(
-                embed=Embed(description="You sold nothing! What a shame...")
-            )
+            await interaction.send(embed=Embed(description="You sold nothing! What a shame..."))
             return
 
         total_price = 0
@@ -217,16 +211,12 @@ class Currency(commands.Cog, name="Resource Reserve"):
         )
         if not item:
             await interaction.send(
-                embed=Embed(
-                    description="Either you don't own the item or it does not exist!"
-                ),
+                embed=Embed(description="Either you don't own the item or it does not exist!"),
             )
             return
 
         if not item["sell_price"]:
-            await interaction.send(
-                embed=Embed(description="The item can't be sold! Try trading them.")
-            )
+            await interaction.send(embed=Embed(description="The item can't be sold! Try trading them."))
             return
 
         inv_quantity = item["quantity"]
@@ -261,9 +251,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
         item["quantity"] = quantity
         embed = self.get_sell_item_embed((item,), total_price)
 
-        await interaction.send(
-            f"{interaction.user.mention}, you successfully sold the items!", embed=embed
-        )
+        await interaction.send(f"{interaction.user.mention}, you successfully sold the items!", embed=embed)
 
     @nextcord.slash_command(name="exchange")
     async def exchange_currency_cmd(self, interaction: Interaction):
@@ -295,9 +283,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
 
         if amount <= 0:
             await interaction.send(
-                embed=TextEmbed(
-                    f"Enter a positive amount of {from_currency_msg} to exchange into {to_currency_msg}."
-                )
+                embed=TextEmbed(f"Enter a positive amount of {from_currency_msg} to exchange into {to_currency_msg}.")
             )
             return
 
@@ -318,14 +304,10 @@ class Currency(commands.Cog, name="Resource Reserve"):
             async with conn.transaction():
                 try:
                     from_amount = await player.modify_currency(from_currency, -amount)
-                    to_amount = await player.modify_currency(
-                        to_currency, exchanged_amount
-                    )
+                    to_amount = await player.modify_currency(to_currency, exchanged_amount)
                 except functions.NegativeBalance:
                     await interaction.send(
-                        embed=TextEmbed(
-                            f"You don't have that enough {from_currency_msg} to make this exchange."
-                        )
+                        embed=TextEmbed(f"You don't have that enough {from_currency_msg} to make this exchange.")
                     )
                     return
 
@@ -346,9 +328,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
     async def exchange_to_copper(
         self,
         interaction: Interaction,
-        scrap_metal: str = SlashOption(
-            name="scrap-metal", description="Amount of scrap metal to exchange"
-        ),
+        scrap_metal: str = SlashOption(name="scrap-metal", description="Amount of scrap metal to exchange"),
     ):
         """Convert your scrap metals to coppers."""
 
@@ -363,9 +343,7 @@ class Currency(commands.Cog, name="Resource Reserve"):
     async def exchange_to_scrap(
         self,
         interaction: Interaction,
-        copper: str = SlashOption(
-            name="copper", description="Amount of copper to exchange"
-        ),
+        copper: str = SlashOption(name="copper", description="Amount of copper to exchange"),
     ):
         """Convert your coppers to scrap metals."""
 

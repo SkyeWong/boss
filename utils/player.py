@@ -42,9 +42,7 @@ class Player:
             self.user.id,
         )
 
-    async def modify_currency(
-        self, currency: Literal["scrap_metal", "copper"], value: int
-    ):
+    async def modify_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
         """Modify the player's currency, scrap_metal or copper."""
         if await self.is_present():
             if currency not in ("scrap_metal", "copper"):
@@ -64,9 +62,7 @@ class Player:
         else:
             raise functions.PlayerNotExist()
 
-    async def modify_currency(
-        self, currency: Literal["scrap_metal", "copper"], value: int
-    ):
+    async def modify_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
         """Modify the player's currency, scrap_metal or copper."""
         if await self.is_present():
             if currency not in ("scrap_metal", "copper"):
@@ -96,9 +92,7 @@ class Player:
         """The shorthand function for `Player.modify_currency("copper", value)`."""
         return await self.modify_currency("copper", value)
 
-    async def set_currency(
-        self, currency: Literal["scrap_metal", "copper"], value: int
-    ):
+    async def set_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
         """Set the player's currency, scrap_metal or copper."""
         if await self.is_present():
             if currency not in ("scrap_metal", "copper"):

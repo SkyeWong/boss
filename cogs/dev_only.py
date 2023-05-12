@@ -95,9 +95,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         """Edit a user's profile."""
         pass
 
-    @modify_user.subcommand(
-        name="scrap-metal", description="Modify or set a user's scrap metal"
-    )
+    @modify_user.subcommand(name="scrap-metal", description="Modify or set a user's scrap metal")
     async def modify_scrap(
         self,
         interaction: Interaction,
@@ -119,9 +117,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             user = await self.bot.fetch_user(user_id)
         except (nextcord.NotFound, nextcord.HTTPException):
             await interaction.send(
-                embed=Embed(
-                    description="Either an internal error occured or you entered an incorrect user_id."
-                ),
+                embed=Embed(description="Either an internal error occured or you entered an incorrect user_id."),
                 ephemeral=True,
             )
             return
@@ -140,18 +136,14 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         else:
             if not await player.is_present():
                 await interaction.send(
-                    embed=TextEmbed(
-                        description="The user doesn't play BOSS! what a boomer."
-                    ),
+                    embed=TextEmbed(description="The user doesn't play BOSS! what a boomer."),
                     ephemeral=True,
                 )
                 return
 
             if set_or_modify == 0:
                 new_scrap = await player.set_scrap(scrap_metal)
-                embed = TextEmbed(
-                    f"{interaction.user.mention} set `{user.name}`'s scrap metal to **`{new_scrap:,}`**"
-                )
+                embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s scrap metal to **`{new_scrap:,}`**")
             else:
                 new_scrap = await player.modify_scrap(scrap_metal)
                 embed = TextEmbed(
@@ -184,9 +176,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             user = await self.bot.fetch_user(user_id)
         except (nextcord.NotFound, nextcord.HTTPException):
             await interaction.send(
-                embed=Embed(
-                    description="Either an internal error occured or you entered an incorrect user_id."
-                ),
+                embed=Embed(description="Either an internal error occured or you entered an incorrect user_id."),
                 ephemeral=True,
             )
             return
@@ -205,18 +195,14 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         else:
             if not await player.is_present():
                 await interaction.send(
-                    embed=TextEmbed(
-                        description="The user doesn't play BOSS! what a boomer."
-                    ),
+                    embed=TextEmbed(description="The user doesn't play BOSS! what a boomer."),
                     ephemeral=True,
                 )
                 return
 
             if set_or_modify == 0:
                 new_copper = await player.set_copper(copper)
-                embed = TextEmbed(
-                    f"{interaction.user.mention} set `{user.name}`'s copper to **`{new_copper:,}`**"
-                )
+                embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s copper to **`{new_copper:,}`**")
             else:
                 new_copper = await player.modify_copper(copper)
                 embed = TextEmbed(
@@ -231,9 +217,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     async def modify_experience(
         self,
         interaction: Interaction,
-        experience: int = SlashOption(
-            description="Level * 100 + experience", required=True
-        ),
+        experience: int = SlashOption(description="Level * 100 + experience", required=True),
         user_id: str = SlashOption(name="user-id", required=False, default=None),
     ):
         if user_id is None:
@@ -245,9 +229,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             user = await self.bot.fetch_user(user_id)
         except (nextcord.NotFound, nextcord.HTTPException):
             await interaction.send(
-                embed=Embed(
-                    description="Either an internal error occured or you entered an incorrect user_id."
-                ),
+                embed=Embed(description="Either an internal error occured or you entered an incorrect user_id."),
                 ephemeral=True,
             )
             return
@@ -269,9 +251,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             experience,
             user_id,
         )
-        embed = TextEmbed(
-            f"{interaction.user.mention} set `{user.name}`'s experience to `{experience}`!"
-        )
+        embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s experience to `{experience}`!")
         await interaction.send(embed=embed)
 
         channel = await self.bot.fetch_channel(988046548309016586)
@@ -316,9 +296,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             player = await interaction.client.fetch_user(player_id)
         except (nextcord.NotFound, nextcord.HTTPException, ValueError):
             await interaction.send(
-                embed=Embed(
-                    description="Either an internal error occured or you entered an incorrect user_id."
-                ),
+                embed=Embed(description="Either an internal error occured or you entered an incorrect user_id."),
                 ephemeral=True,
             )
             return
@@ -333,9 +311,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             f"%{item_name}%",
         )
         if item is None:
-            await interaction.send(
-                embed=Embed(description="The item is not found"), ephemeral=True
-            )
+            await interaction.send(embed=Embed(description="The item is not found"), ephemeral=True)
             return
 
         try:
@@ -378,26 +354,16 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
 
                     for i, items in num_of_items_in_inv.items():
                         # transaction has not been committed, items are not updated
-                        if (
-                            i == inv_type == 0
-                            and len(items) >= 32
-                            and item["item_id"] not in items
-                        ):
+                        if i == inv_type == 0 and len(items) >= 32 and item["item_id"] not in items:
                             raise MoveItemException("Backpacks only have 32 slots!")
-                        if (
-                            i == inv_type == 2
-                            and len(items) >= 5
-                            and item["item_id"] not in items
-                        ):
+                        if i == inv_type == 2 and len(items) >= 5 and item["item_id"] not in items:
                             raise MoveItemException("Vaults only have 5 slots!")
 
         except MoveItemException as e:
             await interaction.send(embed=TextEmbed(e.text), ephemeral=True)
             return
 
-        inv_type_str = [i.name for i in constants.InventoryType if i.value == inv_type][
-            0
-        ]
+        inv_type_str = [i.name for i in constants.InventoryType if i.value == inv_type][0]
         embed = Embed(
             title=f"{interaction.user.name} **UPDATED** `{player.name}#{player.discriminator}'s {inv_type_str}`"
         )
@@ -405,14 +371,9 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         embed.add_field(
             name="Quantites",
             inline=False,
-            value="```diff\n"
-            f"- {quantities['old']}\n"
-            f"+ {quantities['new']}\n"
-            "```",
+            value="```diff\n" f"- {quantities['old']}\n" f"+ {quantities['new']}\n" "```",
         )
-        embed.set_thumbnail(
-            url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png"
-        )
+        embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
         await interaction.send(embed=embed)
         await interaction.guild.get_channel(988046548309016586).send(embed=embed)
 
@@ -434,18 +395,10 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             required=False,
             default=0,
         ),
-        item_type: int = SlashOption(
-            choices=constants.ItemType.to_dict(), required=False, default=0
-        ),
-        buy_price: str = SlashOption(
-            required=False, default="0", description="0 --> unable to be bought"
-        ),
-        sell_price: str = SlashOption(
-            required=False, default="0", description="0 --> unable to be sold"
-        ),
-        trade_price: str = SlashOption(
-            required=False, default="0", description="0 --> unknown value"
-        ),
+        item_type: int = SlashOption(choices=constants.ItemType.to_dict(), required=False, default=0),
+        buy_price: str = SlashOption(required=False, default="0", description="0 --> unable to be bought"),
+        sell_price: str = SlashOption(required=False, default="0", description="0 --> unable to be sold"),
+        trade_price: str = SlashOption(required=False, default="0", description="0 --> unknown value"),
     ):
         errors = []
         prices = {"buy": buy_price, "sell": sell_price, "trade": trade_price}
@@ -483,9 +436,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         )
         if len(res) > 0:
             await interaction.send(
-                embed=Embed(
-                    description="An item with the same name exists. Rename the item."
-                ),
+                embed=Embed(description="An item with the same name exists. Rename the item."),
                 ephemeral=True,
             )
             return
@@ -521,9 +472,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         async def send_edit_item(interaction: Interaction):
             client: nextcord.Client = interaction.client
             cmds = client.get_all_application_commands()
-            modify_cmd: nextcord.SlashApplicationCommand = [
-                cmd for cmd in cmds if cmd.name == "modify"
-            ][0]
+            modify_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "modify"][0]
             edit_item_cmd = modify_cmd.children["item"].children["edit"]
             await edit_item_cmd.invoke_callback(interaction, item=item["name"])
 
@@ -609,9 +558,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             required=True,
             max_length=4096,
         ),
-        title: str = SlashOption(
-            description="Title of the changelog", required=False, max_length=256
-        ),
+        title: str = SlashOption(description="Title of the changelog", required=False, max_length=256),
         image: nextcord.Attachment = SlashOption(
             description="Image of the changelog • will disappear after a few days",
             required=False,
@@ -641,28 +588,20 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 try:
                     ping_role = boss_server.get_role(int(ping_role_id))
                 except ValueError:
-                    await interaction.send(
-                        "Invalid role id! Try again.", ephemeral=True
-                    )
+                    await interaction.send("Invalid role id! Try again.", ephemeral=True)
                     return
                 if not ping_role:  # ping_role == None, the role isn't found
-                    await interaction.send(
-                        "The role does not exist! Try again.", ephemeral=True
-                    )
+                    await interaction.send("The role does not exist! Try again.", ephemeral=True)
                     return
         if content_message_id:
             try:
                 if not content_message_id.isnumeric():
                     await interaction.send("Invalid message id", ephemeral=True)
                     return
-                message = await interaction.channel.fetch_message(
-                    int(content_message_id)
-                )
+                message = await interaction.channel.fetch_message(int(content_message_id))
                 content = message.content
                 if not content:
-                    await interaction.send(
-                        "The message is empty/ only consists of embeds.", ephemeral=True
-                    )
+                    await interaction.send("The message is empty/ only consists of embeds.", ephemeral=True)
             except (nextcord.NotFound, nextcord.Forbidden, nextcord.HTTPException) as e:
                 if isinstance(e, nextcord.NotFound):
                     await interaction.send(
@@ -688,9 +627,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             log_embed.set_image(url=image.url)
         elif image_link:
             log_embed.set_image(image_link)
-        view = ConfirmChangelogSend(
-            interaction, log_embed, ping_role if ping_role else None
-        )
+        view = ConfirmChangelogSend(interaction, log_embed, ping_role if ping_role else None)
         await interaction.send(embed=view.embed, view=view)
 
     @changelog.subcommand(name="delete", description="Deletes a changelog message")
@@ -715,9 +652,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 return
             embed = message.embeds[0]
             if not embed.footer or embed.footer.text != "Bot Changelog":
-                await interaction.send(
-                    "This is not a bot changelog message.", ephemeral=True
-                )
+                await interaction.send("This is not a bot changelog message.", ephemeral=True)
                 return
         except (nextcord.NotFound, nextcord.Forbidden, nextcord.HTTPException) as e:
             if isinstance(e, nextcord.NotFound):
@@ -760,15 +695,11 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 await interaction.send("I did not send this message!", ephemeral=True)
                 return
             if not message.embeds:
-                await interaction.send(
-                    "This message doesn't have an embed", ephemeral=True
-                )
+                await interaction.send("This message doesn't have an embed", ephemeral=True)
                 return
             embed = message.embeds[0]
             if not embed.footer or embed.footer.text != "Bot Changelog":
-                await interaction.send(
-                    "This is not a bot changelog message.", ephemeral=True
-                )
+                await interaction.send("This is not a bot changelog message.", ephemeral=True)
                 return
         except (nextcord.NotFound, nextcord.Forbidden, nextcord.HTTPException) as e:
             if isinstance(e, nextcord.NotFound):
@@ -797,16 +728,13 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 cmd_names.append(subcmd.qualified_name)
         return cmd_names
 
-    async def choose_base_commands_autocomplete(
-        self, interaction: Interaction, data: str
-    ):
+    async def choose_base_commands_autocomplete(self, interaction: Interaction, data: str):
         client: nextcord.Client = interaction.client
         cmds = client.get_all_application_commands()
         cmds = [
             cmd.qualified_name
             for cmd in cmds
-            if isinstance(cmd, nextcord.SlashApplicationCommand)
-            or isinstance(cmd, nextcord.SlashApplicationSubcommand)
+            if isinstance(cmd, nextcord.SlashApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand)
         ]
         cmds.sort()
         if not data:
@@ -836,8 +764,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         cmds = [
             cmd
             for cmd in cmds
-            if isinstance(cmd, nextcord.SlashApplicationCommand)
-            or isinstance(cmd, nextcord.SlashApplicationSubcommand)
+            if isinstance(cmd, nextcord.SlashApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand)
         ]
         command = [cmd for cmd in cmds if cmd.qualified_name == command_name]
         if not command:
@@ -854,8 +781,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         embed.title = f"</{command.qualified_name}:{command_id}>"
 
         embed.description = (
-            f"> ID: `{command_id}`\n"
-            f"> Mention syntax: <\/{command.qualified_name}:{command_id}>"
+            f"> ID: `{command_id}`\n" f"> Mention syntax: <\/{command.qualified_name}:{command_id}>"
             if not command.children
             else ""
         )  # only show base command mention syntax if it has no subcommands
@@ -865,10 +791,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             embed.add_field(
                 name="Subcommands",
                 value="\n".join(
-                    [
-                        f"</{subcmd_name}:{command_id}>: <\/{subcmd_name}:{command_id}>"
-                        for subcmd_name in subcmd_names
-                    ]
+                    [f"</{subcmd_name}:{command_id}>: <\/{subcmd_name}:{command_id}>" for subcmd_name in subcmd_names]
                 ),
                 inline=False,
             )
@@ -927,9 +850,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 cmd_names.extend(self.get_all_subcmd_names(guild_id, subcmd))
         return cmd_names
 
-    async def choose_all_commands_autocomplete(
-        self, interaction: Interaction, data: str
-    ):
+    async def choose_all_commands_autocomplete(self, interaction: Interaction, data: str):
         base_cmds = interaction.client.get_all_application_commands()
         cmd_names = []
         for base_cmd in base_cmds:
@@ -941,9 +862,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             if cmd_in_guild == True:
                 cmd_names.append(base_cmd.name)
             if hasattr(base_cmd, "children") and len(base_cmd.children) > 0:
-                cmd_names.extend(
-                    self.get_all_subcmd_names(interaction.guild_id, base_cmd)
-                )
+                cmd_names.extend(self.get_all_subcmd_names(interaction.guild_id, base_cmd))
         cmd_names.sort()
         if not data:
             # return full list
@@ -1060,17 +979,13 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                     reason,
                     extra_info,
                 )
-                embed.description += (
-                    f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
-                )
+                embed.description += f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
 
             if until:
                 until_ts = int(until.timestamp())
                 embed.description += f"\n{functions.format_with_link('Until')} - <t:{until_ts}:F> • <t:{until_ts}:R>"
             else:
-                embed.description += (
-                    f"\n{functions.format_with_link('Until')} - forever"
-                )
+                embed.description += f"\n{functions.format_with_link('Until')} - forever"
 
             embed.description += (
                 f"\n{functions.format_with_link('Reason')} - {reason}"
@@ -1127,10 +1042,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                     DELETE FROM utility.disabled_commands 
                     WHERE command_name = $1
                     """,
-                    [
-                        (subcommand.qualified_name,)
-                        for subcommand in list(cmd.children.values())
-                    ],
+                    [(subcommand.qualified_name,) for subcommand in list(cmd.children.values())],
                 )
 
                 embed.description += ", ".join(
@@ -1148,9 +1060,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                     """,
                     cmd.qualified_name,
                 )
-                embed.description += (
-                    f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
-                )
+                embed.description += f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
             await interaction.send(embed=embed)
         else:
             await interaction.send(embed=Embed("The command is not found!"))

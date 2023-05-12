@@ -72,16 +72,12 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             [7, (21,)],  # --rare--  # boar
             [3, (20,)],  # --downright impossible--  # dragon
         ]
-        animal_category = random.choices(
-            [i[1] for i in animals], [i[0] for i in animals]
-        )[0]
+        animal_category = random.choices([i[1] for i in animals], [i[0] for i in animals])[0]
         item_id = random.choice(animal_category)
 
         if item_id is None:
             await interaction.send(
-                embed=Embed(
-                    description="You went hunting but found nothing... No dinner tonight ig"
-                )
+                embed=Embed(description="You went hunting but found nothing... No dinner tonight ig")
             )
             return
 
@@ -138,14 +134,16 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             """,
             item_id,
         )
-        embed = Embed(
-            description=f"You went bonkers and finally found a **{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}> after hours of work!"
+        await interaction.send(
+            embed=TextEmbed(
+                f"You went bonkers and finally found a **{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}> after hours of work!"
+            )
         )
-        await interaction.send(embed=embed)
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def mine(self, interaction: Interaction):
+        self.bot.fetch_user
         """Go mining in the caves!"""
         db: Database = self.bot.db
         player = Player(db, interaction.user)
@@ -197,9 +195,65 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             "You found a {item}! It's almost like you have a sixth sense for mining... or maybe you just stumbled upon it.",
         ]
         embed = TextEmbed(
-            random.choice(success_msgs).format(
-                item=f"**{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>"
+            random.choice(success_msgs).format(item=f"**{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>")
+        )
+        await interaction.send(embed=embed)
+
+    @nextcord.slash_command()
+    @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
+    async def scavenge(self, interaction: Interaction):
+        """Scavenge for resources in post-apocalyptic world, maybe you'll actually found something!"""
+        db: Database = self.bot.db
+        player = Player(db, interaction.user)
+        # `% getting one of them`: `list of rewards`
+        items = [
+            [30, [None]],  # --fail--
+            [40, (44,)],  # --common--  # Iron ore
+            [25, (45,)],  # --rare--  # Emerald ore
+            [5, (34,)],  # --epic--  # Diamond ore
+        ]
+        item_category = random.choices([i[1] for i in items], [i[0] for i in items])[0]
+        item_id = random.choice(item_category)
+
+        if item_id is None:
+            fail_msgs = [
+                "The cave was too dark. You ran away in a hurry.",
+                "Well, you certainly know how to find the empty spots in a cave.",
+                "What were you doing in your garage for the past 5 hours? You didn't mistake it as a cave... did you?",
+                "You've managed to mine nothing but air. Your pickaxe must be thrilled.",
+                "You mine and you mine, but all you find are rocks.",
+                "Looks like you struck out. Maybe next time you'll get lucky and find a diamond... or not.",
+                "Breaking rocks all day, yet nothing to show for it. You're a real master at mining for disappointment.",
+            ]
+            await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
+            return
+
+        await player.add_item(item_id)
+        item = await db.fetchrow(
+            """
+            SELECT name, emoji_name, emoji_id
+            FROM utility.items
+            WHERE item_id = $1
+            """,
+            item_id,
+        )
+        if item_id == 33:  # only stone
+            await interaction.send(
+                embed=TextEmbed(
+                    f"Looks like you found a... **{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>. How exciting. Maybe try a little deeper next time?"
+                )
             )
+            return
+
+        success_msgs = [
+            "Wow, you actually found a {item}. I suppose even a blind squirrel finds a nut every once in a while.",
+            "You hit the jackpot and obtained a {item}! Just kidding, you got lucky.",
+            "You found a {item}! It's almost like you knew what you were doing... or maybe you just got lucky.",
+            "Well, looks like you're not as useless as I thought. You found a {item}.",
+            "You found a {item}! It's almost like you have a sixth sense for mining... or maybe you just stumbled upon it.",
+        ]
+        embed = TextEmbed(
+            random.choice(success_msgs).format(item=f"**{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>")
         )
         await interaction.send(embed=embed)
 
@@ -212,9 +266,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
     async def adventure_village(self, button, interaction: Interaction):
         if random.randint(1, 5) > 2:
             await interaction.send(
-                embed=TextEmbed(
-                    "OH GOD they are **FOES**! They chased you for 10 km, luckily you outran them."
-                ),
+                embed=TextEmbed("OH GOD they are **FOES**! They chased you for 10 km, luckily you outran them."),
                 ephemeral=True,
             )
         else:
@@ -268,9 +320,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         if random.randint(1, 5) > 2:
             await player.add_item(32)
             await interaction.send(
-                embed=TextEmbed(
-                    "Wow, you found yourself a slave! However, what he is able to do, I don't know."
-                ),
+                embed=TextEmbed("Wow, you found yourself a slave! However, what he is able to do, I don't know."),
                 ephemeral=True,
             )
         else:
@@ -293,9 +343,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             )
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(
-        1, 60, SlashBucket.author, cooldown_id="adventure", check=check_if_not_dev_guild
-    )
+    @cooldowns.cooldown(1, 60, SlashBucket.author, cooldown_id="adventure", check=check_if_not_dev_guild)
     async def adventure(
         self,
         interaction: Interaction,
@@ -328,9 +376,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             view = ConfirmView(
                 slash_interaction=interaction,
                 confirm_func=outcome[1],
-                cancel_func=lambda button, interaction: cooldowns.reset_cooldown(
-                    "adventure"
-                ),
+                cancel_func=lambda button, interaction: cooldowns.reset_cooldown("adventure"),
                 embed=embed,
             )
             await interaction.send(embed=view.embed, view=view)
@@ -368,11 +414,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             return sorted([structure[0] for structure in structures])
         # send a list of nearest matches from the list of item
         near_structures = sorted(
-            [
-                structure[0]
-                for structure in structures
-                if structure[0].lower().startswith(data.lower())
-            ]
+            [structure[0] for structure in structures if structure[0].lower().startswith(data.lower())]
         )
         return near_structures
 
@@ -390,9 +432,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
     ):
         """Visit a structure that you have unlocked!"""
         structure_type, structure_name = structure_name.split(" - ")
-        await interaction.send(
-            f"You visited a {structure_type} called {structure_name}"
-        )
+        await interaction.send(f"You visited a {structure_type} called {structure_name}")
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
@@ -407,9 +447,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         params = {"nameType": "firstname", "quantity": random.randint(10, 18)}
         headers = {"X-Api-Key": "2a4f04bc0708472d9791240ca7d39476"}
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                "https://randommer.io/api/Name", params=params, headers=headers
-            ) as response:
+            async with session.get("https://randommer.io/api/Name", params=params, headers=headers) as response:
                 names = await response.json()
 
         # generate the villagers
@@ -464,22 +502,18 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         now = datetime.datetime.now(tz=utc).strftime("%y-%#m-%#d %#H:%#M %Z")
         print(f"\033[1;30mUpdated villagers at {now}.\033[0m")
         await db.execute(f"COMMENT ON TABLE trades.villagers IS '{now}'")
-        await self.bot.get_guild(919223073054539858).get_channel(
-            988046548309016586
-        ).send(embed=TextEmbed(f"villagers updated at {now}"))
+        await self.bot.get_guild(919223073054539858).get_channel(988046548309016586).send(
+            embed=TextEmbed(f"villagers updated at {now}")
+        )
 
     @update_villagers.before_loop
     async def before_update_villagers(self):
         now = datetime.datetime.now()
         # Wait until the start of the next hour before starting the task loop
-        start_of_next_hour = (now + datetime.timedelta(hours=1)).replace(
-            minute=0, second=0, microsecond=0
-        )
+        start_of_next_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         await nextcord.utils.sleep_until(start_of_next_hour)
 
-    @nextcord.slash_command(
-        name="reload-villagers", guild_ids=[constants.DEVS_SERVER_ID]
-    )
+    @nextcord.slash_command(name="reload-villagers", guild_ids=[constants.DEVS_SERVER_ID])
     async def reload_villagers(self, interaction: Interaction):
         """Reload the villagers used in /trade."""
         await self.update_villagers.__call__()

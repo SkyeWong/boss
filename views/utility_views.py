@@ -10,7 +10,7 @@ from typing import Optional
 
 # my modules and constants
 from utils import constants
-from utils.constants import CURRENCY_EMOJIS
+from utils.constants import CURRENCY_EMOJIS, SCRAP_METAL, COPPER
 from views.template_views import BaseView
 
 
@@ -216,14 +216,14 @@ class GuideView(BaseView):
             description="In the world of BOSS, there are two main types of currency: scrap metal and copper.",
             fields=[
                 EmbedField(
-                    f"Scrap Metal {CURRENCY_EMOJIS['scrap_metal']}",
+                    f"Scrap Metal {SCRAP_METAL}",
                     "Scrap metal is the basic currency in BOSS, used for everyday transactions. \n"
                     "It's easy to find and earn, but has a relatively low value compared to other types of currency. "
                     "Users need to manage their scrap metal wisely to build their wealth and survive. ",
                     False,
                 ),
                 EmbedField(
-                    f"Copper {CURRENCY_EMOJIS['copper']}",
+                    f"Copper {COPPER}",
                     "Copper is a valuable and versatile currency in BOSS, used for creating and repairing weapons, armor, and electronic devices. "
                     "Users can earn copper by scavenging for it or completing tasks and challenges. \n"
                     "As a currency, copper is worth more than basic resources like scrap metal or cloth. "

@@ -60,9 +60,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         player = Player(db, user)
         if not await player.is_present():
             await interaction.send(
-                embed=Embed(
-                    description="The user hasn't started playing BOSS yet! Maybe invite them over?"
-                ),
+                embed=Embed(description="The user hasn't started playing BOSS yet! Maybe invite them over?"),
                 ephemeral=True,
             )
             return
@@ -114,9 +112,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
             name="Scrap Metal",
             value=f"{SCRAP_METAL} `{numerize.numerize(profile['scrap_metal'])}`",
         )
-        profile_ui.add_field(
-            name="Copper", value=f"{COPPER} `{numerize.numerize(profile['copper'])}`"
-        )
+        profile_ui.add_field(name="Copper", value=f"{COPPER} `{numerize.numerize(profile['copper'])}`")
         experience_progress_bar_filled = round((experience % 100) / 10)
         profile_ui.add_field(
             name="Experience",
@@ -159,9 +155,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         player = Player(db, user)
         if not await player.is_present():
             await interaction.send(
-                embed=Embed(
-                    description="The user hasn't started playing BOSS yet! Maybe invite them over?"
-                ),
+                embed=Embed(description="The user hasn't started playing BOSS yet! Maybe invite them over?"),
                 ephemeral=True,
             )
             return
@@ -302,9 +296,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         embed = view.get_inv_embed()
         view.message = await interaction.send(embed=embed, view=view)
 
-    async def get_autocompleted_items(
-        self, user: nextcord.User, inv_type: int, data: str
-    ):
+    async def get_autocompleted_items(self, user: nextcord.User, inv_type: int, data: str):
         db: Database = self.bot.db
         items = await db.fetch(
             """
@@ -322,9 +314,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
             # return full list
             return [item[0] for item in items]
         # send a list of nearest matches from the list of item
-        near_items = [
-            item[0] for item in items if item[0].lower().startswith(data.lower())
-        ]
+        near_items = [item[0] for item in items if item[0].lower().startswith(data.lower())]
         return near_items
 
     async def choose_inv_autocomplete(self, interaction: Interaction, data: str):
@@ -344,11 +334,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
             # return full list
             return sorted(list({item[0] for item in items}))
         # send a list of nearest matches from the list of item
-        near_items = sorted(
-            list(
-                {item[0] for item in items if item[0].lower().startswith(data.lower())}
-            )
-        )
+        near_items = sorted(list({item[0] for item in items if item[0].lower().startswith(data.lower())}))
         return near_items
 
     async def move_items(
@@ -371,9 +357,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         quantities_after = {}
         async with db.pool.acquire() as conn:
             async with conn.transaction():
-                if (
-                    quantity is None
-                ):  # move all items of that name in that specific inv_type
+                if quantity is None:  # move all items of that name in that specific inv_type
                     quantity = await conn.fetchval(
                         """
                         UPDATE players.inventory
@@ -495,9 +479,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
             f"%{item_name}%",
         )
         if not item:
-            await interaction.send(
-                embed=Embed(description="The item is not found!"), ephemeral=True
-            )
+            await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
             return
 
         try:
@@ -526,9 +508,7 @@ class Players(commands.Cog, name="Apocalypse Elites"):
         embed.description = f">>> Item: **{item['name']}**"
         embed.description += f"\nQuantity in {[inv.name for inv in constants.InventoryType if inv.value == item_from][0]}: `{quantities_after['from']}`"
         embed.description += f"\nQuantity in {[inv.name for inv in constants.InventoryType if inv.value == item_to][0]}: `{quantities_after['to']}`"
-        embed.set_thumbnail(
-            url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png"
-        )
+        embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
         await interaction.send(embed=embed)
 
 
