@@ -1,172 +1,18 @@
-# nextcord
-import nextcord
-from nextcord.ext import tasks
-
 # database
 from utils.postgres_db import Database
 
-import aiohttp
-
 # my modules
-from utils import functions, constants
-from utils.constants import SCRAP_METAL, COPPER
+from utils import constants
+from utils.functions import BossItem, BossPrice
 
 # default modules
 import random
-import datetime
-from typing import Union, Literal, Optional
 
-
-class TradeItem:
-    def __init__(
-        self,
-        item_id: int,
-        quantity: int,
-        name: Optional[str] = None,
-        emoji: Optional[str] = None,
-    ) -> None:
-        self.item_id = item_id
-        self.quantity = quantity
-        self._name = name
-        self._emoji = emoji
-
-    async def get_name(self, db: Database):
-        """Retrieves the name of the item from the database, if not already cached."""
-        if self._name is None:
-            self._name = await db.fetchval(
-                """
-                SELECT name
-                FROM utility.items
-                WHERE item_id = $1
-                """,
-                self.item_id,
-            )
-        return self._name
-
-    async def get_emoji(self, db: Database):
-        """Retrieves the emoji representation of the item from the database, if not already cached."""
-        if self._emoji is None:
-            self._emoji = await db.fetchval(
-                """
-                SELECT CONCAT('<:', emoji_name, ':', emoji_id, '>') AS emoji
-                FROM utility.items
-                WHERE item_id = $1
-                """,
-                self.item_id,
-            )
-        return self._emoji
-
-    def __mul__(self, other):
-        """
-        Multiply the quantity of this `TradeItem` by a scalar value.
-
-        Args:
-            other (int or float): The scalar value to multiply the quantity by.
-
-        Raises:
-            NotImplementedError: If the `other` argument is not an instance of
-                either the int or float classes.
-
-        Returns:
-            TradeItem: A new TradeItem instance with a quantity equal to the current quantity multiplied by the scalar value.
-        """
-        if not isinstance(other, (int, float)):
-            raise NotImplementedError(
-                f"`other` must be type int or float, not {other.__class__}"
-            )
-        return self.__class__(
-            self.item_id, round(self.quantity * other), self._name, self._emoji
-        )
-
-    def __repr__(self):
-        return f"TradeItem(item_id={self.item_id}, quantity={self.quantity}, name={self._name!r}, emoji={self._emoji!r})"
-
-
-class TradePrice:
-    def __init__(
-        self,
-        price: Union[int, str],
-        currency_type: Literal["scrap_metal", "copper"] = "scrap_metal",
-    ) -> None:
-        if currency_type not in ("scrap_metal", "copper"):
-            raise ValueError("Currency must be either `scrap_metal` or `copper`.")
-        self.currency_type = currency_type
-
-        if isinstance(price, str):
-            self.price = functions.text_to_num(price)
-        else:
-            self.price = price
-
-    @classmethod
-    def from_range(
-        cls,
-        min_price: Union[int, str],
-        max_price: Union[int, str],
-        currency_type: Literal["scrap_metal", "copper"] = "scrap_metal",
-    ) -> "TradePrice":
-        """Creates a new TradePrice instance with a random price value within a range.
-
-        Args:
-            min_price (int or str): The minimum price value, either as an integer or a string.
-            max_price (int or str): The maximum price value, either as an integer or a string.
-            type (str, optional): The type of currency, either "scrap_metal" or "copper". Defaults to "scrap_metal".
-
-        Raises:
-            ValueError: If the `type` argument is not "scrap_metal" or "copper".
-
-        Returns:
-            TradePrice: A new TradePrice instance with a price value randomly chosen within the specified range.
-        """
-        if currency_type not in ("scrap_metal", "copper"):
-            raise ValueError("Currency must be either `scrap_metal` or `copper`.")
-
-        if isinstance(min_price, str):
-            min_price = functions.text_to_num(min_price)
-        if isinstance(max_price, str):
-            max_price = functions.text_to_num(max_price)
-
-        return cls(random.randint(min_price, max_price), currency_type)
-
-    @classmethod
-    def from_unit_price(
-        cls,
-        unit_price: int,
-        quantity: int,
-        rand_factor: float,
-        currency_type: Literal["scrap_metal", "copper"] = "scrap_metal",
-    ) -> "TradePrice":
-        """
-        Create a new TradePrice instance based on a unit price, quantity, and random factor.
-
-        Args:
-            unit_price (int): The unit price of the item.
-            quantity (int): The quantity of items being traded.
-            rand_factor (float): A random factor between 0.8 and 1.2 to adjust the price.
-
-        Returns:
-            TradePrice: A new TradePrice instance with a price range based on the unit price,
-            quantity, and random factor.
-        """
-        if currency_type not in ("scrap_metal", "copper"):
-            raise ValueError("Currency must be either `scrap_metal` or `copper`.")
-        rand_price = round(rand_factor * quantity * unit_price)
-        price_min = round(rand_price * 0.8)
-        price_max = round(rand_price * 1.2)
-        return cls.from_range(price_min, price_max, currency_type)
-
-    def __mul__(self, other):
-        """Multiplies the price of this TradePrice by a scalar value.
-
-        Args:
-            other (int or float): The scalar value to multiply the price by.
-
-        Returns:
-            TradePrice: A new TradePrice instance with a price value equal to the current price multiplied by the scalar value.
-        """
-        return self.__class__(self.price * other, self.currency_type)
-
-    def __repr__(self):
-        return f"TradePrice(price={self.price}, type='{self.currency_type}')"
+# only to support legacy code
+# should be changed later
+# TODO: change all instances into new ones
+TradeItem = BossItem
+TradePrice = BossPrice
 
 
 class Villager:
@@ -206,13 +52,9 @@ class Villager:
         for index, value in enumerate((self.demand, self.supply)):
             for i in value:
                 if isinstance(i, TradePrice):
-                    msgs[
-                        index
-                    ] += f"\n{constants.CURRENCY_EMOJIS[i.currency_type]} ` {i.price:,} `"
+                    msgs[index] += f"\n{constants.CURRENCY_EMOJIS[i.currency_type]} ` {i.price:,} `"
                 elif isinstance(i, TradeItem):
-                    msgs[
-                        index
-                    ] += f"\n` {i.quantity}x ` {await i.get_emoji(self.db)} {await i.get_name(self.db)}"
+                    msgs[index] += f"\n` {i.quantity}x ` {await i.get_emoji(self.db)} {await i.get_name(self.db)}"
         return msgs[0], msgs[1]
 
 

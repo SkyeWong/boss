@@ -7,10 +7,12 @@ import nextcord
 # constants
 from utils import constants
 from utils.constants import SCRAP_METAL, COPPER
+from utils.postgres_db import Database
 
 # inbuilt modules
 import math
 import random
+from typing import Literal, Optional, Union
 
 
 def roundup(number, round_to):
@@ -187,6 +189,154 @@ class TextEmbed(Embed):
 
     def __init__(self, text: str):
         super().__init__(description=text)
+
+
+class BossItem:
+    def __init__(
+        self,
+        item_id: int,
+        quantity: int,
+        name: Optional[str] = None,
+        emoji: Optional[str] = None,
+    ) -> None:
+        self.item_id = item_id
+        self.quantity = quantity
+        self._name = name
+        self._emoji = emoji
+
+    async def get_name(self, db: Database):
+        """Retrieves the name of the item from the database, if not already cached."""
+        if self._name is None:
+            self._name = await db.fetchval(
+                """
+                SELECT name
+                FROM utility.items
+                WHERE item_id = $1
+                """,
+                self.item_id,
+            )
+        return self._name
+
+    async def get_emoji(self, db: Database):
+        """Retrieves the emoji representation of the item from the database, if not already cached."""
+        if self._emoji is None:
+            self._emoji = await db.fetchval(
+                """
+                SELECT CONCAT('<:', emoji_name, ':', emoji_id, '>') AS emoji
+                FROM utility.items
+                WHERE item_id = $1
+                """,
+                self.item_id,
+            )
+        return self._emoji
+
+    def __mul__(self, other):
+        """
+        Multiply the quantity of this `TradeItem` by a scalar value.
+
+        Args:
+            other (int or float): The scalar value to multiply the quantity by.
+
+        Raises:
+            NotImplementedError: If the `other` argument is not an instance of
+                either the int or float classes.
+
+        Returns:
+            TradeItem: A new TradeItem instance with a quantity equal to the current quantity multiplied by the scalar value.
+        """
+        if not isinstance(other, (int, float)):
+            raise NotImplementedError(f"`other` must be type int or float, not {other.__class__}")
+        return self.__class__(self.item_id, round(self.quantity * other), self._name, self._emoji)
+
+    def __repr__(self):
+        return f"BossItem(item_id={self.item_id}, quantity={self.quantity}, name={self._name!r}, emoji={self._emoji!r})"
+
+
+class BossPrice:
+    def __init__(
+        self,
+        price: Union[int, str],
+        currency_type: Literal["scrap_metal", "copper"] = "scrap_metal",
+    ) -> None:
+        if currency_type not in ("scrap_metal", "copper"):
+            raise ValueError("Currency must be either `scrap_metal` or `copper`.")
+        self.currency_type = currency_type
+
+        if isinstance(price, str):
+            self.price = text_to_num(price)
+        else:
+            self.price = price
+
+    @classmethod
+    def from_range(
+        cls,
+        min_price: Union[int, str],
+        max_price: Union[int, str],
+        currency_type: Literal["scrap_metal", "copper"] = "scrap_metal",
+    ) -> "BossPrice":
+        """Creates a new BossPrice instance with a random price value within a range.
+
+        Args:
+            min_price (int or str): The minimum price value, either as an integer or a string.
+            max_price (int or str): The maximum price value, either as an integer or a string.
+            type (str, optional): The type of currency, either "scrap_metal" or "copper". Defaults to "scrap_metal".
+
+        Raises:
+            ValueError: If the `type` argument is not "scrap_metal" or "copper".
+
+        Returns:
+            BossPrice: A new BossPrice instance with a price value randomly chosen within the specified range.
+        """
+        if currency_type not in ("scrap_metal", "copper"):
+            raise ValueError("Currency must be either `scrap_metal` or `copper`.")
+
+        if isinstance(min_price, str):
+            min_price = text_to_num(min_price)
+        if isinstance(max_price, str):
+            max_price = text_to_num(max_price)
+
+        return cls(random.randint(min_price, max_price), currency_type)
+
+    @classmethod
+    def from_unit_price(
+        cls,
+        unit_price: int,
+        quantity: int,
+        rand_factor: float,
+        currency_type: Literal["scrap_metal", "copper"] = "scrap_metal",
+    ) -> "BossPrice":
+        """
+        Create a new BossPrice instance based on a unit price, quantity, and random factor.
+
+        Args:
+            unit_price (int): The unit price of the item.
+            quantity (int): The quantity of items being traded.
+            rand_factor (float): A random factor between 0.8 and 1.2 to adjust the price.
+
+        Returns:
+            BossPrice: A new BossPrice instance with a price range based on the unit price,
+            quantity, and random factor.
+        """
+        if currency_type not in ("scrap_metal", "copper"):
+            raise ValueError("Currency must be either `scrap_metal` or `copper`.")
+        rand_price = round(rand_factor * quantity * unit_price)
+        price_min = round(rand_price * 0.8)
+        price_max = round(rand_price * 1.2)
+        return cls.from_range(price_min, price_max, currency_type)
+
+    def __mul__(self, other):
+        """Multiplies the price of this BossPrice by a scalar value.
+
+        Args:
+            other (int or float): The scalar value to multiply the price by.
+
+        Returns:
+            BossPrice: A new BossPrice instance with a price value equal to the current price multiplied by the scalar value.
+        """
+        return self.__class__(self.price * other, self.currency_type)
+
+    def __repr__(self):
+        return f"BossPrice(price={self.price}, type='{self.currency_type}')"
 
 
 class BossException(Exception):
