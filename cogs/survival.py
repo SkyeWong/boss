@@ -16,7 +16,7 @@ import asyncpg
 # my modules and constants
 from utils import constants
 from utils.constants import CURRENCY_EMOJIS
-from utils.functions import TextEmbed, check_if_not_dev_guild
+from utils.functions import TextEmbed, check_if_not_dev_guild, BossItem, BossPrice
 from utils.player import Player
 from views.template_views import ConfirmView
 
@@ -206,55 +206,48 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         db: Database = self.bot.db
         player = Player(db, interaction.user)
         # `% getting one of them`: `list of rewards`
-        items = [
-            [30, [None]],  # --fail--
-            [40, (44,)],  # --common--  # Iron ore
-            [25, (45,)],  # --rare--  # Emerald ore
-            [5, (34,)],  # --epic--  # Diamond ore
+        rewards = [
+            [60, [None]],  # --fail--
+            [25, (BossPrice.from_range(500, 1000),)],  # --common--  # 500 - 1000 scrap metal
+            [13.5, (BossPrice.from_range(1500, 5000),)],  # --rare--  # 1500 - 5000 scrap metal
+            [1.5, (BossPrice(1, "copper"),)],  # --epic--  # 1 copper
         ]
-        item_category = random.choices([i[1] for i in items], [i[0] for i in items])[0]
-        item_id = random.choice(item_category)
+        reward_category = random.choices([i[1] for i in rewards], [i[0] for i in rewards])[0]
+        reward = random.choice(reward_category)
 
-        if item_id is None:
+        if reward is None:
             fail_msgs = [
-                "The cave was too dark. You ran away in a hurry.",
-                "Well, you certainly know how to find the empty spots in a cave.",
-                "What were you doing in your garage for the past 5 hours? You didn't mistake it as a cave... did you?",
-                "You've managed to mine nothing but air. Your pickaxe must be thrilled.",
-                "You mine and you mine, but all you find are rocks.",
-                "Looks like you struck out. Maybe next time you'll get lucky and find a diamond... or not.",
-                "Breaking rocks all day, yet nothing to show for it. You're a real master at mining for disappointment.",
+                "Looks like you didn't find anything. Better luck next time, champ.",
+                "You searched high and low, but came up empty-handed. Maybe try wearing your glasses next time?",
+                "Unfortunately, you didn't find anything useful. At least you got some exercise, right?",
+                "Welp, that was a waste of time. Maybe try looking for items that aren't invisible next time.",
+                "Sorry, no luck this time. Maybe try scaring the items out of hiding with a louder noise next time?",
             ]
             await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
             return
 
-        await player.add_item(item_id)
-        item = await db.fetchrow(
-            """
-            SELECT name, emoji_name, emoji_id
-            FROM utility.items
-            WHERE item_id = $1
-            """,
-            item_id,
-        )
-        if item_id == 33:  # only stone
-            await interaction.send(
-                embed=TextEmbed(
-                    f"Looks like you found a... **{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>. How exciting. Maybe try a little deeper next time?"
-                )
-            )
-            return
-
         success_msgs = [
-            "Wow, you actually found a {item}. I suppose even a blind squirrel finds a nut every once in a while.",
-            "You hit the jackpot and obtained a {item}! Just kidding, you got lucky.",
-            "You found a {item}! It's almost like you knew what you were doing... or maybe you just got lucky.",
-            "Well, looks like you're not as useless as I thought. You found a {item}.",
-            "You found a {item}! It's almost like you have a sixth sense for mining... or maybe you just stumbled upon it.",
+            "Wow, you managed to scavenge {reward}. You're basically a survival expert now, I suppose.",
+            "Congrats, you found {reward}. You're one step closer to taking down the apocalypse.",
+            "Oh wow, it's another {reward}. Just what you needed.",
+            "You found {reward}. Too bad it's not worth anything in this world.",
+            "You found {reward}. It's not much, but at least it's something.",
+            "You found {reward}. Just don't expect anyone to be impressed by it.",
+            "Great work, you found {reward}. Maybe you can use it to decorate your trash heap.",
+            "Excellent, you found {reward}. It's almost like finding a penny on the ground - not really worth much, but hey, you still found something.",
+            "You have successfully scavenged {reward}. I bet you're thrilled to add it to your pile of junk.",
         ]
-        embed = TextEmbed(
-            random.choice(success_msgs).format(item=f"**{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>")
-        )
+        if isinstance(reward, BossPrice):
+            await player.modify_currency(reward.currency_type, reward.price)
+            msg = random.choice(success_msgs).format(
+                reward=f"**{CURRENCY_EMOJIS[reward.currency_type]} {reward.price}**"
+            )
+        elif isinstance(reward, BossItem):
+            await player.add_item(reward.item_id)
+            msg = random.choice(success_msgs).format(
+                reward=f"{reward.quantity} **{await reward.get_name(db)}** {await reward.get_emoji(db)}"
+            )
+        embed = TextEmbed(msg)
         await interaction.send(embed=embed)
 
     async def adventure_pyramid(self, button, interaction: Interaction):

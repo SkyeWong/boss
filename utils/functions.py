@@ -283,6 +283,7 @@ class BossPrice:
 
         Raises:
             ValueError: If the `type` argument is not "scrap_metal" or "copper".
+            ValueError: If the maximum price is smaller than the minimum price
 
         Returns:
             BossPrice: A new BossPrice instance with a price value randomly chosen within the specified range.
@@ -294,6 +295,9 @@ class BossPrice:
             min_price = text_to_num(min_price)
         if isinstance(max_price, str):
             max_price = text_to_num(max_price)
+
+        if max_price < min_price:
+            raise ValueError("The max price should be larger than min price.")
 
         return cls(random.randint(min_price, max_price), currency_type)
 
