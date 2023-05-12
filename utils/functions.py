@@ -207,9 +207,9 @@ class BossItem:
     async def get_name(self, db: Database):
         """Retrieves the name of the item from the database, if not already cached."""
         if self._name is None:
-            self._name = await db.fetchval(
+            self._name, self._emoji = await db.fetchrow(
                 """
-                SELECT name
+                SELECT name, CONCAT('<:', emoji_name, ':', emoji_id, '>') AS emoji
                 FROM utility.items
                 WHERE item_id = $1
                 """,
@@ -220,9 +220,9 @@ class BossItem:
     async def get_emoji(self, db: Database):
         """Retrieves the emoji representation of the item from the database, if not already cached."""
         if self._emoji is None:
-            self._emoji = await db.fetchval(
+            self._name, self._emoji = await db.fetchrow(
                 """
-                SELECT CONCAT('<:', emoji_name, ':', emoji_id, '>') AS emoji
+                SELECT name, CONCAT('<:', emoji_name, ':', emoji_id, '>') AS emoji
                 FROM utility.items
                 WHERE item_id = $1
                 """,
