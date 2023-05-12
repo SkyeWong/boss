@@ -1,10 +1,25 @@
 # BOSS - **B**attle **O**f **S**upreme **S**urvivalists
 
-> A slash-based currency discord bot where you 𝖘𝖚𝖗𝖛𝖎𝖛𝖊 in the wilderness, 𝖋𝖎𝖌𝖍𝖙 with other users, 𝖆𝖙𝖙𝖆𝖈𝖐 other users' bases and more!
-  
-Click [here](https://discord.com/api/oauth2/authorize?client_id=906505022441918485&permissions=139586881536&scope=bot) to invite me to your server
-  
-Click [here](https://www.youtube.com/watch?v=dQw4w9WgXcQ) for guide to the bot
+BOSS is a slash-based currency Discord bot designed for a post-apocalyptic world after World War III. In this new world, resources are scarce and a variety of items have become valuable currency, including scrap metal, ammunition, and other essential resources. BOSS provides a unique currency system that allows users to earn, spend, and trade these valuable items to purchase goods and services.
 
-⸻⸻⁜⸻⸻  
-Made by SkyeWong#8577
+## Features
+
+BOSS offers the following features:
+(including TODOs)
+
+- [x] A currency system based on valuable resources in the post-apocalyptic world
+- [x] Commands to earn, spend, and trade currency
+- [x] A leaderboard to track the wealthiest players in the server
+- [ ] Automatic currency generation through scavenging and other activities
+- [ ] Customizable settings for server administrators
+- And more!
+
+## Getting Started
+
+To get started with BOSS, simply invite the bot to your Discord server and grant it the necessary permissions. You can then use the `/help` command to view a list of available commands and start earning currency in the post-apocalyptic wasteland.
+
+## Credits
+
+BOSS was developed by [SkyeWong](https://github.com/skyewong) and is based on the [nextcord](https://github.com/nextcord/nextcord) library.
+
+Thank you for using BOSS, and we hope you enjoy exploring the post-apocalyptic wasteland!
