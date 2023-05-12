@@ -16,6 +16,7 @@ from utils.functions import TextEmbed
 from village.villagers import *
 
 # default modules
+import pytz
 
 
 class TradeView(BaseView):
@@ -86,10 +87,8 @@ class TradeView(BaseView):
             "SELECT obj_description('trades.villagers'::regclass) AS desc"
         )
         time = datetime.datetime.strptime(comment, "%y-%m-%d %H:%M %Z")
-        embed.set_footer(
-            text="Trade with items in your backpack!\n"
-            "Villagers reset every hour. Last updated"
-        )
+        time = time.replace(tzinfo=pytz.UTC)
+        embed.set_footer(text="Trade with items in your backpack!\nVillagers reset every hour. Last updated")
         embed.timestamp = time
 
         demand_msg, supply_msg = await villager.format_trade()
@@ -109,9 +108,7 @@ class TradeView(BaseView):
         return ", ".join(item_strings)
 
     async def update_view(self):
-        choose_villager_select = [
-            i for i in self.children if i.custom_id == "choose_villager"
-        ][0]
+        choose_villager_select = [i for i in self.children if i.custom_id == "choose_villager"][0]
         choose_villager_select.options = []
 
         for index, villager in enumerate(self.villagers):
@@ -176,9 +173,7 @@ class TradeView(BaseView):
 
         if remaining_trades <= 0:
             await interaction.send(
-                embed=TextEmbed(
-                    f"{current_villager.name} is out of stock. Maybe try again later."
-                ),
+                embed=TextEmbed(f"{current_villager.name} is out of stock. Maybe try again later."),
                 ephemeral=True,
             )
             return
@@ -215,30 +210,19 @@ class TradeView(BaseView):
                         if isinstance(item, TradePrice):
                             if trade_type == "demand" and player_scrap < item.price:
                                 await interaction.send(
-                                    embed=TextEmbed(
-                                        "You don't have enough scrap metal."
-                                    ),
+                                    embed=TextEmbed("You don't have enough scrap metal."),
                                     ephemeral=True,
                                 )
                                 return
 
                             required_price = multiplier * item.price
-                            await player.modify_currency(
-                                item.currency_type, required_price
-                            )
+                            await player.modify_currency(item.currency_type, required_price)
                         elif isinstance(item, TradeItem):
                             owned_quantity = next(
-                                (
-                                    x["quantity"]
-                                    for x in inventory
-                                    if x["item_id"] == item.item_id
-                                ),
+                                (x["quantity"] for x in inventory if x["item_id"] == item.item_id),
                                 0,
                             )
-                            if (
-                                trade_type == "demand"
-                                and owned_quantity < item.quantity
-                            ):
+                            if trade_type == "demand" and owned_quantity < item.quantity:
                                 await interaction.send(
                                     embed=TextEmbed(
                                         f"You are {item.quantity - (owned_quantity if owned_quantity else 0)} short in {await item.get_emoji(db)} {await item.get_name(db)}."
@@ -270,6 +254,4 @@ class TradeView(BaseView):
         await interaction.response.edit_message(embed=embed, view=self)
 
         demand_msg, supply_msg = await current_villager.format_trade()
-        await interaction.send(
-            embed=TextEmbed(f"You successfully received: {supply_msg}"), ephemeral=True
-        )
+        await interaction.send(embed=TextEmbed(f"You successfully received: {supply_msg}"), ephemeral=True)
