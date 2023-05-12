@@ -7,9 +7,9 @@ import asyncio
 import math
 
 # my modules and constants
-from views.template_views import BaseView
 from utils.player import Player
 from utils import constants
+from utils.functions import TextEmbed
 
 # maze utils
 from maze.maze_utils import Cell
@@ -114,7 +114,10 @@ class MazeEnemy:
                     player.hp -= random.randint(7, 12)
 
                 view = self.view
-                await view.perform_event_results(view.interaction)
+                if player.hp <= 0:  # die
+                    player.emoji = "💀"
+                    self.end_maze()
+                    await view.interaction.send(embed=TextEmbed("You died!"), ephemeral=True)
                 # get the embed and edit the message
                 embed = view.get_embed()
                 await view.update_msg(embed=embed)
