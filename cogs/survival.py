@@ -247,8 +247,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             msg = random.choice(success_msgs).format(
                 reward=f"{reward.quantity} **{await reward.get_name(db)}** {await reward.get_emoji(db)}"
             )
-        embed = TextEmbed(msg)
-        await interaction.send(embed=embed)
+        await interaction.send(embed=TextEmbed(msg))
 
     async def adventure_pyramid(self, button, interaction: Interaction):
         maze_size = (random.randint(15, 20), random.randint(15, 20))
