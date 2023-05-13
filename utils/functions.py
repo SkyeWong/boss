@@ -195,7 +195,7 @@ class BossItem:
     def __init__(
         self,
         item_id: int,
-        quantity: int,
+        quantity: Optional[str] = 1,
         name: Optional[str] = None,
         emoji: Optional[str] = None,
     ) -> None:
@@ -229,6 +229,14 @@ class BossItem:
                 self.item_id,
             )
         return self._emoji
+
+    def __eq__(self, other):
+        """Check if the `item_id`s of 2 BossItem instances are the same, or the `item_id` is equal to a `int`."""
+        if isinstance(other, BossItem):
+            return self.item_id == other.item_id
+        if isinstance(other, int):
+            return self.item_id == other
+        raise NotImplementedError
 
     def __mul__(self, other):
         """

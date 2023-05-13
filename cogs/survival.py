@@ -55,44 +55,35 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             [20, [None]],  # --fail--
             [
                 40,
-                (  # --common--
-                    23,  # duck
-                    24,  # rabbit
-                    26,  # skunk
+                (
+                    # --common--
+                    BossItem(23),  # duck
+                    BossItem(24),  # rabbit
+                    BossItem(26),  # skunk
                 ),
             ],
             [
                 30,
-                (  # --uncommon--
-                    18,  # deer
-                    22,  # cow
-                    25,  # sheep
+                (
+                    # --uncommon--
+                    BossItem(18),  # deer
+                    BossItem(22),  # cow
+                    BossItem(25),  # sheep
                 ),
             ],
-            [7, (21,)],  # --rare--  # boar
-            [3, (20,)],  # --downright impossible--  # dragon
+            [7, (BossItem(21),)],  # --rare--  # boar
+            [3, (BossItem(20),)],  # --downright impossible--  # dragon
         ]
         animal_category = random.choices([i[1] for i in animals], [i[0] for i in animals])[0]
-        item_id = random.choice(animal_category)
+        item = random.choice(animal_category)
 
-        if item_id is None:
-            await interaction.send(
-                embed=Embed(description="You went hunting but found nothing... No dinner tonight ig")
-            )
+        if item is None:
+            await interaction.send(TextEmbed("You went hunting but found nothing... No dinner tonight ig"))
             return
 
-        await player.add_item(item_id)
-        item = await db.fetchrow(
-            """
-            SELECT name, emoji_name, emoji_id
-            FROM utility.items
-            WHERE item_id = $1
-            """,
-            item_id,
-        )
-        embed = Embed(
-            description=f"You went hunting and found a **{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>!"
-        )
+        item: BossItem
+        await player.add_item(item.item_id)
+        embed = TextEmbed(f"You went hunting and found a **{await item.get_name(db)}** {await item.get_emoji(db)}!")
         await interaction.send(embed=embed)
 
     @nextcord.slash_command()
@@ -105,17 +96,24 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         items = [
             [
                 90,
-                (  # --fail--
+                (
+                    # --fail--
                     None,  # nothing
-                    31,  # dirt
+                    BossItem(31, random.randint(1, 5)),  # dirt
                 ),
             ],
-            [10, (27,)],  # --common--  # Anicient Coin
+            [
+                10,
+                (
+                    # --common--
+                    BossItem(27),  # Anicient Coin
+                ),
+            ],
         ]
         item_category = random.choices([i[1] for i in items], [i[0] for i in items])[0]
-        item_id = random.choice(item_category)
+        item = random.choice(item_category)
 
-        if item_id is None:
+        if item is None:
             fail_msgs = [
                 "With that little stick of yours, you shouldn't really expect to find anything.",
                 "You found nothing! What a waste of time.",
@@ -125,39 +123,31 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
             return
 
-        await player.add_item(item_id)
-        item = await db.fetchrow(
-            """
-            SELECT name, emoji_name, emoji_id
-            FROM utility.items
-            WHERE item_id = $1
-            """,
-            item_id,
-        )
+        item: BossItem
+        await player.add_item(item.item_id)
         await interaction.send(
             embed=TextEmbed(
-                f"You went bonkers and finally found a **{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}> after hours of work!"
+                f"You went bonkers and finally found a **{await item.get_name(db)}** {await item.get_emoji(db)} after hours of work!"
             )
         )
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def mine(self, interaction: Interaction):
-        self.bot.fetch_user
         """Go mining in the caves!"""
         db: Database = self.bot.db
         player = Player(db, interaction.user)
         # `% getting one of them`: `list of rewards`
         items = [
             [30, [None]],  # --fail--
-            [40, (44,)],  # --common--  # Iron ore
-            [25, (45,)],  # --rare--  # Emerald ore
-            [5, (34,)],  # --epic--  # Diamond ore
+            [40, (BossItem(44),)],  # --common--  # Iron ore
+            [25, (BossItem(45),)],  # --rare--  # Emerald ore
+            [5, (BossItem(34),)],  # --epic--  # Diamond ore
         ]
         item_category = random.choices([i[1] for i in items], [i[0] for i in items])[0]
-        item_id = random.choice(item_category)
+        item = random.choice(item_category)
 
-        if item_id is None:
+        if item is None:
             fail_msgs = [
                 "The cave was too dark. You ran away in a hurry.",
                 "Well, you certainly know how to find the empty spots in a cave.",
@@ -170,19 +160,13 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
             return
 
-        await player.add_item(item_id)
-        item = await db.fetchrow(
-            """
-            SELECT name, emoji_name, emoji_id
-            FROM utility.items
-            WHERE item_id = $1
-            """,
-            item_id,
-        )
-        if item_id == 33:  # only stone
+        item: BossItem
+        item.quantity = random.randint(1, 3)
+        await player.add_item(item.item_id, item.quantity)
+        if item == 33:  # only stone
             await interaction.send(
                 embed=TextEmbed(
-                    f"Looks like you found a... **{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>. How exciting. Maybe try a little deeper next time?"
+                    f"Looks like you found a... **{await item.get_name(db)}** {await item.get_emoji(db)}. How exciting. Maybe try a little deeper next time?"
                 )
             )
             return
@@ -195,7 +179,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             "You found a {item}! It's almost like you have a sixth sense for mining... or maybe you just stumbled upon it.",
         ]
         embed = TextEmbed(
-            random.choice(success_msgs).format(item=f"**{item['name']}** <:{item['emoji_name']}:{item['emoji_id']}>")
+            random.choice(success_msgs).format(item=f"**{await item.get_name(db)}** {await item.get_emoji(db)}")
         )
         await interaction.send(embed=embed)
 
@@ -208,9 +192,28 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         # `% getting one of them`: `list of rewards`
         rewards = [
             [60, [None]],  # --fail--
-            [25, (BossPrice.from_range(500, 1000),)],  # --common--  # 500 - 1000 scrap metal
-            [13.5, (BossPrice.from_range(1500, 5000),)],  # --rare--  # 1500 - 5000 scrap metal
-            [1.5, (BossPrice(1, "copper"),)],  # --epic--  # 1 copper
+            [
+                25,
+                (
+                    # --common--
+                    BossPrice.from_range(500, 1000),  # 500 - 1000 scrap metal
+                ),
+            ],
+            [
+                13.5,
+                (
+                    # --rare--
+                    BossPrice.from_range(1500, 5000),  # 1500 - 5000 scrap metal
+                ),
+            ],
+            [
+                1.5,
+                (
+                    # --epic--
+                    BossPrice(1, "copper"),  # 1 copper
+                    BossItem(46, random.randint(1, 3)),  # 1 - 3 banknote
+                ),
+            ],
         ]
         reward_category = random.choices([i[1] for i in rewards], [i[0] for i in rewards])[0]
         reward = random.choice(reward_category)
@@ -243,7 +246,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
                 reward=f"**{CURRENCY_EMOJIS[reward.currency_type]} {reward.price}**"
             )
         elif isinstance(reward, BossItem):
-            await player.add_item(reward.item_id)
+            await player.add_item(reward.item_id, reward.quantity)
             msg = random.choice(success_msgs).format(
                 reward=f"{reward.quantity} **{await reward.get_name(db)}** {await reward.get_emoji(db)}"
             )
