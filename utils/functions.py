@@ -195,7 +195,7 @@ class BossItem:
     def __init__(
         self,
         item_id: int,
-        quantity: Optional[str] = 1,
+        quantity: Optional[int] = 1,
         name: Optional[str] = None,
         emoji: Optional[str] = None,
     ) -> None:
