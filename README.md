@@ -1,4 +1,5 @@
-# BOSS - **B**attle **O**f **S**upreme **S**urvivalists
+# <img src="https://i.imgur.com/3DTqt8K.png"  width="25" title="BOSS Logo"> BOSS - **B**attle **O**f **S**upreme **S**urvivalists
+![GitHub](https://img.shields.io/github/license/skyewong/boss)
 
 > ⚠️ This repo is currently public **only** to let other coders collaborate, people suggest new features, friends view my code. The visibility is subject to change when BOSS is in production. ***Please, do not plagiarise and pass BOSS off as your own idea.***
 
