@@ -126,10 +126,10 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         success_msgs = [
             "You've struck gold! Just kidding, it's just {item}.",
             "You went bonkers and finally found {item} after hours of work!",
-            "You've found {reward}, which is slightly more valuable than a pile of dirt.",
-            "You've unearthed {reward}. Now you just need to find someone who cares.",
-            "After hours of back-breaking labor, you've found a {reward}. Time to retire.",
-            "You've dug up {reward}. Better luck next time.",
+            "You've found {item}, which is slightly more valuable than a pile of dirt.",
+            "You've unearthed {item}. Now you just need to find someone who cares.",
+            "After hours of back-breaking labor, you've found a {item}. Time to retire.",
+            "You've dug up {item}. Better luck next time.",
         ]
         item: BossItem
         await player.add_item(item.item_id, item.quantity)
