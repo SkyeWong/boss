@@ -63,7 +63,7 @@ class Survival(commands.Cog, name="Wasteland Warriors"):
         item = random.choice(animal_category)
 
         if item is None:
-            await interaction.send(TextEmbed("You went hunting but found nothing... No dinner tonight ig"))
+            await interaction.send(embed=TextEmbed("You went hunting but found nothing... No dinner tonight ig"))
             return
 
         item: BossItem
