@@ -149,9 +149,9 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         player = Player(db, interaction.user)
         # `% getting one of them`: `list of rewards`
         items = [
-            [30, [None]],  # --fail--
-            [40, (BossItem(44),)],  # --common--  # Iron ore
-            [25, (BossItem(45),)],  # --rare--  # Emerald ore
+            [50, [None]],  # --fail--
+            [25, (BossItem(44),)],  # --common--  # Iron ore
+            [20, (BossItem(45),)],  # --rare--  # Emerald ore
             [5, (BossItem(34),)],  # --epic--  # Diamond ore
         ]
         item_category = random.choices([i[1] for i in items], [i[0] for i in items])[0]
