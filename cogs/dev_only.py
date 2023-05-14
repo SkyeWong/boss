@@ -729,11 +729,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     async def choose_base_commands_autocomplete(self, interaction: Interaction, data: str):
         client: nextcord.Client = interaction.client
         cmds = client.get_all_application_commands()
-        cmds = [
-            cmd.qualified_name
-            for cmd in cmds
-            if isinstance(cmd, nextcord.SlashApplicationCommand) or isinstance(cmd, nextcord.SlashApplicationSubcommand)
-        ]
+        cmds = [cmd.qualified_name for cmd in cmds]
         cmds.sort()
         if not data:
             # return full list

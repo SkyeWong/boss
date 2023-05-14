@@ -1,20 +1,16 @@
 # nextcord
 import nextcord
-from nextcord.ext import commands, tasks
+from nextcord.ext import commands
 from nextcord import Interaction, Embed, SlashOption
 
 # slash command cooldowns
 import cooldowns
 from cooldowns import SlashBucket
 
-import aiohttp
-
 # database
 from utils.postgres_db import Database
-import asyncpg
 
 # my modules and constants
-from utils import constants
 from utils.constants import CURRENCY_EMOJIS
 from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, BossPrice
 from utils.player import Player
@@ -23,14 +19,8 @@ from views.template_views import ConfirmView
 # maze
 from maze.maze import Maze
 
-# trade
-from village.village import TradeView
-from village.villagers import Villager, TradeItem
-
 # default modules
 import random
-import datetime
-import pytz
 
 
 class Survival(commands.Cog, name="Wasteland Warriors"):
