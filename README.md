@@ -1,5 +1,7 @@
 # BOSS - **B**attle **O**f **S**upreme **S**urvivalists
 
+> ⚠️ This repo is currently public **only** to let other coders collaborate, people suggest new features, friends view my code. The visibility is subject to change when BOSS is in production. ***Please, do not plagiarise and pass BOSS off as your own idea.***
+
 BOSS is a slash-based currency Discord bot designed for a post-apocalyptic world after World War III. In this new world, resources are scarce and a variety of items have become valuable currency, including scrap metal, ammunition, and other essential resources. BOSS provides a unique currency system that allows users to earn, spend, and trade these valuable items to purchase goods and services.
 
 ## Features
