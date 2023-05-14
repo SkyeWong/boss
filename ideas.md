@@ -104,12 +104,12 @@ Host special trade events where users can come together to trade items and curre
 |   **Developer Dashboard** |   ⚙️   | Toolkit for developers to customize and extend bot functionality.                                  |
 <!-- 
 ===== LEGACY COGS ===== 
-💰 Resource Reserve (Currency Management)
-🏪 Wasteland Marketplace (Trading and Shop)
-🌟 Reclamation Campaign (Missions and Quests)
-🎉 Survivor Showdown (Events)
-🕵️‍♂️ Resources Raiding (Web Scraping)
-🏡 Resilient Residence (Base Building)
-🗺️ Wasteland Wanderers (Exploration and Scavenging)
-⚙️ Dev Console (Developer Toolkit)
+- 💰 Resource Reserve (Currency Management)
+- 🏪 Wasteland Marketplace (Trading and Shop)
+- 🌟 Reclamation Campaign (Missions and Quests)
+- 🎉 Survivor Showdown (Events)
+- 🕵️‍♂️ Resources Raiding (Web Scraping)
+- 🏡 Resilient Residence (Base Building)
+- 🗺️ Wasteland Wanderers (Exploration and Scavenging)
+- ⚙️ Dev Console (Developer Toolkit)
 -->

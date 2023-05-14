@@ -4,19 +4,27 @@ BOSS is a slash-based currency Discord bot designed for a post-apocalyptic world
 
 ## Features
 
-BOSS offers the following features:
-(including TODOs)
+BOSS offers the following features (including TODOs):
 
 - [x] A currency system based on valuable resources in the post-apocalyptic world
 - [x] Commands to earn, spend, and trade currency
 - [x] A leaderboard to track the wealthiest players in the server
 - [ ] Automatic currency generation through scavenging and other activities
 - [ ] Customizable settings for server administrators
-- And more!
+
+And more!
+
+## Cogs
+|                      Name | Emoji | Description                                                                                        |
+| ------------------------: | :---: | -------------------------------------------------------------------------------------------------- |
+|   **Resource Repository** |   💰   | Currency management, trading, and base building for managing post-apocalyptic resources.           |
+|    **Wasteland Warriors** |   🎮   | Missions, quests, exploration, and events for engaging gameplay in the post-apocalyptic wasteland. |
+| **Apocalypse Amusements** |   🛠️   | Help, fun commands, web scraping, and developer tools for a variety of miscellaneous features.     |
+|   **Developer Dashboard** |   ⚙️   | Toolkit for developers to customize and extend bot functionality.                                  |
 
 ## Getting Started
 
-To get started with BOSS, simply invite the bot to your Discord server and grant it the necessary permissions. You can then use the `/help` command to view a list of available commands and start earning currency in the post-apocalyptic wasteland.
+To get started with BOSS, simply [invite](https://discord.com/api/oauth2/authorize?client_id=906505022441918485&permissions=139586751552&scope=bot) the bot to your Discord server and grant it the necessary permissions. You can then use the `/help` command to view a list of available commands and start earning currency in the post-apocalyptic wasteland.
 
 ## Credits
 
