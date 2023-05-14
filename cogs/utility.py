@@ -230,24 +230,6 @@ class Utility(commands.Cog, name="Survival Guide"):
                     embed.colour = random.choice(constants.EMBED_COLOURS)
                     await interaction.send(embed=embed)
 
-    async def choose_item_autocomplete(self, interaction: Interaction, data: str):
-        sql = """
-            SELECT name
-            FROM utility.items
-            ORDER BY name
-        """
-        db: Database = self.bot.db
-        result = await db.fetch(sql)
-        items = [i[0] for i in result]
-        if not data:
-            # return full list
-            await interaction.response.send_autocomplete(items)
-            return
-        else:
-            # send a list of nearest matches from the list of item
-            near_items = [item for item in items if data.lower() in item.lower()][:25]
-            await interaction.response.send_autocomplete(near_items)
-
     @nextcord.slash_command()
     async def guide(self, interaction: Interaction):
         """Get help navigating the wasteland with BOSS's guide."""
