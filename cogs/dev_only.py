@@ -76,7 +76,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         items = [i[0] for i in result]
         if not data:
             # return full list
-            await interaction.response.send_autocomplete(items)
+            await interaction.response.send_autocomplete(items[:25])
             return
         else:
             # send a list of nearest matches from the list of item

@@ -53,6 +53,59 @@ class Resource(commands.Cog, name="Resource Repository"):
             asyncpg.exceptions.InterfaceError,
         )
 
+    async def choose_item_autocomplete(self, interaction: Interaction, data: str):
+        sql = """
+            SELECT name
+            FROM utility.items
+            ORDER BY name
+        """
+        db: Database = self.bot.db
+        result = await db.fetch(sql)
+        items = [i[0] for i in result]
+        if not data:
+            # return full list
+            await interaction.response.send_autocomplete(items[:25])
+            return
+        else:
+            # send a list of nearest matches from the list of item
+            near_items = [item for item in items if data.lower() in item.lower()][:25]
+            await interaction.response.send_autocomplete(near_items)
+
+    @nextcord.slash_command()
+    async def item(
+        self,
+        interaction: Interaction,
+        itemname: str = SlashOption(
+            name="item",
+            description="The item to search for",
+            autocomplete_callback=choose_item_autocomplete,
+        ),
+    ):
+        """Get information of an item."""
+        sql = """
+            SELECT *
+            FROM utility.items
+            WHERE name ILIKE $1 or emoji_name ILIKE $1
+            ORDER BY name ASC
+        """
+        db: Database = self.bot.db
+        item = await db.fetchrow(sql, f"%{itemname.lower()}%")
+        if not item:
+            await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
+        else:
+            res = await db.fetch(
+                """
+                SELECT inv_type, quantity
+                FROM players.inventory
+                WHERE player_id = $1 AND item_id = $2
+                """,
+                interaction.user.id,
+                item["item_id"],
+            )
+            owned_quantities = {constants.InventoryType(inv_type).name: quantity for inv_type, quantity in res}
+            embed = functions.get_item_embed(item, owned_quantities)
+            await interaction.send(embed=embed)
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def trade(self, interaction: Interaction):
