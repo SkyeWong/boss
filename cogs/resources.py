@@ -548,7 +548,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     async def use(
         self, interaction: Interaction, itemname: str = SlashOption(name="item", description="The item to use")
     ):
-        """Use an item that you own for some special..."""
+        """Use an item to activiate its unique ability for some special effects or benefits!"""
         pass
 
     @nextcord.slash_command()
