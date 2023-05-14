@@ -123,11 +123,21 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
             await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
             return
 
+        success_msgs = [
+            "You've struck gold! Just kidding, it's just {item}.",
+            "You went bonkers and finally found {item} after hours of work!",
+            "You've found {reward}, which is slightly more valuable than a pile of dirt.",
+            "You've unearthed {reward}. Now you just need to find someone who cares.",
+            "After hours of back-breaking labor, you've found a {reward}. Time to retire.",
+            "You've dug up {reward}. Better luck next time.",
+        ]
         item: BossItem
-        await player.add_item(item.item_id)
+        await player.add_item(item.item_id, item.quantity)
         await interaction.send(
             embed=TextEmbed(
-                f"You went bonkers and finally found a **{await item.get_name(db)}** {await item.get_emoji(db)} after hours of work!"
+                random.choice(success_msgs).format(
+                    item=f"**{item.quantity} {await item.get_name(db)}** {await item.get_emoji(db)}"
+                )
             )
         )
 
@@ -248,7 +258,7 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         elif isinstance(reward, BossItem):
             await player.add_item(reward.item_id, reward.quantity)
             msg = random.choice(success_msgs).format(
-                reward=f"{reward.quantity} **{await reward.get_name(db)}** {await reward.get_emoji(db)}"
+                reward=f"**{reward.quantity} {await reward.get_name(db)}** {await reward.get_emoji(db)}"
             )
         await interaction.send(embed=TextEmbed(msg))
 
@@ -507,6 +517,10 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         # Wait until the start of the next hour before starting the task loop
         start_of_next_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         await nextcord.utils.sleep_until(start_of_next_hour)
+
+    @nextcord.slash_command()
+    async def missions(self, interaction: Interaction):
+        pass
 
 
 def setup(bot: commands.Bot):
