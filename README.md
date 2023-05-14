@@ -3,9 +3,9 @@
 
 > ⚠️ This repo is currently public **only** to let other coders collaborate, people suggest new features, friends view my code. The visibility is subject to change when BOSS is in production. ***Please, do not plagiarise and pass BOSS off as your own idea.***
 
-> ⚠️ BOSS is at its infancy, **none of the commands are 100% guaranteed to work**. However, if you do find a bug, ***please do not hesitate and report it at our [server](https://discord.gg/pWBntSX3bh)***. The help will be appreciated.
+> ⚠️ BOSS is at its infancy, **none of the commands are guaranteed to work 100%**. However, if you do find a bug, ***please do not hesitate to report it on our [server](https://discord.gg/pWBntSX3bh)***. The help will be appreciated.
 
-BOSS is a slash-based currency Discord bot designed for a post-apocalyptic world after World War III. In this new world, resources are scarce and a variety of items have become valuable currency, including scrap metal, ammunition, and other essential resources. BOSS provides a unique currency system that allows users to earn, spend, and trade these valuable items to purchase goods and services.
+BOSS is a slash-based currency Discord bot designed for a post-apocalyptic world after World War III. In this new world, resources are scarce and a variety of items have become valuable currency, including scrap metal, ammunition, and other essential resources. BOSS provides a unique currency system that allows users to earn, spend, and trade these valuable items, which they can use to purchase goods and services.
 
 ## Features
 
@@ -20,7 +20,7 @@ BOSS offers the following features (including TODOs):
 And more!
 
 ## Cogs
-|                      Name | Emoji | Description                                                                                        |
+|                      NAME | EMOJI | DESCRIPTION                                                                                        |
 | ------------------------: | :---: | -------------------------------------------------------------------------------------------------- |
 |   **Resource Repository** |   💰   | Currency management, trading, and base building for managing post-apocalyptic resources.           |
 |    **Wasteland Warriors** |   🎮   | Missions, quests, exploration, and events for engaging gameplay in the post-apocalyptic wasteland. |
