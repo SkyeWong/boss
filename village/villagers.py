@@ -3,7 +3,7 @@ from utils.postgres_db import Database
 
 # my modules
 from utils import constants
-from utils.functions import BossItem, BossPrice
+from utils.helpers import BossItem, BossPrice
 
 # default modules
 import random

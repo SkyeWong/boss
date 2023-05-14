@@ -16,7 +16,7 @@ import asyncpg
 # my modules and constants
 from utils import constants
 from utils.constants import CURRENCY_EMOJIS
-from utils.functions import TextEmbed, check_if_not_dev_guild, BossItem, BossPrice
+from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, BossPrice
 from utils.player import Player
 from views.template_views import ConfirmView
 

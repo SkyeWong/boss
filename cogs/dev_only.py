@@ -11,8 +11,8 @@ import parsedatetime as pdt
 
 # my modules and constants
 from utils.player import Player
-from utils import functions, constants
-from utils.functions import MoveItemException, TextEmbed
+from utils import constants, helpers
+from utils.helpers import MoveItemException, TextEmbed
 
 # views and modals
 from views.dev_views import (
@@ -122,8 +122,8 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
 
         player = Player(self.bot.db, user)
         try:
-            scrap_metal = functions.text_to_num(scrap_metal)
-        except functions.TextToNumException as e:
+            scrap_metal = helpers.text_to_num(scrap_metal)
+        except helpers.TextToNumException as e:
             await interaction.send(
                 embed=Embed(
                     title="Can't set the `scrap metal` to that, try again",
@@ -181,8 +181,8 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
 
         player = Player(self.bot.db, user)
         try:
-            copper = functions.text_to_num(copper)
-        except functions.TextToNumException as e:
+            copper = helpers.text_to_num(copper)
+        except helpers.TextToNumException as e:
             await interaction.send(
                 embed=Embed(
                     title="Can't set the `copper` to that, try again",
@@ -403,8 +403,8 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         for k, price in prices.items():
             # if value in one of these convert them from "2k" to 2000
             try:
-                prices[k] = functions.text_to_num(price)
-            except functions.TextToNumException:
+                prices[k] = helpers.text_to_num(price)
+            except helpers.TextToNumException:
                 errors.append(
                     f"The {k} price is not a valid number. Tip: use `2k` for _2,000_, `5m 4k` for _5,004,000_"
                 )
@@ -463,7 +463,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             )
             raise e
 
-        embed = functions.get_item_embed(item)
+        embed = helpers.get_item_embed(item)
 
         view = View()
 
@@ -612,7 +612,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                         ephemeral=True,
                     )
                 elif isinstance(e, nextcord.HTTPException):
-                    embed, view = functions.get_error_message()
+                    embed, view = helpers.get_error_message()
                     await interaction.send(embed=embed, view=view, ephemeral=True)
                 return
         log_embed = Embed()
@@ -661,7 +661,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                     ephemeral=True,
                 )
             elif isinstance(e, nextcord.HTTPException):
-                embed, view = functions.get_error_message()
+                embed, view = helpers.get_error_message()
                 await interaction.send(embed=embed, view=view, ephemeral=True)
             return
         view = ConfirmChangelogDelete(interaction, message)
@@ -708,7 +708,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                     ephemeral=True,
                 )
             elif isinstance(e, nextcord.HTTPException):
-                embed, view = functions.get_error_message()
+                embed, view = helpers.get_error_message()
                 await interaction.send(embed=embed, view=view, ephemeral=True)
             return
         view = ConfirmChangelogEdit(interaction, message, embed)
@@ -901,7 +901,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         ),
     ):
         """Disable a command globally"""
-        mapping = functions.get_mapping(interaction, self.bot)
+        mapping = helpers.get_mapping(interaction, self.bot)
 
         command = command.strip()
         cmd_found = False
@@ -937,7 +937,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             db: Database = self.bot.db
 
             embed = Embed(title="Successfully disabled the command!")
-            embed.description = f"{functions.format_with_link('Command')} - "
+            embed.description = f"{helpers.format_with_link('Command')} - "
 
             if cmd.children:
                 await db.executemany(
@@ -981,13 +981,13 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
 
             if until:
                 until_ts = int(until.timestamp())
-                embed.description += f"\n{functions.format_with_link('Until')} - <t:{until_ts}:F> • <t:{until_ts}:R>"
+                embed.description += f"\n{helpers.format_with_link('Until')} - <t:{until_ts}:F> • <t:{until_ts}:R>"
             else:
-                embed.description += f"\n{functions.format_with_link('Until')} - forever"
+                embed.description += f"\n{helpers.format_with_link('Until')} - forever"
 
             embed.description += (
-                f"\n{functions.format_with_link('Reason')} - {reason}"
-                f"\n{functions.format_with_link('Extra info')} - {extra_info}"
+                f"\n{helpers.format_with_link('Reason')} - {reason}"
+                f"\n{helpers.format_with_link('Extra info')} - {extra_info}"
             )
 
             await interaction.send(embed=embed)
@@ -1005,7 +1005,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         ),
     ):
         """Enable a command globally"""
-        mapping = functions.get_mapping(interaction, self.bot)
+        mapping = helpers.get_mapping(interaction, self.bot)
 
         command = command.strip()
         cmd_found = False
@@ -1032,7 +1032,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         if cmd_found:
             db: Database = self.bot.db
             embed = Embed(title="Successfully enabled the command!")
-            embed.description = f"{functions.format_with_link('Command')} - "
+            embed.description = f"{helpers.format_with_link('Command')} - "
 
             if cmd.children:
                 await db.executemany(

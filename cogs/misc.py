@@ -9,9 +9,9 @@ import cooldowns
 from cooldowns import SlashBucket
 
 # my modules and constants
-from utils import constants, functions
+from utils import constants, helpers
 from utils.postgres_db import Database
-from utils.functions import check_if_not_dev_guild, TextEmbed
+from utils.helpers import check_if_not_dev_guild, TextEmbed
 
 # command views
 from views.misc_views import (
@@ -98,7 +98,7 @@ class Misc(commands.Cog, name="Apocalypse Amusements"):
                     return self.search_subcommand(x, cmd_name)
 
         if not cmd_found:
-            raise functions.CommandNotFound()
+            raise helpers.CommandNotFound()
         return cmd
 
     def get_all_subcmd_names(self, guild_id: int, cmd):
@@ -158,7 +158,7 @@ class Misc(commands.Cog, name="Apocalypse Amusements"):
         ),
     ):
         """Get a list of commands or info of a specific command."""
-        mapping = functions.get_mapping(interaction, self.bot)
+        mapping = helpers.get_mapping(interaction, self.bot)
 
         if not cmd_name:  # send full command list
             view = HelpView(interaction, mapping)
@@ -224,7 +224,7 @@ class Misc(commands.Cog, name="Apocalypse Amusements"):
                         elif i.children and i.qualified_name in cmd_name:  # subcommand
                             try:
                                 cmd = self.search_subcommand(i, cmd_name)
-                            except functions.CommandNotFound:
+                            except helpers.CommandNotFound:
                                 continue
                             else:
                                 break
@@ -699,7 +699,7 @@ class Misc(commands.Cog, name="Apocalypse Amusements"):
             kwargs = {k: v for k, v in question_res.items() if k in TriviaQuestion.__slots__}
             try:
                 question = TriviaQuestion(**kwargs)
-            except functions.ComponentLabelTooLong:
+            except helpers.ComponentLabelTooLong:
                 continue
             else:
                 view = TriviaView(interaction, question)

@@ -9,8 +9,8 @@ from utils.postgres_db import Database
 # my modules and constants
 from views.template_views import BaseView
 from utils.player import Player
-from utils import constants, functions
-from utils.functions import TextEmbed
+from utils import constants, helpers
+from utils.helpers import TextEmbed
 
 # village utils
 from village.villagers import *

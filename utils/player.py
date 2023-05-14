@@ -8,7 +8,7 @@ from typing import Literal
 from utils.postgres_db import Database
 import asyncpg
 
-from utils import functions
+from utils import helpers
 
 
 class Player:
@@ -60,7 +60,7 @@ class Player:
                 self.user.id,
             )
         else:
-            raise functions.PlayerNotExist()
+            raise helpers.PlayerNotExist()
 
     async def modify_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
         """Modify the player's currency, scrap_metal or copper."""
@@ -80,9 +80,9 @@ class Player:
                     self.user.id,
                 )
             except asyncpg.exceptions.CheckViolationError:
-                raise functions.NegativeBalance()
+                raise helpers.NegativeBalance()
         else:
-            raise functions.PlayerNotExist()
+            raise helpers.PlayerNotExist()
 
     async def modify_scrap(self, value: int):
         """The shorthand function for `Player.modify_currency("scrap_metal", value)`."""
@@ -110,9 +110,9 @@ class Player:
                     self.user.id,
                 )
             except asyncpg.exceptions.CheckViolationError:
-                raise functions.NegativeBalance()
+                raise helpers.NegativeBalance()
         else:
-            raise functions.PlayerNotExist()
+            raise helpers.PlayerNotExist()
 
     async def set_scrap(self, value: int):
         """The shorthand function for `Player.set_currency("scrap_metal", value)`."""
@@ -138,7 +138,7 @@ class Player:
                 self.user.id,
             )
         else:
-            raise functions.PlayerNotExist()
+            raise helpers.PlayerNotExist()
 
     async def add_item(self, item_id: int, quantity: int = 1, inv_type: int = 0):
         """Add an item into the player's inventory."""
@@ -157,4 +157,4 @@ class Player:
                 quantity,
             )
         else:
-            raise functions.PlayerNotExist()
+            raise helpers.PlayerNotExist()

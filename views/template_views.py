@@ -4,8 +4,8 @@ from nextcord import Embed, Interaction, ButtonStyle
 from nextcord.ui import View, Button, button
 
 # my modules and constants
-from utils import constants, functions
-from utils.functions import TextEmbed
+from utils import constants, helpers
+from utils.helpers import TextEmbed
 
 # default modules
 

@@ -9,7 +9,7 @@ import math
 # my modules and constants
 from utils.player import Player
 from utils import constants
-from utils.functions import TextEmbed
+from utils.helpers import TextEmbed
 
 # maze utils
 from maze.maze_utils import Cell

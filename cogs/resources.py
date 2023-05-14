@@ -14,9 +14,9 @@ from utils.postgres_db import Database
 import asyncpg
 
 # my modules and constants
-from utils import constants, functions
+from utils import constants, helpers
 from utils.constants import SCRAP_METAL, COPPER, COPPER_SCRAP_RATE
-from utils.functions import MoveItemException, TextEmbed, check_if_not_dev_guild
+from utils.helpers import MoveItemException, TextEmbed, check_if_not_dev_guild
 from utils.player import Player
 
 # command views
@@ -103,7 +103,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 item["item_id"],
             )
             owned_quantities = {constants.InventoryType(inv_type).name: quantity for inv_type, quantity in res}
-            embed = functions.get_item_embed(item, owned_quantities)
+            embed = helpers.get_item_embed(item, owned_quantities)
             await interaction.send(embed=embed)
 
     @nextcord.slash_command()
@@ -463,8 +463,8 @@ class Resource(commands.Cog, name="Resource Repository"):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
 
         try:
-            amount = functions.text_to_num(amount)
-        except functions.TextToNumException:
+            amount = helpers.text_to_num(amount)
+        except helpers.TextToNumException:
             await interaction.send(embed=TextEmbed("The amount is invalid."))
             return
 
@@ -495,7 +495,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 try:
                     from_amount = await player.modify_currency(from_currency, -amount)
                     to_amount = await player.modify_currency(to_currency, exchanged_amount)
-                except functions.NegativeBalance:
+                except helpers.NegativeBalance:
                     await interaction.send(
                         embed=TextEmbed(f"You don't have that enough {from_currency_msg} to make this exchange.")
                     )

@@ -10,8 +10,8 @@ from utils.postgres_db import Database
 # my modules and constants
 from views.template_views import BaseView
 from utils.player import Player
-from utils import constants, functions
-from utils.functions import TextEmbed
+from utils import constants, helpers
+from utils.helpers import TextEmbed
 
 # default modules
 from io import BytesIO
@@ -342,7 +342,7 @@ class FarmView(BaseView):
 
     async def interaction_check(self, interaction: Interaction) -> bool:
         if not self.is_set_up:  # halt the interaction if `FarmView` is not set up
-            embed, view = functions.get_error_message()
+            embed, view = helpers.get_error_message()
             await interaction.send(embed=embed, view=view, ephemeral=True)
             return False
 

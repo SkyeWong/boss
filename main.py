@@ -16,12 +16,12 @@ import nest_asyncio
 import pytz
 
 # my modules
-from utils import functions, constants
-from utils.functions import TextEmbed
+from utils import constants, helpers
+from utils.helpers import TextEmbed
 from utils.player import Player
 from utils.postgres_db import Database
 from views.misc_views import PersistentWeatherView
-from utils.functions import CommandCheckException
+from utils.helpers import CommandCheckException
 
 # creates a flask app, which lets uptimerobot ping the app to make it stay up
 from keep_alive import keep_alive
@@ -100,7 +100,7 @@ class BossBot(commands.Bot):
             await interaction.send(embed=cd_embed(interaction, error))
             return
 
-        embed, view = functions.get_error_message()
+        embed, view = helpers.get_error_message()
         embed.set_image("https://i.imgur.com/PX67hRV.png")
         if not self.LIVE:
             embed.add_field(name="Error", value=f"```py\n{str(error)[:1000]}\n```")
@@ -166,7 +166,7 @@ async def cmd_check(interaction: Interaction):
                 f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again."
             )
         )
-        raise functions.DatabaseReconnect()
+        raise helpers.DatabaseReconnect()
 
     # Pause execution if command is disabled
     if interaction.guild_id != constants.DEVS_SERVER_ID:  # only check for disabled commands if its not the dev server.
@@ -193,7 +193,7 @@ async def cmd_check(interaction: Interaction):
                 embed.add_field(name="Extra info", value=res[2], inline=False)
 
                 await interaction.send(embed=embed, ephemeral=True)
-                raise functions.DisabledCommand()
+                raise helpers.DisabledCommand()
 
             if until <= datetime.now(tz=utc):
                 await db.execute(
@@ -226,7 +226,7 @@ async def cmd_check(interaction: Interaction):
                 ),  # TODO: add a /guide command and have players use this instead
             ]
         )  # TODO: add a greet message to this
-        raise functions.NewPlayer()
+        raise helpers.NewPlayer()
 
     return True
 

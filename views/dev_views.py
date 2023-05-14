@@ -13,13 +13,13 @@ from asyncpg import Record
 
 # my modules and constants
 from utils.player import Player
-from utils import functions, constants
+from utils import constants, helpers
 
 from views.template_views import BaseView, ConfirmView
 
 
 def _get_item_embed(item: Record):
-    embed = functions.get_item_embed(item)
+    embed = helpers.get_item_embed(item)
 
     embed.add_field(
         name="Emoji",
@@ -121,8 +121,8 @@ class EditItemModal(Modal):
             # if value in one of these convert them from "2k" to 2000
             if column in ("buy_price", "sell_price", "trade_price"):
                 try:
-                    values[column] = functions.text_to_num(inputted_value)
-                except functions.TextToNumException:
+                    values[column] = helpers.text_to_num(inputted_value)
+                except helpers.TextToNumException:
                     errors.append(
                         f"The `{column}` is not a valid number. Tip: use `2k` for _2,000_, `5m 4k` for _5,004,000_"
                     )
