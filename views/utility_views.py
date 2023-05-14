@@ -205,11 +205,11 @@ class GuideView(BaseView):
     pages: list[GuidePage] = [
         GuidePage(
             title="Introduction",
-            description="Welcome to BOSS, the Discord bot for a post-apocalyptic wasteland following World War III. \n"
-            "Scavenge for resources, complete missions, and participate in events to earn valuable currency. \n\n"
+            description="Welcome to BOSS, the bot for a **post-apocalyptic wasteland following World War III**. \n"
+            "Scavenge for resources, complete missions, and participate in events to earn **valuable currency**. \n\n"
             "With BOSS's help, you can navigate this harsh world and build your wealth. "
-            "So join us and let BOSS be your guide to survival and prosperity! \n\n"
-            "To start playing BOSS, use </help:964753444164501505> to view a list of available commands and get started with earning and managing their currency.",
+            "__So join us and let BOSS be your guide to survival and prosperity!__ \n\n"
+            "To start playing, use </help:964753444164501505> to view a list of available commands.",
         ),
         GuidePage(
             title="Currency System",
@@ -217,14 +217,14 @@ class GuideView(BaseView):
             fields=[
                 EmbedField(
                     f"Scrap Metal {SCRAP_METAL}",
-                    "Scrap metal is the basic currency in BOSS, used for everyday transactions. \n"
+                    "Scrap metal is the **basic currency** in BOSS, used for everyday transactions. \n"
                     "It's easy to find and earn, but has a relatively low value compared to other types of currency. "
                     "Users need to manage their scrap metal wisely to build their wealth and survive. ",
                     False,
                 ),
                 EmbedField(
                     f"Copper {COPPER}",
-                    "Copper is a valuable and versatile currency in BOSS, used for creating and repairing weapons, armor, and electronic devices. "
+                    "Copper is a **valuable and versatile currency** in BOSS, used for creating and repairing weapons, armor, and electronic devices. "
                     "Users can earn copper by scavenging for it or completing tasks and challenges. \n"
                     "As a currency, copper is worth more than basic resources like scrap metal or cloth. "
                     "It can be traded for valuable resources like ammunition, fuel, or medicine. \n\n"
@@ -234,12 +234,12 @@ class GuideView(BaseView):
             ],
         ),
         GuidePage(
-            title="How to survive.",
+            title="How to survive",
             description="The ultimate guide to survive in BOSS.",
             fields=[
                 EmbedField(
                     "By scavenging for resources",
-                    "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410> and more! "
+                    "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410>, </scavenge:1106580684786647180> and more! "
                     "Each activity has its own risks and rewards, and users can use the resources they find to build their wealth and purchase goods and services.",
                     False,
                 ),
