@@ -1065,6 +1065,13 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         else:
             await interaction.send(embed=Embed("The command is not found!"))
 
+    @nextcord.slash_command(name="reload-villagers", guild_ids=[constants.DEVS_SERVER_ID])
+    async def reload_villagers(self, interaction: Interaction):
+        """Reload the villagers used in /trade."""
+        cog = self.bot.get_cog("Wasteland Wandering")
+        await cog.update_villagers.__call__()
+        await interaction.send(embed=TextEmbed("Reloaded villagers."))
+
 
 def setup(bot: commands.Bot):
     bot.add_cog(DevOnly(bot))

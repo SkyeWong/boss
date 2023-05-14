@@ -508,12 +508,6 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         start_of_next_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         await nextcord.utils.sleep_until(start_of_next_hour)
 
-    @nextcord.slash_command(name="reload-villagers", guild_ids=[constants.DEVS_SERVER_ID])
-    async def reload_villagers(self, interaction: Interaction):
-        """Reload the villagers used in /trade."""
-        await self.update_villagers.__call__()
-        await interaction.send(embed=TextEmbed("Reloaded villagers."))
-
 
 def setup(bot: commands.Bot):
     bot.add_cog(Survival(bot))
