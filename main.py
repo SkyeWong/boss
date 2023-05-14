@@ -20,7 +20,7 @@ from utils import functions, constants
 from utils.functions import TextEmbed
 from utils.player import Player
 from utils.postgres_db import Database
-from views.scraping_views import PersistentWeatherView
+from views.misc_views import PersistentWeatherView
 from utils.functions import CommandCheckException
 
 # creates a flask app, which lets uptimerobot ping the app to make it stay up

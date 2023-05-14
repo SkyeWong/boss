@@ -33,16 +33,11 @@ import datetime
 import pytz
 
 
-class Survival(commands.Cog, name="Wasteland Wandering"):
-    COG_EMOJI = "🗺️"
+class Survival(commands.Cog, name="Wasteland Warriors"):
+    COG_EMOJI = "🎮"
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.update_villagers.start()
-        self.update_villagers.add_exception_type(
-            asyncpg.PostgresConnectionError,
-            asyncpg.exceptions.InterfaceError,
-        )
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
@@ -438,85 +433,6 @@ class Survival(commands.Cog, name="Wasteland Wandering"):
         """Visit a structure that you have unlocked!"""
         structure_type, structure_name = structure_name.split(" - ")
         await interaction.send(f"You visited a {structure_type} called {structure_name}")
-
-    @nextcord.slash_command()
-    @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
-    async def trade(self, interaction: Interaction):
-        """Trade with villagers for valuable and possibly unique items!"""
-        view = TradeView(interaction)
-        await view.send()
-
-    @tasks.loop(hours=1)
-    async def update_villagers(self):
-        # get a list of names
-        params = {"nameType": "firstname", "quantity": random.randint(10, 18)}
-        headers = {"X-Api-Key": "2a4f04bc0708472d9791240ca7d39476"}
-        async with aiohttp.ClientSession() as session:
-            async with session.get("https://randommer.io/api/Name", params=params, headers=headers) as response:
-                names = await response.json()
-
-        # generate the villagers
-        villagers: list[Villager] = []
-        for name in names:
-            job_type = random.choice(Villager.__subclasses__())
-            villagers.append(job_type(name, self.bot.db))
-
-        # update villagers to database
-        db: Database = self.bot.db
-        if db.pool is None:
-            return
-
-        await db.connect()
-        async with db.pool.acquire() as conn:
-            async with conn.transaction():
-                await conn.execute(
-                    """
-                    TRUNCATE table trades.villagers;
-                    TRUNCATE table trades.villager_remaining_trades;
-                """
-                )
-                # insert the villagers and their trades
-                await conn.executemany(
-                    """
-                    INSERT INTO trades.villagers (id, name, job_title, demands, supplies, num_trades)
-                    VALUES ($1, $2, $3, $4, $5, $6)
-                """,
-                    [
-                        (
-                            i + 1,
-                            villager.name,
-                            villager.job_title,
-                            [
-                                (item.item_id, item.quantity, None, None)
-                                if isinstance(item, TradeItem)
-                                else (None, None, item.price, item.currency_type)
-                                for item in villager.demand
-                            ],
-                            [
-                                (item.item_id, item.quantity, None, None)
-                                if isinstance(item, TradeItem)
-                                else (None, None, item.price, item.currency_type)
-                                for item in villager.supply
-                            ],
-                            villager.remaining_trades,
-                        )
-                        for i, villager in enumerate(villagers)
-                    ],
-                )
-        utc = pytz.timezone("UTC")
-        now = datetime.datetime.now(tz=utc).strftime("%y-%#m-%#d %#H:%#M %Z")
-        print(f"\033[1;30mUpdated villagers at {now}.\033[0m")
-        await db.execute(f"COMMENT ON TABLE trades.villagers IS '{now}'")
-        await self.bot.get_guild(919223073054539858).get_channel(988046548309016586).send(
-            embed=TextEmbed(f"villagers updated at {now}")
-        )
-
-    @update_villagers.before_loop
-    async def before_update_villagers(self):
-        now = datetime.datetime.now()
-        # Wait until the start of the next hour before starting the task loop
-        start_of_next_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-        await nextcord.utils.sleep_until(start_of_next_hour)
 
     @nextcord.slash_command()
     async def missions(self, interaction: Interaction):

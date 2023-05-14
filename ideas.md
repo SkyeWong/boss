@@ -96,14 +96,20 @@ Create special channels where users can post items they want to trade, and negot
 Host special trade events where users can come together to trade items and currency with each other. The bot could facilitate the event by setting up a special channel, announcing the event to all users, and tracking trades as they happen.
 
 ## Cogs
+|                      Name | Emoji | Description                                                                                        |
+| ------------------------: | :---: | -------------------------------------------------------------------------------------------------- |
+|   **Resource Repository** |   💰   | Currency management, trading, and base building for managing post-apocalyptic resources.           |
+|    **Wasteland Warriors** |   🎮   | Missions, quests, exploration, and events for engaging gameplay in the post-apocalyptic wasteland. |
+| **Apocalypse Amusements** |   🛠️   | Help, fun commands, web scraping, and developer tools for a variety of miscellaneous features.     |
+|   **Developer Dashboard** |   ⚙️   | Toolkit for developers to customize and extend bot functionality.                                  |
+<!-- 
+===== LEGACY COGS ===== 
 💰 Resource Reserve (Currency Management)
 🏪 Wasteland Marketplace (Trading and Shop)
 🌟 Reclamation Campaign (Missions and Quests)
 🎉 Survivor Showdown (Events)
-🏆 Apocalypse Elite (Leaderboard)
-📖 BOSS Survival Guide (Help)
-🎲 Gamezone Galore (Fun Commands)
 🕵️‍♂️ Resources Raiding (Web Scraping)
 🏡 Resilient Residence (Base Building)
 🗺️ Wasteland Wanderers (Exploration and Scavenging)
 ⚙️ Dev Console (Developer Toolkit)
+-->

@@ -30,8 +30,6 @@ from collections import defaultdict
 
 
 class DevOnly(commands.Cog, name="Developer Dashboard"):
-    """Commands only for the devs."""
-
     COG_EMOJI = "⚙️"
 
     def __init__(self, bot: commands.Bot):
@@ -1068,7 +1066,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     @nextcord.slash_command(name="reload-villagers", guild_ids=[constants.DEVS_SERVER_ID])
     async def reload_villagers(self, interaction: Interaction):
         """Reload the villagers used in /trade."""
-        cog = self.bot.get_cog("Wasteland Wandering")
+        cog = self.bot.get_cog("Resource Repository")
         await cog.update_villagers.__call__()
         await interaction.send(embed=TextEmbed("Reloaded villagers."))
 
