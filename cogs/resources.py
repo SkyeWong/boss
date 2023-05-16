@@ -722,7 +722,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 LEFT JOIN item_worths AS i
                 ON c.player_id = i.player_id
             )
-            SELECT player_id, PERCENT_RANK() OVER (ORDER BY net_worth) AS percentile
+            SELECT PERCENT_RANK() OVER (ORDER BY net_worth) AS percentile
             FROM net_worths
             """,
             user.id,
