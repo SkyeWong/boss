@@ -701,6 +701,33 @@ class Resource(commands.Cog, name="Resource Repository"):
         if item_worth is None:
             item_worth = 0
 
+        percentile = await db.fetchval(
+            """
+            WITH currencies AS (
+                SELECT player_id, scrap_metal, copper
+                FROM players.players
+                WHERE player_id = $1
+            ),
+            item_worths AS (
+                SELECT inv.player_id, SUM(i.trade_price * inv.quantity) AS item_worth
+                FROM players.inventory AS inv
+                INNER JOIN utility.items AS i
+                ON inv.item_id = i.item_id
+                WHERE player_id = $1
+                GROUP BY inv.player_id
+            ),
+            net_worths AS (
+                SELECT c.player_id, c.scrap_metal, c.copper, i.item_worth, (c.scrap_metal + COALESCE(i.item_worth, 0)) AS net_worth
+                FROM currencies AS c
+                LEFT JOIN item_worths AS i
+                ON c.player_id = i.player_id
+            )
+            SELECT player_id, PERCENT_RANK() OVER (ORDER BY net_worth) AS percentile
+            FROM net_worths
+            """,
+            user.id,
+        )
+
         embed.description = (
             f"**Scrap Metal**: {SCRAP_METAL} {scrap_metal:,}\n"
             f"**Copper**: {COPPER} {copper:,}\n\n"
@@ -708,7 +735,8 @@ class Resource(commands.Cog, name="Resource Repository"):
             f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * 25:,}"
         )
         embed.set_footer(
-            text=f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals."
+            text=f"You are ahead of {(1 - percentile) * 100}% of users!\n"
+            f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals."
         )
 
         await interaction.send(embed=embed)
