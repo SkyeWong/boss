@@ -732,7 +732,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * 25:,}"
         )
         embed.set_footer(
-            text=f"{'You are' if user == interaction.user else f'{user.name} is'} ahead of {rank * 100}% of users!\n"
+            text=f"{'You are' if user == interaction.user else f'{user.name} is'} ahead of {round(rank * 100, 1)}% of users!\n"
             f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals."
         )
 
