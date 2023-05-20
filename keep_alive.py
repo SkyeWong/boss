@@ -14,6 +14,7 @@ def home():
     """
     with open("README.md", "r", encoding="utf-8") as f:
         html += markdown.markdown(f.read())
+    return html
 
 
 def run():
