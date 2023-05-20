@@ -99,16 +99,17 @@ def sec_to_txt(seconds):
 
 def get_mapping(interaction: Interaction, bot: commands.Bot):
     mapping = {}
+    cmd_in_server = lambda cmd: cmd.is_gobal or interaction.guild_id in cmd.guild_ids
 
     for cog_name, cog in bot.cogs.items():
         commands = []
-        for application_cmd in cog.application_commands:
-            cmd_in_guild = False
-            if isinstance(application_cmd, nextcord.SlashApplicationCommand):
-                if application_cmd.is_global or interaction.guild_id in application_cmd.guild_ids:
-                    cmd_in_guild = True
-                if cmd_in_guild:
-                    commands.append(application_cmd)
+        for cmd in cog.application_commands:
+            if isinstance(cmd, nextcord.BaseApplicationCommand):
+                if cmd_in_server(cmd):
+                    commands.append(cmd)
+            elif isinstance(cmd, nextcord.SlashApplicationSubcommand):
+                if cmd_in_server(cmd.parent_cmd):
+                    commands.append(cmd)
         if len(commands) != 0:
             mapping[cog_name] = (cog, commands)
     return mapping

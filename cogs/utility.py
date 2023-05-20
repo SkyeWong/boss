@@ -171,60 +171,49 @@ class Utility(commands.Cog, name="Survival Guide"):
                 if cmd is None:  # no exact match of command
                     await interaction.send(
                         embed=TextEmbed(
-                            "The command is not found! Use </help:964753444164501505> for a list of available commands"
+                            "The command is not found! Use </help:964753444164501505> for a list of available commands."
                         )
                     )
                     return
 
                 # the exact match has been found
-                embed = Embed()
                 name = cmd.qualified_name
-                embed.title = f"Info of </{name}:{list(cmd.command_ids.values())[0]}>"
-                embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
-
                 if len(cmd.children) > 0:
                     # this command has subcommands, send a list of the subcommands
                     view = HelpView(interaction, mapping)
                     view.cmd_list = cmd.children.values()
                     embed = view.help_embed(
-                        description=f">>> {cmd.description}",
+                        description=f"> {cmd.description}",
                         author_name=f"Subcommands of /{name}",
                     )
 
-                    # disable some paginating buttons
+                    # disable certain paginating buttons
                     view.btn_disable()
-
-                    # remove the select menu to choose between cogs
+                    # remove the select menu which allows users to choose different cogs
                     select = [i for i in view.children if i.custom_id == "cog_select"][0]
                     view.remove_item(select)
                     await interaction.send(embed=embed, view=view)
                 else:
                     # this command does not have subcommands,
                     # send values of the command itself
-                    embed.description = cmd.description
+                    embed = Embed()
+                    embed.title = f"</{name}:{list(cmd.command_ids.values())[0]}>"
+                    embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
+                    embed.description = f"> {cmd.description}"
 
                     cmd_options = [i for i in list(cmd.options.values())]
                     usage = f"`/{name} "
 
-                    options_txt = ""
                     for option in cmd_options:
-                        if option.required == True:
+                        if option.require:
                             usage += f"<{option.name}> "
                         else:
                             usage += f"[{option.name}] "
-
-                        options_txt += (
-                            f"**`{option.name}`**: {option.description}\n"
-                            if option.description != "No description provided."
-                            else ""
-                        )
 
                     usage = usage[:-1]  # remove the last space
                     usage += "`"  # make it monospace
 
                     embed.add_field(name="Usage", value=usage, inline=False)
-                    if options_txt != "":
-                        embed.add_field(name="Options", value=options_txt, inline=False)
 
                     embed.set_footer(text="Syntax: <required> [optional]")
                     embed.colour = random.choice(constants.EMBED_COLOURS)

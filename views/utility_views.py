@@ -15,16 +15,24 @@ import math
 
 
 class HelpView(BaseView):
-    def __init__(self, slash_interaction: Interaction, mapping: dict):
+    def __init__(
+        self,
+        slash_interaction: Interaction,
+        mapping: dict = None,
+        cmd_list: str[nextcord.SlashApplicationCommand] = None,
+    ):
         super().__init__(slash_interaction, timeout=90)
 
+        if not mapping and not cmd_list:
+            raise ValueError("Either `mapping` or `cmd_list` should be provided.")
+
         self.mapping = mapping
-        self.cmd_list = []
+        if cmd_list is None:
+            for cog_name, (cog, commands) in mapping.items():
+                self.cmd_list.extend(commands)
+        else:
+            self.cmd_list = cmd_list
 
-        for cog_name, (cog, commands) in mapping.items():
-            self.cmd_list.extend(commands)
-
-        self.cmd_list.sort(key=lambda x: x.qualified_name)
         cog_select_menu = [i for i in self.children if i.custom_id == "cog_select"][0]
         options = self._get_cogs_option()
         cog_select_menu.options = options
@@ -38,7 +46,14 @@ class HelpView(BaseView):
         for cog_name in self.mapping:
             cog = self.mapping[cog_name][0]
             emoji = getattr(cog, "COG_EMOJI", None)
-            options.append(SelectOption(label=cog_name, emoji=emoji, default=False))
+            options.append(
+                SelectOption(
+                    label=cog_name,
+                    description=cog.description[:100] if cog.description else None,
+                    emoji=emoji,
+                    default=False,
+                )
+            )
         options.sort(key=lambda x: x.label)
         return options
 
@@ -48,7 +63,7 @@ class HelpView(BaseView):
         set_author: bool = True,
         author_name: str = "Commands",
     ):
-        command_list = sorted(list(self.cmd_list), key=lambda x: x.qualified_name)
+        command_list = sorted(self.cmd_list, key=lambda x: x.qualified_name)
 
         embed = Embed()
         embed.colour = random.choice(constants.EMBED_COLOURS)
@@ -62,28 +77,9 @@ class HelpView(BaseView):
                 if cog_name == self.default_cog_name:
                     command_list = self.mapping[cog_name][1]
                     break
-        filtered = []
-        for i in command_list:
-            cmd_in_guild = False
-            if isinstance(i, nextcord.SlashApplicationCommand):
-                if i.is_global:
-                    cmd_in_guild = True
-                elif self.interaction.guild_id in i.guild_ids:
-                    cmd_in_guild = True
-            elif isinstance(i, nextcord.SlashApplicationSubcommand):
-                parent_cmd = i.parent_cmd
-                while not isinstance(parent_cmd, nextcord.BaseApplicationCommand):
-                    parent_cmd = parent_cmd.parent_cmd
-                if parent_cmd:
-                    if parent_cmd.is_global:
-                        cmd_in_guild = True
-                    elif self.interaction.guild_id in parent_cmd.guild_ids:
-                        cmd_in_guild = True
-            if cmd_in_guild:
-                filtered.append(i)
-        final_cmd_list = filtered[self.get_page_start_index() : self.get_page_end_index() + 1]
+        final_cmd_list = command_list[self.get_page_start_index() : self.get_page_end_index() + 1]
         for cmd in final_cmd_list:
-            value = cmd.description if cmd.description else "..."
+            value = cmd.description if cmd.description != "No description provided." else "..."
             name = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
             if len(cmd.children) > 0:
                 name += " `has subcommands`"
@@ -128,27 +124,29 @@ class HelpView(BaseView):
         custom_id="cog_select",
     )
     async def select_cog(self, select: nextcord.ui.Select, interaction: Interaction):
-        self.page = 1
-        self.cmd_list = []
-
         selected_values = select.values
         if "All" in [i for i in selected_values if i not in self.old_selected_values]:
             selected_values = ["All"]
         elif "All" in [i for i in self.old_selected_values if i in selected_values]:
             selected_values.remove("All")
 
+        cmd_list = []
         if "All" in selected_values:
             for cog_name, (cog, commands) in self.mapping.items():
-                self.cmd_list.extend(commands)
+                cmd_list.extend(commands)
         else:
             for value in selected_values:
-                self.cmd_list.extend(self.mapping[value][1])
-        self.cmd_list.sort(key=lambda x: x.qualified_name)
+                cmd_list.extend(self.mapping[value][1])
+
+        self.cmd_list = cmd_list
+        self.page = 1
+        # disable the buttons, and make the select menu "sticky"
         self.btn_disable()
         for option in select.options:
             option.default = False
             if option.label in selected_values:
                 option.default = True
+
         await self.get_embed_update_msg(interaction)
         self.old_selected_values = selected_values
 
