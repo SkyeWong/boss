@@ -13,7 +13,7 @@ def home():
         <hr> 
     """
     with open("README.md", "r", encoding="utf-8") as f:
-        html += markdown.markdown(f.read())
+        html += markdown.markdown(f.read(), extensions=["markdown.extensions.tables"])
     return html
 
 

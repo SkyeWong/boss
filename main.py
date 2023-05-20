@@ -125,9 +125,9 @@ class BossBot(commands.Bot):
         embed.set_image("https://i.imgur.com/LjH76fq.png")
         msg = "Running on {}"
         if exc_formatted.find(r"C:\Users\emo") != -1:
-            msg.format("my computer")
+            msg = msg.format("my computer")
         else:
-            msg.format("render.com")
+            msg = msg.format("render.com")
         embed.set_footer(text=msg)
         error_log = self.get_channel(1071712392020500530)
         await error_log.send(embed=embed)
