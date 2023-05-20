@@ -99,7 +99,7 @@ def sec_to_txt(seconds):
 
 def get_mapping(interaction: Interaction, bot: commands.Bot):
     mapping = {}
-    cmd_in_server = lambda cmd: cmd.is_gobal or interaction.guild_id in cmd.guild_ids
+    cmd_in_server = lambda cmd: cmd.is_global or interaction.guild_id in cmd.guild_ids
 
     for cog_name, cog in bot.cogs.items():
         commands = []
