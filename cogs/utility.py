@@ -207,7 +207,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                     usage = f"`/{name} "
 
                     for option in cmd_options:
-                        if option.require:
+                        if option.required:
                             usage += f"<{option.name}> "
                         else:
                             usage += f"[{option.name}] "
