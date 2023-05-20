@@ -28,6 +28,7 @@ class HelpView(BaseView):
 
         self.mapping = mapping
         if cmd_list is None:
+            self.cmd_list = []
             for cog_name, (cog, commands) in mapping.items():
                 self.cmd_list.extend(commands)
         else:
