@@ -55,7 +55,7 @@ from typing import Optional
 
 
 class Misc(commands.Cog, name="Wasteland Workshop"):
-    """A collection of miscellaneous commands and other features"""
+    """A collection of misc commands and other features"""
 
     COG_EMOJI = "🧰"
 

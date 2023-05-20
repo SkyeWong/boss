@@ -118,7 +118,7 @@ class BossBot(commands.Bot):
         embed.description = "**Error**"
         exc = sys.exc_info()
 
-        exc_formatted = traceback.format_exc()
+        exc_formatted = traceback.format_exc().encode()
         print(exc_formatted)
 
         embed.description += f"```py\n{exc_formatted[:4060]}\n```"
