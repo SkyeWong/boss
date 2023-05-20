@@ -30,6 +30,8 @@ from collections import defaultdict
 
 
 class DevOnly(commands.Cog, name="Developer Dashboard"):
+    """Toolkit for developers to assist moderate the bot"""
+
     COG_EMOJI = "⚙️"
 
     def __init__(self, bot: commands.Bot):

@@ -23,8 +23,10 @@ from maze.maze import Maze
 import random
 
 
-class Survival(commands.Cog, name="Wasteland Warriors"):
-    COG_EMOJI = "🎮"
+class Survival(commands.Cog, name="Apocalyptic Adventures"):
+    """Missions, quests, exploration, and events"""
+
+    COG_EMOJI = "🗺️"
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot

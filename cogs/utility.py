@@ -17,6 +17,8 @@ import random
 
 
 class Utility(commands.Cog, name="Survival Guide"):
+    """Essential commands to assist you in the wasteland"""
+
     COG_EMOJI = "📖"
 
     def __init__(self, bot):

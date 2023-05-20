@@ -40,6 +40,8 @@ import math
 
 
 class Resource(commands.Cog, name="Resource Repository"):
+    """Currency management, trading, and base building"""
+
     COG_EMOJI = "🪙"
 
     cooldowns.define_shared_cooldown(1, 8, SlashBucket.author, cooldown_id="sell_items", check=check_if_not_dev_guild)
