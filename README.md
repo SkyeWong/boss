@@ -20,14 +20,14 @@ BOSS offers the following features (including TODOs):
 And more!
 
 ## Cogs
-|                       Name | Emoji | Description                                                |
-| -------------------------: | :---: | ---------------------------------------------------------- |
-|    **Resource Repository** |   🪙   | Currency management, trading, and base building.           |
-| **Apocalyptic Adventures** |   🗺️   | Missions, quests, exploration, and events.                 |
-|     **Wasteland Workshop** |   🧰   | A collection of miscellaneous commands and other features. |
-|  **Survivor's Playground** |   🎢   | Fun commands and mini-games for entertainment.             |
-|         **Survival Guide** |   📖   | Essential commands to assist you in the wasteland.         |
-|    **Developer Dashboard** |   ⚙️   | Toolkit for developers to assist moderate the bot.         |
+|                       Name |  Emoji   | Description                                                |
+| -------------------------: | :------: | ---------------------------------------------------------- |
+|    **Resource Repository** | 🪙 (coin) | Currency management, trading, and base building.           |
+| **Apocalyptic Adventures** |    🗺️     | Missions, quests, exploration, and events.                 |
+|     **Wasteland Workshop** |    🧰     | A collection of miscellaneous commands and other features. |
+|  **Survivor's Playground** |    🎢     | Fun commands and mini-games for entertainment.             |
+|         **Survival Guide** |    📖     | Essential commands to assist you in the wasteland.         |
+|    **Developer Dashboard** |    ⚙️     | Toolkit for developers to assist moderate the bot.         |
 
 ## Getting Started
 
