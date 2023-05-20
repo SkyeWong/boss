@@ -4,6 +4,7 @@ Flask==2.2.2
 function_cooldowns==1.7.0
 google_api_python_client==2.74.0
 nest_asyncio==1.5.6
+Markdown==3.4.3
 nextcord==2.3.2
 numerize==0.12
 parsedatetime==2.6
