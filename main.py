@@ -118,13 +118,13 @@ class BossBot(commands.Bot):
         embed.description = "**Error**"
         exc = sys.exc_info()
 
-        exc_formatted = traceback.format_exc().encode()
+        exc_formatted = traceback.format_exc()
         print(exc_formatted)
 
         embed.description += f"```py\n{exc_formatted[:4060]}\n```"
         embed.set_image("https://i.imgur.com/LjH76fq.png")
         msg = "Running on {}"
-        if "C:\Users\emo" in exc_formatted:
+        if exc_formatted.find(r"C:\Users\emo") != -1:
             msg.format("my computer")
         else:
             msg.format("render.com")
