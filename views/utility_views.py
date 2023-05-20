@@ -19,7 +19,7 @@ class HelpView(BaseView):
         self,
         slash_interaction: Interaction,
         mapping: dict = None,
-        cmd_list: str[nextcord.SlashApplicationCommand] = None,
+        cmd_list: list[nextcord.SlashApplicationCommand] = None,
     ):
         super().__init__(slash_interaction, timeout=90)
 
