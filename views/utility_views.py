@@ -33,7 +33,6 @@ class HelpView(BaseView):
         if cmd_list is None:
             self.cmd_list = []
             for cog_name, (cog, commands) in mapping.items():
-                self.cog_description = cog.description
                 self.cmd_list.extend(commands)
         else:
             self.cmd_list = cmd_list
@@ -68,8 +67,6 @@ class HelpView(BaseView):
         set_author: bool = True,
         author_name: str = "Commands",
     ):
-        command_list = sorted(self.cmd_list, key=lambda x: x.qualified_name)
-
         embed = Embed()
         embed.colour = random.choice(constants.EMBED_COLOURS)
         if description:
@@ -82,13 +79,9 @@ class HelpView(BaseView):
             avatar = self.interaction.client.user.avatar or self.interaction.client.user.default_avatar
             embed.set_author(name=author_name, icon_url=avatar.url)
 
-        if not command_list:
-            for cog_name in self.mapping:
-                if cog_name == self.default_cog_name:
-                    command_list = self.mapping[cog_name][1]
-                    break
-        final_cmd_list = command_list[self.get_page_start_index() : self.get_page_end_index() + 1]
-        for cmd in final_cmd_list:
+        command_list = sorted(self.cmd_list, key=lambda x: x.qualified_name)
+        command_list = command_list[self.get_page_start_index() : self.get_page_end_index() + 1]
+        for cmd in command_list:
             value = cmd.description if cmd.description != "No description provided." else "..."
             name = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
             if len(cmd.children) > 0:
@@ -144,6 +137,7 @@ class HelpView(BaseView):
         if "All" in selected_values:
             for cog_name, (cog, commands) in self.mapping.items():
                 cmd_list.extend(commands)
+            self.cog_description = None
         else:
             for value in selected_values:
                 cmd_list.extend(self.mapping[value][1])
