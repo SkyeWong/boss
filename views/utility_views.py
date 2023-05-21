@@ -140,11 +140,6 @@ class HelpView(BaseView):
         elif "All" in [i for i in self.old_selected_values if i in selected_values]:
             selected_values.remove("All")
 
-        if len(selected_values) == 1:
-            self.cog_description = self.mapping[value][0].description
-        else:
-            self.cog_description = None
-
         cmd_list = []
         if "All" in selected_values:
             for cog_name, (cog, commands) in self.mapping.items():
@@ -152,6 +147,10 @@ class HelpView(BaseView):
         else:
             for value in selected_values:
                 cmd_list.extend(self.mapping[value][1])
+            if len(selected_values) == 1:
+                self.cog_description = self.mapping[value][0].description
+            else:
+                self.cog_description = None
 
         self.cmd_list = cmd_list
         self.page = 1
