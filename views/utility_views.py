@@ -26,10 +26,12 @@ class HelpView(BaseView):
         if not mapping and not cmd_list:
             raise ValueError("Either `mapping` or `cmd_list` should be provided.")
 
+        self.cog_description = None
         self.mapping = mapping
         if cmd_list is None:
             self.cmd_list = []
             for cog_name, (cog, commands) in mapping.items():
+                self.cog_description = cog.description
                 self.cmd_list.extend(commands)
         else:
             self.cmd_list = cmd_list
@@ -70,6 +72,8 @@ class HelpView(BaseView):
         embed.colour = random.choice(constants.EMBED_COLOURS)
         if description:
             embed.description = description
+        if self.cog_description is not None:
+            embed.description += f"\n> {self.cog_description}"
         if set_author:
             avatar = self.interaction.client.user.avatar or self.interaction.client.user.default_avatar
             embed.set_author(name=author_name, icon_url=avatar.url)
@@ -130,6 +134,11 @@ class HelpView(BaseView):
             selected_values = ["All"]
         elif "All" in [i for i in self.old_selected_values if i in selected_values]:
             selected_values.remove("All")
+
+        if len(selected_values) == 1:
+            self.cog_description = self.mapping[value][0].description
+        else:
+            self.cog_description = None
 
         cmd_list = []
         if "All" in selected_values:
