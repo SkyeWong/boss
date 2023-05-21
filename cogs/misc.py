@@ -700,7 +700,8 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
         view.msg = await interaction.send(embed=embed, view=view)
 
-    @nextcord.slash_command(name="upload-imgur")
+    @nextcord.slash_command(name="upload-imgur", guild_ids=[constants.DEVS_SERVER_ID])
+    @application_checks.is_owner()
     async def upload_imgur(
         self,
         interaction: Interaction,
@@ -708,7 +709,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         title: str = SlashOption(description="Title of image (optional)", required=False),
         description: str = SlashOption(description="Description of image (optional)", required=False),
     ):
-        """Uploads an image to imgur anonymously and returns the link"""
+        """Uploads an image to imgur anonymously and returns the link. Only available to owners."""
         payload = {
             "image": image.url,
             "type": "url",
