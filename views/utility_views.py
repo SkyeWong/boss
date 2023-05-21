@@ -15,6 +15,8 @@ import math
 
 
 class HelpView(BaseView):
+    """Displays a list of available commands in BOSS."""
+
     def __init__(
         self,
         slash_interaction: Interaction,
@@ -72,11 +74,14 @@ class HelpView(BaseView):
         embed.colour = random.choice(constants.EMBED_COLOURS)
         if description:
             embed.description = description
+        else:
+            embed.description = ""
         if self.cog_description is not None:
             embed.description += f"\n> {self.cog_description}"
         if set_author:
             avatar = self.interaction.client.user.avatar or self.interaction.client.user.default_avatar
             embed.set_author(name=author_name, icon_url=avatar.url)
+
         if not command_list:
             for cog_name in self.mapping:
                 if cog_name == self.default_cog_name:

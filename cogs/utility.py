@@ -140,8 +140,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                     return
 
                 # at least 1 command has been found, send the view with the command list
-                view = HelpView(interaction, mapping)
-                view.cmd_list = cmds
+                view = HelpView(interaction, cmd_list=cmds)
                 embed = view.help_embed(
                     author_name=f"Commands matching '{cmd_name}'",
                 )
