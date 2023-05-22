@@ -519,12 +519,20 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         if len(temp) > 2:  # fetching info succeeded
             embed.add_field(name=f"Temperature", value=f"{temp[1]} - {temp[2]}°C", inline=True)
             embed.add_field(name=f"Humidty", value=f"{temp[3]}%", inline=True)
-            if temp[2] > 12:
-                embed.colour = 0xFF4365
-            elif temp[2] > 9:
-                embed.colour = 0xEEF36A
+            if temp[2] >= 35:
+                embed.colour = 0xFFE5B4  # light orange
+            elif temp[2] >= 31:
+                embed.colour = 0xF8BBD0  # pale pink
+            elif temp[2] >= 26:
+                embed.colour = 0xFFF9C4  # light yellow
+            elif temp[2] >= 21:
+                embed.colour = 0xFFE0B2  # peach
+            elif temp[2] >= 16:
+                embed.colour = 0xC8E6C9  # pale green
+            elif temp[2] >= 10:
+                embed.colour = 0xC7B8EA  # light purple
             else:
-                embed.colour = 0x6BA368
+                embed.colour = 0xBDD7EE  # pale blue
         else:
             embed.add_field(
                 name="Unavailable",
@@ -589,6 +597,9 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         view = PersistentWeatherView(forecast)
 
         await channel.send(embed=embed, view=view)
+        utc = pytz.timezone("UTC")
+        now = datetime.datetime.now(tz=utc).strftime("%y-%#m-%#d %#H:%#M %Z")
+        print(f"\033[1;30mAnnounced temperature at {now}.\033[0m")
 
     async def search_yt_autocomplete(self, interaction: Interaction, data):
         if not data:
