@@ -520,19 +520,19 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             embed.add_field(name=f"Temperature", value=f"{temp[1]} - {temp[2]}°C", inline=True)
             embed.add_field(name=f"Humidty", value=f"{temp[3]}%", inline=True)
             if temp[2] >= 35:
-                embed.colour = 0xFFE5B4  # light orange
+                embed.colour = 0x9F294C  # dark red
             elif temp[2] >= 31:
-                embed.colour = 0xF8BBD0  # pale pink
+                embed.colour = 0xC38A54  # orange
             elif temp[2] >= 26:
-                embed.colour = 0xFFF9C4  # light yellow
+                embed.colour = 0xC09D63  # yellow
             elif temp[2] >= 21:
-                embed.colour = 0xFFE0B2  # peach
+                embed.colour = 0x879A84  # green
             elif temp[2] >= 16:
-                embed.colour = 0xC8E6C9  # pale green
+                embed.colour = 0x438190  # turqoise
             elif temp[2] >= 10:
-                embed.colour = 0xC7B8EA  # light purple
+                embed.colour = 0x275B80  # dark blue
             else:
-                embed.colour = 0xBDD7EE  # pale blue
+                embed.colour = 0x39517F  # indigo
         else:
             embed.add_field(
                 name="Unavailable",
