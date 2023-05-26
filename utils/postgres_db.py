@@ -1,7 +1,11 @@
-import asyncio, os
-
 import asyncpg
 from asyncpg import Pool
+
+from utils import helpers
+
+import asyncio
+import os
+from datetime import datetime
 
 POSTGRES_PW = os.getenv("POSTGRES_PW")
 
@@ -39,23 +43,21 @@ class Database:
     async def connect(self) -> Pool:
         """Connect to the database and return the connection."""
         if not self.reconnecting and not self.connected:
-            print(f"\033[1;34mConnecting to the database...\033[0m")
+            print(f"\033[1;30m{helpers.get_formatted_time()} \033[1;34mConnecting to the database...\033[0m")
             self.reconnecting = True
             try:
                 self.pool = await asyncpg.create_pool(DSN_DB.format(**self.params))
             finally:
                 self.reconnecting = False
             print(
-                f"\033[1;36m{self.params['user']}\033[0m has connected to the \033[0;34mneon.db database!\033[0m"
+                f"\033[1;30m{helpers.get_formatted_time()} \033[1;36m{self.params['user']}\033[0m has connected to the \033[0;34mneon.db database!\033[0m"
             )
         return self.pool
 
     async def disconnect(self):
         """Disconnect to the database."""
         if self.pool:
-            releases = [self.pool.release(conn) for conn in self.listeners] + [
-                self.pool.close()
-            ]
+            releases = [self.pool.release(conn) for conn in self.listeners] + [self.pool.close()]
             await asyncio.gather(*releases, return_exceptions=True)
 
     async def _execute_method(self, method, *args):

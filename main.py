@@ -1,7 +1,3 @@
-# default modules
-import os, random, sys, traceback
-from datetime import datetime, timezone
-
 # nextcord
 import nextcord
 from nextcord.ext import commands
@@ -15,6 +11,11 @@ import nest_asyncio
 
 import pytz
 
+# creates a flask app, which
+#   lets uptimerobot ping the app to make it stay up, and
+#   uploads the boss' website (https://boss-bot.onrender.com/) to the internet
+from keep_alive import keep_alive
+
 # my modules
 from utils import constants, helpers
 from utils.helpers import TextEmbed
@@ -23,8 +24,10 @@ from utils.postgres_db import Database
 from views.misc_views import PersistentWeatherView
 from utils.helpers import CommandCheckException
 
-# creates a flask app, which lets uptimerobot ping the app to make it stay up
-from keep_alive import keep_alive
+# default modules
+import os, random, sys, traceback
+from datetime import datetime, timezone
+
 
 nest_asyncio.apply()
 
@@ -70,16 +73,16 @@ class BossBot(commands.Bot):
             self.pool = await self.db.connect()
 
         print(
-            f"\033[1;36m{self.user.name} (ID: {self.user.id})\033[0m has connected to discord \033[0;34min {len(self.guilds)} servers!\033[0m"
+            f"\033[1;30m{helpers.get_formatted_time()} \033[1;36m{self.user.name} (ID: {self.user.id})\033[0m has connected to discord \033[0;34min {len(self.guilds)} servers!\033[0m"
         )
 
     async def on_disconnect(self):
         await self.db.disconnect()
-        print("Bot disconnected.")
+        print(f"\033[1;30m{helpers.get_formatted_time()} Bot disconnected.\033[0m")
 
     async def on_close(self):
         await self.db.disconnect()
-        print("Bot closed.")
+        print(f"\033[1;30m{helpers.get_formatted_time()} Bot closed.\033[0m")
 
     async def on_application_command_error(self, interaction: Interaction, error: Exception):
         error = getattr(error, "original", error)

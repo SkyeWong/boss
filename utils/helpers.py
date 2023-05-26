@@ -12,6 +12,7 @@ from utils.postgres_db import Database
 # inbuilt modules
 import math
 import random
+from datetime import datetime
 from typing import Literal, Optional, Union
 
 
@@ -23,20 +24,17 @@ def rounddown(number, round_to):
     return number if number % round_to == 0 else number - number % round_to
 
 
-def delete_field(embed: Embed, field_name: str):
-    for i in range(len(embed.fields)):
-        field = embed.fields[i]
-        if field.name == field_name:
-            embed.remove_field(i)
-    return embed
-
-
 def check_if_it_is_skye(interaction: Interaction):
     return interaction.user.id == 806334528230129695
 
 
 def check_if_not_dev_guild(*args, **kwargs):
     return args[1].guild.id != constants.DEVS_SERVER_ID
+
+
+def get_formatted_time():
+    """Returns the current time in the format "DD <month> YY HH:MM"."""
+    return datetime.now().strftime("%d %B %Y %H:%M")
 
 
 def text_to_num(text: str):
@@ -86,6 +84,19 @@ def text_to_num(text: str):
 
 
 def sec_to_txt(seconds):
+    """
+    Converts a duration in seconds to a human-readable string.
+
+    Args:
+        `seconds`: A non-negative integer representing the duration in seconds.
+
+    Returns:
+        A string representing the duration in a human-readable format.
+        The format is "Xd Yh Zm Ts", where X, Y, Z, and T are non-negative integers
+        representing the number of days, hours, minutes, and seconds respectively.
+        The units are abbreviated as follows: "d" for days, "h" for hours,
+        "m" for minutes, and "s" for seconds.
+    """
     units = {"d": 3600 * 24, "h": 3600, "m": 60, "s": 1}
 
     time_txt = ""
@@ -97,10 +108,29 @@ def sec_to_txt(seconds):
     return time_txt
 
 
-def get_mapping(interaction: Interaction, bot: commands.Bot):
+def get_mapping(interaction: Interaction, bot: commands.Bot = None):
+    """
+    Returns a dictionary mapping each cog in the bot to its associated application commands.
+
+    Args:
+        `interaction`: A `nextcord.Interaction` object representing the user interaction.
+        `bot`: A `commands.Bot` object representing the Discord bot, which defaults to `interaction.client`.
+
+    Returns:
+        A `dict` mapping each cog in the bot to a tuple containing the cog object
+        and a list of application commands associated with that cog.
+
+        >>> {
+        ...     cog_name: (cog, cog_commands)
+        ... }
+
+        The application commands are filtered based on whether they are global or
+        specific to the server where the interaction occurred.
+    """
     mapping = {}
     cmd_in_server = lambda cmd: cmd.is_global or interaction.guild_id in cmd.guild_ids
-
+    if bot is None:
+        bot = interaction.client
     for cog_name, cog in bot.cogs.items():
         commands = []
         for cmd in cog.application_commands:
@@ -185,7 +215,6 @@ def format_with_link(text: str):
 
 
 class TextEmbed(Embed):
-
     """A `nextcord.Embed` with the description set as `text`."""
 
     def __init__(self, text: str):
