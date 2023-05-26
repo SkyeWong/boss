@@ -184,9 +184,9 @@ class TradeView(BaseView):
 
         async with db.pool.acquire() as conn:
             async with conn.transaction():
-                player_scrap = await conn.fetchval(
+                player_currency = await conn.fetchval(
                     """
-                    SELECT scrap_metal
+                    SELECT scrap_metal, copper
                     FROM players.players
                     WHERE player_id = $1
                     """,
@@ -209,7 +209,7 @@ class TradeView(BaseView):
                     multiplier = -1 if trade_type == "demand" else 1
                     for item in trade_items:
                         if isinstance(item, TradePrice):
-                            if trade_type == "demand" and player_scrap < item.price:
+                            if trade_type == "demand" and player_currency[item.currency_type] < item.price:
                                 await interaction.send(
                                     embed=TextEmbed("You don't have enough scrap metal."),
                                     ephemeral=True,
