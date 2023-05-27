@@ -169,10 +169,11 @@ class TradeView(BaseView):
 
     @button(label="Trade", style=ButtonStyle.blurple, custom_id="trade")
     async def trade(self, button: Button, interaction: Interaction):
+        """Handle the player's trade with a villager."""
         current_villager = self.current_villager
-        remaining_trades = current_villager.remaining_trades
 
-        if remaining_trades <= 0:
+        # If there are no remaining trades for the villager, send a message to the player and return
+        if current_villager.remaining_trades <= 0:
             await interaction.send(
                 embed=TextEmbed(f"{current_villager.name} is out of stock. Maybe try again later."),
                 ephemeral=True,
@@ -184,7 +185,8 @@ class TradeView(BaseView):
 
         async with db.pool.acquire() as conn:
             async with conn.transaction():
-                player_currency = await conn.fetchval(
+                # Retrieve the player's currency and inventory from the database
+                player_currency = await conn.fetchrow(
                     """
                     SELECT scrap_metal, copper
                     FROM players.players
@@ -202,6 +204,7 @@ class TradeView(BaseView):
                     interaction.user.id,
                 )
 
+                # Iterate through the villager's demands and supplies
                 for trade_type, trade_items in {
                     "demand": current_villager.demand,
                     "supply": current_villager.supply,
@@ -209,6 +212,7 @@ class TradeView(BaseView):
                     multiplier = -1 if trade_type == "demand" else 1
                     for item in trade_items:
                         if isinstance(item, TradePrice):
+                            # If the trade is a demand and the player does not have enough currency, send a message to the player and return
                             if trade_type == "demand" and player_currency[item.currency_type] < item.price:
                                 await interaction.send(
                                     embed=TextEmbed("You don't have enough scrap metal."),
@@ -216,13 +220,13 @@ class TradeView(BaseView):
                                 )
                                 return
 
+                            # Deduct the required amount of currency from the player's account
                             required_price = multiplier * item.price
                             await player.modify_currency(item.currency_type, required_price)
                         elif isinstance(item, TradeItem):
-                            owned_quantity = next(
-                                (x["quantity"] for x in inventory if x["item_id"] == item.item_id),
-                                0,
-                            )
+                            # get the quantity of the item the player owns with a generator expression
+                            owned_quantity = next((x["quantity"] for x in inventory if x["item_id"] == item.item_id), 0)
+                            # If the trade is a demand and the player does not have enough of the item, send a message to the player and return
                             if trade_type == "demand" and owned_quantity < item.quantity:
                                 await interaction.send(
                                     embed=TextEmbed(
@@ -233,8 +237,10 @@ class TradeView(BaseView):
                                 return
 
                             required_quantity = multiplier * item.quantity
+                            # Add/remove the required amount of items to/from the player's inventory
                             await player.add_item(item.item_id, required_quantity)
 
+                # Update the remaining trades for the current villager with the player in the database
                 current_villager.remaining_trades = await db.fetchval(
                     """
                     INSERT INTO trades.villager_remaining_trades AS t (player_id, villager_id, remaining_trades)
@@ -251,8 +257,9 @@ class TradeView(BaseView):
                     current_villager.villager_id,
                 )
 
+        # Update the message to show the new remaining trades
         embed = await self.get_embed()
         await interaction.response.edit_message(embed=embed, view=self)
-
+        # Send a message to the player indicating what they received from the trade
         demand_msg, supply_msg = await current_villager.format_trade()
         await interaction.send(embed=TextEmbed(f"You successfully received: {supply_msg}"), ephemeral=True)

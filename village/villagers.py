@@ -193,8 +193,13 @@ class Archaeologist(Villager):
                 "trades": 3,
             },
             {
-                "demand": [TradeItem(46, round(rand * 5))],  # banknote
-                "supply": [TradePrice.from_range(round(rand * 5 * 150_000), round(rand * 5 * 210_000))],
+                "demand": [TradePrice.from_range(round(rand * 2 * 6_000_000), round(rand * 2 * 10_000_000))],
+                "supply": [TradeItem(27, round(rand * 2))],  # ancient coin
+                "trades": 3,
+            },
+            {
+                "demand": [TradePrice.from_range(round(rand * 5 * 150_000), round(rand * 5 * 210_000))],
+                "supply": [TradeItem(46, round(rand * 5))],  # banknote
                 "trades": 10,
             },
         ]
