@@ -11,10 +11,11 @@ from views.template_views import BaseView
 
 from numerize import numerize
 import pytz
+import googleapiclient.discovery
 
 # default modules
 import datetime
-from typing import Optional
+from typing import Optional, Literal
 import enum
 import random
 import math
@@ -357,10 +358,22 @@ class Video:
 
 
 class VideoView(BaseView):
-    def __init__(self, slash_interaction: Interaction, videos: list[Video]):
+    def __init__(
+        self,
+        slash_interaction: Interaction,
+        videos: list[Video],
+        query: str,
+        prev_page_token: str = None,
+        next_page_token: str = None,
+        list_index: int = 1,
+    ):
         super().__init__(slash_interaction, timeout=60)
+        self.query = query
+        self.prev_page_token = prev_page_token
+        self.next_page_token = next_page_token
+        self.list_index = list_index
         self.videos = videos
-        self.page = 0
+        self.video_page = 0
 
         video_select = [i for i in self.children if i.custom_id == "video_select"][0]
         video_select.options = [
@@ -370,12 +383,14 @@ class VideoView(BaseView):
 
     def get_embed(self):
         embed = Embed()
-        video = self.videos[self.page]
+        video = self.videos[self.video_page]
 
         embed.set_author(name=video.channel_title)
         embed.colour = 0xDBFCFF
 
-        embed.set_footer(text=f"Page {self.page + 1}/{len(self.videos)}")  # + 1 because self.page uses zero-indexing
+        embed.set_footer(
+            text=f"Page {self.list_index} • Video {self.video_page + 1}/{len(self.videos)}"
+        )  # + 1 because self.page uses zero-indexing
 
         embed.set_thumbnail(url=video.thumbnail_url)
 
@@ -388,7 +403,7 @@ class VideoView(BaseView):
                 value=f"\n>>> {video.description[:200]}...",
                 inline=False,
             )
-        else:
+        elif video.description:
             embed.add_field(name="Description", value=f"\n>>> {video.description}", inline=False)
 
         embed.add_field(
@@ -406,7 +421,7 @@ class VideoView(BaseView):
     def disable_buttons(self):
         back_btn = [i for i in self.children if i.custom_id == "back"][0]
         first_btn = [i for i in self.children if i.custom_id == "first"][0]
-        if self.page == 0:
+        if self.video_page == 0:
             back_btn.disabled = True
             first_btn.disabled = True
         else:
@@ -414,16 +429,20 @@ class VideoView(BaseView):
             first_btn.disabled = False
         next_btn = [i for i in self.children if i.custom_id == "next"][0]
         last_btn = [i for i in self.children if i.custom_id == "last"][0]
-        if self.page == len(self.videos) - 1:
+        if self.video_page == len(self.videos) - 1:
             next_btn.disabled = True
             last_btn.disabled = True
         else:
             next_btn.disabled = False
             last_btn.disabled = False
+        less_btn = [i for i in self.children if i.custom_id == "less"][0]
+        less_btn.disabled = not bool(self.prev_page_token)
+        more_btn = [i for i in self.children if i.custom_id == "more"][0]
+        more_btn.disabled = not bool(self.next_page_token)
 
     @select(placeholder="Choose a video...", custom_id="video_select")
     async def choose_video(self, select: Select, interaction: Interaction):
-        self.page = int(select.values[0])  # the value is set to the index of the video
+        self.video_page = int(select.values[0])  # the value is set to the index of the video
 
         self.disable_buttons()
         embed = self.get_embed()
@@ -431,7 +450,7 @@ class VideoView(BaseView):
 
     @button(emoji="⏮️", style=ButtonStyle.blurple, custom_id="first", disabled=True)
     async def first(self, button: Button, interaction: Interaction):
-        self.page = 0
+        self.video_page = 0
 
         self.disable_buttons()
         embed = self.get_embed()
@@ -439,19 +458,15 @@ class VideoView(BaseView):
 
     @button(emoji="◀️", style=ButtonStyle.blurple, disabled=True, custom_id="back")
     async def back(self, button: Button, interaction: Interaction):
-        self.page -= 1
+        self.video_page -= 1
 
         self.disable_buttons()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
 
-    @button(emoji="📽️", style=ButtonStyle.grey, custom_id="video")
-    async def show_video(self, button: Button, interaction: Interaction):
-        await interaction.send(self.videos[self.page].link, ephemeral=True)
-
     @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
     async def next(self, button: Button, interaction: Interaction):
-        self.page += 1
+        self.video_page += 1
 
         self.disable_buttons()
         embed = self.get_embed()
@@ -459,23 +474,115 @@ class VideoView(BaseView):
 
     @button(emoji="⏭️", style=ButtonStyle.blurple, custom_id="last")
     async def last(self, button: Button, interaction: Interaction):
-        self.page = len(self.videos) - 1
+        self.video_page = len(self.videos) - 1
 
         self.disable_buttons()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
 
-    # @button(emoji="📃", style=ButtonStyle.grey, custom_id="description", row=2)
-    # async def show_description(self, button: Button, interaction: Interaction):
-    #     embed = Embed()
-    #     video = self.videos[self.page]
+    @button(emoji="📽️", style=ButtonStyle.grey, custom_id="video", row=2)
+    async def show_video(self, button: Button, interaction: Interaction):
+        await interaction.send(self.videos[self.video_page].link, ephemeral=True)
 
-    #     embed.set_author(name=video.title)
-    #     embed.set_thumbnail(url=video.thumbnail_url)
-    #     embed.description = video.description[
-    #         :4096
-    #     ]  # upper limit for description length is 4096.
-    #     await interaction.send(embed=embed, ephemeral=True)
+    @button(emoji="📃", style=ButtonStyle.grey, custom_id="description", row=2)
+    async def show_description(self, button: Button, interaction: Interaction):
+        embed = Embed()
+        video = self.videos[self.video_page]
+
+        embed.set_author(name=video.title)
+        embed.set_thumbnail(url=video.thumbnail_url)
+        embed.description = video.description[:4096]  # upper limit for description length is 4096.
+        await interaction.send(embed=embed, ephemeral=True)
+
+    async def show_video_list(self, interaction: Interaction, type: Literal["prev", "next"]):
+        api_service_name = "youtube"
+        api_version = "v3"
+        dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
+
+        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+        search_response = (
+            youtube.search()
+            .list(
+                part="snippet",
+                type="video",
+                q=self.query,
+                pageToken=self.next_page_token if type == "next" else self.prev_page_token,
+                maxResults=25,
+            )
+            .execute()
+        )
+        video_ids = [i["id"]["videoId"] for i in search_response["items"]]
+
+        videos_response = (
+            youtube.videos().list(part="snippet,contentDetails,statistics", id=",".join(video_ids)).execute()
+        )
+
+        videos = [Video.from_api_response(video) for video in videos_response["items"]]
+        view = VideoView(
+            interaction,
+            videos,
+            self.query,
+            prev_page_token=search_response.get("prevPageToken"),
+            next_page_token=search_response.get("nextPageToken"),
+            list_index=self.list_index + (+1 if type == "next" else -1),
+        )
+
+        embed = view.get_embed()
+        view.disable_buttons()
+        msg = await interaction.response.edit_message(embed=embed, view=view)
+        view.msg = msg
+
+    @button(label="Prev", style=ButtonStyle.grey, custom_id="less", row=2)
+    async def show_less_videos(self, button: Button, interaction: Interaction):
+        await self.show_video_list(interaction, "prev")
+
+    @button(label="Next", style=ButtonStyle.grey, custom_id="more", row=2)
+    async def show_more_videos(self, button: Button, interaction: Interaction):
+        await self.show_video_list(interaction, "next")
+
+
+class ChannelVideoView(VideoView):
+    def __init__(
+        self,
+        slash_interaction: Interaction,
+        videos: list[Video],
+        playlist_id: str,
+        prev_page_token: str = None,
+        next_page_token: str = None,
+        list_index: int = 1,
+    ):
+        super().__init__(slash_interaction, videos, "", prev_page_token, next_page_token, list_index)
+        self.playlist_id = playlist_id
+
+    async def show_video_list(self, interaction: Interaction, type: Literal["prev", "next"]):
+        api_service_name = "youtube"
+        api_version = "v3"
+        dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
+
+        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+        playlist_response = (
+            youtube.playlistItems().list(part="contentDetails", playlistId=self.playlist_id, maxResults=25).execute()
+        )
+
+        videos_response = (
+            youtube.videos()
+            .list(
+                part="snippet,contentDetails,statistics",
+                id=",".join([video["contentDetails"]["videoId"] for video in playlist_response["items"]]),
+            )
+            .execute()
+        )
+        videos = [Video.from_api_response(video) for video in videos_response["items"]]
+        view = ChannelVideoView(
+            interaction,
+            videos,
+            self.playlist_id,
+            prev_page_token=playlist_response.get("prevPageToken"),
+            next_page_token=playlist_response.get("nextPageToken"),
+        )
+        embed = view.get_embed()
+        msg = await interaction.response.edit_message(embed=embed, view=view)
+        view.msg = msg
 
 
 class MtrLine(enum.Enum):

@@ -1,8 +1,8 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands, tasks, application_checks
-from nextcord import Embed, Interaction, SlashOption
-from nextcord.ui import View, Button
+from nextcord import Embed, Interaction, SlashOption, SelectOption
+from nextcord.ui import View, Button, Select
 
 # command cooldowns
 import cooldowns
@@ -18,6 +18,7 @@ from views.misc_views import (
     WeatherView,
     PersistentWeatherView,
     VideoView,
+    ChannelVideoView,
     Video,
     MtrLine,
     LINE_STATION_CODES,
@@ -625,58 +626,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         else:
             await interaction.response.send_autocomplete([data] + results[:24])
 
-    @nextcord.slash_command(name="search-channel", guild_ids=[constants.DEVS_SERVER_ID])
-    @application_checks.is_owner()
-    async def find_yt_channel(
-        self,
-        interaction: Interaction,
-        channel: str = SlashOption(
-            description="The name of the channel to search for",
-            autocomplete_callback=search_yt_autocomplete,
-        ),
-    ):
-        """Finds the newest videos of a channel"""
-        api_service_name = "youtube"
-        api_version = "v3"
-        dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
-
-        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
-        search_response = (
-            youtube.search().list(part="snippet", type="channel", q=channel, maxResults=1).execute()["items"][0]
-        )
-
-        channel_response = (
-            youtube.channels()
-            .list(
-                part="snippet,contentDetails",
-                id=search_response["snippet"]["channelId"],
-                maxResults=25,
-            )
-            .execute()["items"][0]
-        )
-
-        playlist = channel_response["contentDetails"]["relatedPlaylists"]["uploads"]
-
-        playlist_response = (
-            youtube.playlistItems().list(part="contentDetails", playlistId=playlist, maxResults=25).execute()["items"]
-        )
-
-        videos_response = (
-            youtube.videos()
-            .list(
-                part="snippet,contentDetails,statistics",
-                id=",".join([video["contentDetails"]["videoId"] for video in playlist_response]),
-            )
-            .execute()["items"]
-        )
-
-        videos = [Video.from_api_response(video) for video in videos_response]
-        view = VideoView(interaction, videos)
-
-        embed = view.get_embed()
-
-        view.msg = await interaction.send(embed=embed, view=view)
-
     @nextcord.slash_command(name="search-youtube", guild_ids=[constants.DEVS_SERVER_ID])
     @application_checks.is_owner()
     async def search_youtube(
@@ -688,28 +637,119 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             required=True,
             min_length=3,
         ),
+        order: str = SlashOption(
+            description="How the results should be arranged.",
+            choices={
+                "Date - reverse order of when the results are created": "date",
+                "Rating - descending order of the results' likes.": "rating",
+                "Relevance - how closely results match the search query": "relevance",
+                "Title - sorted alphabetically by the results' titles": "title",
+                "Views - descending number of views": "viewCount",
+            },
+            default="relevance",
+            required=False,
+        ),
+        filter_duration: str = SlashOption(
+            description="Filter video search results based on their duration.",
+            choices={
+                "No Filters": "any",
+                "Long - longer than 20 minutes": "long",
+                "Medium - between 4 minutes and 20 minutes long": "medium",
+                "Short - shorter than 4 minutes": "short",
+            },
+            default="any",
+            required=False,
+        ),
+        limit_channel: bool = SlashOption(
+            description="Whether to filter the results on only 1 channel. This unsets any filters",
+            required=False,
+            default=False,
+        ),
     ):
         """Searches for videos on Youtube"""
-        s = Search(query)
-
-        video_ids = [video.video_id for video in s.results][:25]
-
+        # initalise the youtube api cilent
         api_service_name = "youtube"
         api_version = "v3"
         dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
-
         youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
 
-        videos_response = (
-            youtube.videos().list(part="snippet,contentDetails,statistics", id=",".join(video_ids)).execute()["items"]
-        )
+        if limit_channel:
+            # limit the responses to only 1 channel, here we search for the channels that match the name
+            channels = youtube.search().list(part="snippet", type="channel", q=query, maxResults=25).execute()["items"]
+            # let users select a channel through a select menu
+            view = View()
+            embed = TextEmbed("Choose a channel:")
+            channel_select = Select(
+                # the value of the option is set to the channel id
+                options=[SelectOption(label=i["snippet"]["title"], value=i["id"]["channelId"]) for i in channels]
+            )
 
-        videos = [Video.from_api_response(video) for video in videos_response]
-        view = VideoView(interaction, videos)
+            async def choose_channel(select_interaction: Interaction):
+                # fetch the "uploads" playlist of the channel selected
+                channel = (
+                    youtube.channels()
+                    .list(
+                        part="snippet,contentDetails",
+                        id=channel_select.values[0],
+                        maxResults=1,
+                    )
+                    .execute()["items"][0]
+                )
+                playlist_id = channel["contentDetails"]["relatedPlaylists"]["uploads"]
+                playlist_response = (
+                    youtube.playlistItems().list(part="contentDetails", playlistId=playlist_id, maxResults=25).execute()
+                )
 
-        embed = view.get_embed()
+                # fetch the the details of each video in the playlist
+                videos_response = (
+                    youtube.videos()
+                    .list(
+                        part="snippet,contentDetails,statistics",
+                        id=",".join([video["contentDetails"]["videoId"] for video in playlist_response["items"]]),
+                    )
+                    .execute()
+                )
+                videos = [Video.from_api_response(video) for video in videos_response["items"]]
+                # the ChannelVideoView view overrides the default "show next page" behaviour
+                view = ChannelVideoView(
+                    interaction,
+                    videos,
+                    playlist_id,
+                    prev_page_token=playlist_response.get("prevPageToken"),
+                    next_page_token=playlist_response.get("nextPageToken"),
+                )
+                embed = view.get_embed()
+                view.msg = await select_interaction.response.edit_message(embed=embed, view=view)
 
-        view.msg = await interaction.send(embed=embed, view=view)
+            channel_select.callback = choose_channel
+            view.add_item(channel_select)
+            await interaction.send(embed=embed, view=view)
+        else:
+            # search for videos with the given query, note that only "snippet" part is supported
+            search_response = (
+                youtube.search()
+                .list(part="snippet", type="video", q=query, order=order, videoDuration=filter_duration, maxResults=25)
+                .execute()
+            )
+            video_ids = [i["id"]["videoId"] for i in search_response["items"]]
+            # get more details on the videos
+            videos_response = (
+                youtube.videos().list(part="snippet,contentDetails,statistics", id=",".join(video_ids)).execute()
+            )
+
+            videos = [Video.from_api_response(video) for video in videos_response["items"]]
+            view = VideoView(
+                interaction,
+                videos,
+                query,
+                prev_page_token=search_response.get("prevPageToken"),
+                next_page_token=search_response.get("nextPageToken"),
+            )
+
+            embed = view.get_embed()
+            view.disable_buttons()
+
+            view.msg = await interaction.send(embed=embed, view=view)
 
     @nextcord.slash_command(name="upload-imgur", guild_ids=[constants.DEVS_SERVER_ID])
     @application_checks.is_owner()
