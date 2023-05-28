@@ -288,6 +288,19 @@ class Video:
         views,
         likes,
     ):
+        """Initializes a Video object.
+
+        Args:
+            title: The title of the video.
+            description: The description of the video.
+            channel_title: The title of the channel that uploaded the video.
+            link: The URL of the video.
+            published_time: The time at which the video was published.
+            thumbnail_url: The URL of the thumbnail image for the video.
+            duration: The duration of the video in seconds.
+            views: The number of views that the video has received.
+            likes: The number of likes that the video has received.
+        """
         self.title = title
         self.description = description
         self.channel_title = channel_title
@@ -300,7 +313,14 @@ class Video:
 
     @classmethod
     def from_api_response(cls, video_response):
-        """Generates a `Video` from the youtube api response. Should include `snippet`, `contentDetails`, `statistics` for the response `part`."""
+        """Generates a `Video` from the YouTube API response.
+
+        Args:
+            video_response: The YouTube API response for the video.
+
+        Returns:
+            A `Video` object.
+        """
         title = video_response["snippet"]["title"]
         description = video_response["snippet"]["description"]
 
@@ -358,6 +378,18 @@ class Video:
 
 
 class VideoView(BaseView):
+    """
+    A custom view to display a list of YouTube videos and their details.
+
+    Attributes:
+        slash_interaction (Interaction): The interaction object for the slash command.
+        videos (list[Video]): A list of Video objects.
+        query (str): The search query used to find the videos.
+        prev_page_token (str): The token for the previous page of videos.
+        next_page_token (str): The token for the next page of videos.
+        list_index (int): The index of the current list of videos being displayed.
+    """
+
     def __init__(
         self,
         slash_interaction: Interaction,
@@ -386,7 +418,6 @@ class VideoView(BaseView):
         video = self.videos[self.video_page]
 
         embed.set_author(name=video.channel_title)
-        embed.colour = 0xDBFCFF
 
         embed.set_footer(
             text=f"Page {self.list_index} • Video {self.video_page + 1}/{len(self.videos)}"

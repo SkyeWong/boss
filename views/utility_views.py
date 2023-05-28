@@ -23,13 +23,27 @@ class HelpView(BaseView):
         mapping: dict = None,
         cmd_list: list[nextcord.SlashApplicationCommand] = None,
     ):
+        """Initializes the HelpView.
+
+        Args:
+            slash_interaction: The interaction that triggered the view.
+            mapping: A dictionary mapping the name of a command group to a tuple containing the command group object and a list of commands in the group.
+            cmd_list: A selected list of commands to display (for example, the subcommands of a command).
+
+        Raises:
+            ValueError: If neither `mapping` nor `cmd_list` is provided.
+        """
+
         super().__init__(slash_interaction, timeout=90)
 
+        # Check that either `mapping` or `cmd_list` is provided.
         if not mapping and not cmd_list:
             raise ValueError("Either `mapping` or `cmd_list` should be provided.")
 
+        # Set the cog description.
         self.cog_description = None
-        self.mapping = mapping
+
+        # Set the mapping of cog names to lists of commands.
         if cmd_list is None:
             self.cmd_list = []
             for cog_name, (cog, commands) in mapping.items():
@@ -37,16 +51,31 @@ class HelpView(BaseView):
         else:
             self.cmd_list = cmd_list
 
+        # set the options of the cog select menu
         cog_select_menu = [i for i in self.children if i.custom_id == "cog_select"][0]
-        options = self._get_cogs_option()
+        options = self._get_cogs_options()
         cog_select_menu.options = options
         cog_select_menu.max_values = len(options)
+
+        # Set the initial page number to 1.
         self.page = 1
+
+        # Set the number of commands per page to 6.
         self.cmd_per_page = 6
+
+        # Set the old selected values to ["All"].
         self.old_selected_values = ["All"]
 
-    def _get_cogs_option(self) -> list[SelectOption]:
-        options: list[SelectOption] = [SelectOption(label="All", emoji="🌐", default=True)]
+    def _get_cogs_options(self) -> list[SelectOption]:
+        """Gets a list of SelectOption objects for the cogs.
+
+        Returns:
+            A list of SelectOption objects.
+        """
+
+        # Create a list of SelectOption objects for the cogs.
+        options = []
+        options.append(SelectOption(label="All", emoji="🌐", default=True))
         for cog_name in self.mapping:
             cog = self.mapping[cog_name][0]
             emoji = getattr(cog, "COG_EMOJI", None)
@@ -58,7 +87,10 @@ class HelpView(BaseView):
                     default=False,
                 )
             )
+
+        # Sort the options by label.
         options.sort(key=lambda x: x.label)
+
         return options
 
     def help_embed(
@@ -66,38 +98,87 @@ class HelpView(BaseView):
         description: Optional[str] = None,
         set_author: bool = True,
         author_name: str = "Commands",
-    ):
+    ) -> Embed:
+        """Creates an embed with a list of all the commands in the bot.
+
+        Args:
+            description: Optional description to add to the embed.
+            set_author: Whether to set the author of the embed.
+            author_name: The name of the author of the embed.
+
+        Returns:
+            The created embed.
+        """
+
         embed = Embed()
         embed.colour = random.choice(constants.EMBED_COLOURS)
+
+        # If a description is provided, add it to the embed.
         if description:
             embed.description = description
-        else:
-            embed.description = ""
+
+        # If a cog description is provided, add it to the embed.
         if self.cog_description is not None:
             embed.description += f"\n> {self.cog_description}"
+
+        # If the author should be set, set the author of the embed to the bot's user.
         if set_author:
             avatar = self.interaction.client.user.avatar or self.interaction.client.user.default_avatar
             embed.set_author(name=author_name, icon_url=avatar.url)
 
+        # Get a list of all the commands in the bot.
         command_list = sorted(self.cmd_list, key=lambda x: x.qualified_name)
-        command_list = command_list[self.get_page_start_index() : self.get_page_end_index() + 1]
-        for cmd in command_list:
+
+        # Get the start and end indices of the current page of commands.
+        start_index = self.get_page_start_index()
+        end_index = self.get_page_end_index() + 1
+
+        # Iterate over the commands on the current page.
+        for cmd in command_list[start_index:end_index]:
+            # Get the command's description.
             value = cmd.description if cmd.description != "No description provided." else "..."
+
+            # Get the command's name.
             name = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
+
+            # If the command has subcommands, add a `has subcommands` suffix to the name.
             if len(cmd.children) > 0:
                 name += " `has subcommands`"
+
+            # Add a field to the embed with the command's name and description.
             embed.add_field(name=name, value=f"`➸` {value}", inline=False)
+
+        # Set the footer of the embed with the current page number and the total number of pages.
         embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}")
+
         return embed
 
     def get_page_start_index(self):
+        """
+        Returns the start index of the current page of commands.
+        For example, if `self.page` is 2 and `self.cmd_per_page` is 6, then the start index will be 6.
+        """
         return (self.page - 1) * self.cmd_per_page
 
     def get_page_end_index(self):
+        """
+        Returns the end index of the current page of commands.
+
+        For example, if `self.page` is 2 and `self.cmd_per_page` is 6, then the end index will be 11.
+        """
+
         index = self.get_page_start_index() + self.cmd_per_page - 1
         return index if index < len(self.cmd_list) else len(self.cmd_list) - 1
 
     def btn_disable(self):
+        """
+        Updates the state of the buttons to disable the previous, current, and next buttons
+        if they are not applicable.
+
+        # - For example, if the first page is being shown, then the previous and back buttons will be disabled.
+        # - If the last page is being shown, then the next and last buttons will be disabled.
+        """
+
         back_btn = [i for i in self.children if i.custom_id == "back"][0]
         first_btn = [i for i in self.children if i.custom_id == "first"][0]
         if self.page == 1:
@@ -116,6 +197,12 @@ class HelpView(BaseView):
             last_btn.disabled = False
 
     async def get_embed_update_msg(self, interaction: Interaction, **kwargs):
+        """
+        Updates the embed with the current page of commands.
+
+        The embed is created using the `help_embed()` method and then updated with the current page of commands.
+        """
+
         embed = self.help_embed(**kwargs)
         await interaction.response.edit_message(embed=embed, view=self)
 
@@ -127,6 +214,12 @@ class HelpView(BaseView):
         custom_id="cog_select",
     )
     async def select_cog(self, select: nextcord.ui.Select, interaction: Interaction):
+        """
+        Updates the commands displayed in the embed based on the selected cog.
+
+        The selected cog is passed to the `help_embed()` method and the new embed is then displayed.
+        """
+
         selected_values = select.values
         if "All" in [i for i in selected_values if i not in self.old_selected_values]:
             selected_values = ["All"]
@@ -160,24 +253,28 @@ class HelpView(BaseView):
 
     @button(emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True)
     async def first(self, button: Button, interaction: Interaction):
+        """Displays the first page of commands"""
         self.page = 1
         self.btn_disable()
         await self.get_embed_update_msg(interaction)
 
     @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back")
     async def back(self, button: Button, interaction: Interaction):
+        """Displays the previous page of commands."""
         self.page -= 1
         self.btn_disable()
         await self.get_embed_update_msg(interaction)
 
     @button(emoji="▶️", style=nextcord.ButtonStyle.blurple, custom_id="next")
     async def next(self, button: Button, interaction: Interaction):
+        """Displays the next page of commands."""
         self.page += 1
         self.btn_disable()
         await self.get_embed_update_msg(interaction)
 
     @button(emoji="⏭️", style=nextcord.ButtonStyle.blurple, custom_id="last")
     async def last(self, button: Button, interaction: Interaction):
+        """Displays the last page of commands."""
         self.page = math.ceil(len(self.cmd_list) / self.cmd_per_page)
         self.btn_disable()
         await self.get_embed_update_msg(interaction)
