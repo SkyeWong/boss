@@ -460,10 +460,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         amount: str,
     ):
         """Convert from one currency to another."""
-        if from_currency not in ("scrap_metal", "copper") or to_currency not in (
-            "scrap_metal",
-            "copper",
-        ):
+        if from_currency not in ("scrap_metal", "copper") or to_currency not in ("scrap_metal", "copper"):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
 
         try:
@@ -485,7 +482,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             exchange_rate = constants.COPPER_SCRAP_RATE * random.uniform(0, 1.2)
             op = operator.truediv
         elif from_currency == "copper":
-            exchange_rate = constants.COPPER_SCRAP_RATE * random.uniform(0.8, 0)
+            exchange_rate = constants.COPPER_SCRAP_RATE * random.uniform(0.8, 1)
             op = operator.mul
 
         exchange_rate = round(exchange_rate)
