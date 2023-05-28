@@ -323,7 +323,11 @@ class Resource(commands.Cog, name="Resource Repository"):
                         FROM players.inventory as inv
                         INNER JOIN utility.items
                         ON inv.item_id = items.item_id
-                    WHERE inv.player_id = $1 AND inv.inv_type = 0 AND (items.name ILIKE $2 or items.emoji_name ILIKE $2)
+                    WHERE 
+                        inv.player_id = $1 AND 
+                        inv.inv_type = 0 AND 
+                        items.sell_price > 0 AND
+                        (items.name ILIKE $2 OR items.emoji_name ILIKE $2)
                     """,
                     interaction.user.id,
                     f"%{item_name}%",
