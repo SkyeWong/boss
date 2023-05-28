@@ -260,7 +260,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         return embed
 
     async def sell_all_player_items(self, button, interaction: Interaction):
-        async with await self.bot.db.pool.acquire() as conn:
+        async with self.bot.db.pool.acquire() as conn:
             async with conn.transaction():
                 sold_items = await conn.fetch(
                     """
@@ -331,7 +331,9 @@ class Resource(commands.Cog, name="Resource Repository"):
                 # the item is not found, or the user does not own any
                 if item is None:
                     await interaction.send(
-                        embed=Embed(description=f"Either you don't own the item `{item_name}` or it doesn't exist")
+                        embed=Embed(
+                            description=f"Either you don't have any `{item_name}` in your backpack or it doesn't exist."
+                        )
                     )
                     return
 
