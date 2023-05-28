@@ -399,7 +399,7 @@ class VideoView(BaseView):
         next_page_token: str = None,
         list_index: int = 1,
     ):
-        super().__init__(slash_interaction, timeout=60)
+        super().__init__(slash_interaction, timeout=600)  # 10 minutes
         self.query = query
         self.prev_page_token = prev_page_token
         self.next_page_token = next_page_token
