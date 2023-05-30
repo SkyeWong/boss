@@ -483,7 +483,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             return
 
         if from_currency == "scrap_metal":
-            exchange_rate = constants.COPPER_SCRAP_RATE * random.uniform(0, 1.2)
+            exchange_rate = constants.COPPER_SCRAP_RATE * random.uniform(1, 1.2)
             op = operator.truediv
         elif from_currency == "copper":
             exchange_rate = constants.COPPER_SCRAP_RATE * random.uniform(0.8, 1)
@@ -790,7 +790,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         view = InventoryView(
             interaction=interaction,
             user=user,
-            inv_type=constants.InventoryType.backpack.value,
+            inv_type=constants.InventoryType.BACKPACK.value,
         )
         await view.get_inv_content()
         view.disable_buttons()
@@ -815,7 +815,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         view = InventoryView(
             interaction=interaction,
             user=user,
-            inv_type=constants.InventoryType.chest.value,
+            inv_type=constants.InventoryType.CHEST.value,
         )
         await view.get_inv_content()
         view.disable_buttons()
@@ -958,7 +958,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 for inv_type, items in num_of_items_in_inv.items():
                     # transaction has not been committed, items are not updated
                     if (
-                        item_to == inv_type == constants.InventoryType.backpack
+                        item_to == inv_type == constants.InventoryType.BACKPACK
                         and len(items) >= 32
                         and item_id not in items
                     ):

@@ -51,26 +51,26 @@ class IntEnum(Enum):
 
 
 class InventoryType(IntEnum):
-    backpack = 0
-    chest = 1
-    vault = 2
+    BACKPACK = 0
+    CHEST = 1
+    VAULT = 2
 
 
 class ItemType(IntEnum):
-    tool = 0
-    collectable = 1
-    power_up = 2
-    sellable = 3
-    bundle = 4
+    TOOL = 0
+    COLLECTABLE = 1
+    POWER_UP = 2
+    SELLABLE = 3
+    BUNDLE = 4
 
 
 class ItemRarity(IntEnum):
-    common = 0
-    uncommon = 1
-    rare = 2
-    epic = 3
-    legendary = 4
-    godly = 5
+    COMMON = 0
+    UNCOMMON = 1
+    RARE = 2
+    EPIC = 3
+    LEGENDARY = 4
+    GODLY = 5
 
 
 MAZE_DIRECTIONS = ["⬆️", "⬅️", "⬇️", "➡️"]

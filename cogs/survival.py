@@ -329,13 +329,13 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             await player.modify_currency("scrap_metal", -lost_scrap)
             await interaction.send(
                 embed=TextEmbed(
-                    f"Shame on you, he was a bandits. He attacked you and you lost {CURRENCY_EMOJIS['scrap_metal']} {lost_scrap}",
+                    f"Shame on you, he was a bandit. He attacked you and you lost {CURRENCY_EMOJIS['scrap_metal']} {lost_scrap}",
                 ),
                 ephemeral=True,
             )
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 60, SlashBucket.author, cooldown_id="adventure", check=check_if_not_dev_guild)
+    @cooldowns.cooldown(1, 30, SlashBucket.author, cooldown_id="adventure", check=check_if_not_dev_guild)
     async def adventure(
         self,
         interaction: Interaction,
