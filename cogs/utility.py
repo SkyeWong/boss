@@ -102,7 +102,7 @@ class Utility(commands.Cog, name="Survival Guide"):
         mapping = helpers.get_mapping(interaction, self.bot)
 
         if not cmd_name:  # send full command list
-            view = HelpView(interaction, mapping)
+            view = HelpView(interaction, mapping=mapping)
             embed = view.help_embed()
             view.btn_disable()
             await interaction.send(embed=embed, view=view)

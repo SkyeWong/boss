@@ -45,6 +45,7 @@ class HelpView(BaseView):
 
         # Set the mapping of cog names to lists of commands.
         if cmd_list is None:
+            self.mapping = mapping
             self.cmd_list = []
             for cog_name, (cog, commands) in mapping.items():
                 self.cmd_list.extend(commands)
@@ -73,9 +74,15 @@ class HelpView(BaseView):
             A list of SelectOption objects.
         """
 
+        if not self.mapping:
+            return
+
         # Create a list of SelectOption objects for the cogs.
         options = []
+
+        # Add an "All" option to select every cog
         options.append(SelectOption(label="All", emoji="🌐", default=True))
+        # Add an option for every cog in the mapping
         for cog_name in self.mapping:
             cog = self.mapping[cog_name][0]
             emoji = getattr(cog, "COG_EMOJI", None)
