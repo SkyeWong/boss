@@ -117,7 +117,7 @@ class HelpView(BaseView):
             The created embed.
         """
 
-        embed = Embed()
+        embed = Embed(description="")
         embed.colour = random.choice(constants.EMBED_COLOURS)
 
         # If a description is provided, add it to the embed.

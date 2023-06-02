@@ -626,7 +626,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         else:
             await interaction.response.send_autocomplete([data] + results[:24])
 
-    @nextcord.slash_command(name="search-youtube", guild_ids=[constants.DEVS_SERVER_ID])
+    @nextcord.slash_command(name="youtube", guild_ids=[constants.DEVS_SERVER_ID])
     @application_checks.is_owner()
     async def search_youtube(
         self,

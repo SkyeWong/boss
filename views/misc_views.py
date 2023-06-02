@@ -19,6 +19,7 @@ from typing import Optional, Literal
 import enum
 import random
 import math
+import re
 
 
 class EmojiView(BaseView):
@@ -428,14 +429,17 @@ class VideoView(BaseView):
         embed.title = video.title
         embed.url = video.link
 
-        if len(video.description) > 200:
-            embed.add_field(
-                name="Description",
-                value=f"\n>>> {video.description[:200]}...",
-                inline=False,
-            )
-        elif video.description:
-            embed.add_field(name="Description", value=f"\n>>> {video.description}", inline=False)
+        if video.description:
+            video.description = re.sub(r"\n+", "\n\n", video.description)
+            description = video.description.partition("\n")[0]
+            if len(description) > 200:
+                embed.add_field(
+                    name="Description",
+                    value=f"\n>>> {description[:200]}" "\n - _To view more, press the 📃 button._",
+                    inline=False,
+                )
+            else:
+                embed.add_field(name="Description", value=f"\n>>> {description}", inline=False)
 
         embed.add_field(
             name="Publish time",
