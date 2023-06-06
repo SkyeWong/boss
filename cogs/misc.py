@@ -37,6 +37,8 @@ import aiohttp
 import googleapiclient.discovery
 from pytube import Search
 
+from quickchart import QuickChart
+
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
@@ -53,6 +55,7 @@ import base64
 import html
 from contextlib import suppress
 from typing import Optional
+import json
 
 
 class Misc(commands.Cog, name="Wasteland Workshop"):
@@ -491,7 +494,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             "\n".join(messages),
         )
 
-    async def get_weather_forecast(self, language="Val_Eng"):
+    async def get_hko_weather_forecast(self, language="Val_Eng"):
         async with aiohttp.ClientSession() as session:
             async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json") as response:
                 html = await response.json()
@@ -510,7 +513,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
         return forecast_time, situation, outlook
 
-    def get_weather_embed(self, temp):
+    def get_hko_weather_embed(self, temp):
         embed = Embed()
         embed.set_author(
             name=f"Information fetched from HK Observatory",
@@ -545,7 +548,291 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
         return embed
 
-    async def choose_location_autocomplete(self, interaction: Interaction, data: str):
+    @nextcord.slash_command(name="weather")
+    async def weather(self, interaction: Interaction):
+        """Get real-time weather forecasts from multiple providers."""
+        pass
+
+    async def open_meteo_location_autocomplete(self, interaction: Interaction, data: str):
+        if not data:
+            await interaction.response.send_autocomplete(["Start typing to search for locations"])
+        else:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://geocoding-api.open-meteo.com/v1/search", params={"name": data}
+                ) as response:
+                    locations = await response.json()
+                    if results := locations.get("results"):
+                        locations = {
+                            f"{i['name']} ({i['timezone']})": f"{i['name']}&{i['latitude']}&{i['longitude']}"
+                            for i in results
+                        }
+                        await interaction.response.send_autocomplete(locations)
+                    else:
+                        await interaction.response.send_autocomplete([])
+
+    DIRECTIONS = [
+        ("South", "<:CH_S:1091550953376858182>"),  # south
+        ("South East", "<:CH_SE:1091550956363206676>"),  # south east
+        ("East", "<:CH_E:1091550939908943882>"),  # east
+        ("North East", "<:CH_NE:1091550945478987836>"),  # north east
+        ("North", "<:CH_N:1091550941733462047>"),  # north
+        ("North West", "<:CH_NW:1091550949761351710>"),  # north west
+        ("West", "<:CH_W:1091550936079544321>"),  # west
+        ("South West", "<:CH_SW:1091550959555063909>"),  # south west
+        ("South", "<:CH_S:1091550953376858182>"),  # south
+    ]
+    WEATHER_CODES = {
+        0: "Clear sky",
+        1: "Mainly clear",
+        2: "Partly cloudy",
+        3: "Overcast",
+        45: "Fog and depositing rime fog",
+        51: "Light drizzle",
+        53: "Moderate drizzle",
+        55: "Dense drizzle",
+        56: "Light freezing drizzle",
+        57: "Dense freezing drizzle",
+        61: "Slight rain",
+        63: "Moderate rain",
+        65: "Heavy rain",
+        66: "Light freezing rain",
+        67: "Heavy freezing rain",
+        71: "Slight snow fall",
+        73: "Moderate snow fall",
+        75: "Heavy snow fall",
+        77: "Snow grains",
+        80: "Slight rain showers",
+        81: "Moderate rain showers",
+        82: "Violent rain showers",
+        85: "Slight snow showers",
+        86: "Heavy snow showers",
+        95: "Slight or moderate thunderstorm",
+        96: "Slight thunderstorm with hail",
+        99: "Heavy thunderstorm with hail",
+    }
+
+    @weather.subcommand(name="open-meteo")
+    async def open_meteo_weather(
+        self,
+        interaction: Interaction,
+        location: str = SlashOption(
+            description="Choose a specific location",
+            autocomplete_callback=open_meteo_location_autocomplete,
+        ),
+    ):
+        """Fetches the current weather data, anywhere in the world!"""
+        res = location.split("&")
+        if len(res) != 3:
+            await interaction.send(embed=TextEmbed("Enter a valid location."))
+            return
+
+        # split the text passed from the autocomplete into 3 parts
+        name, latitude, longitude = res
+        # fetch the data from open-meteo.com
+        params = dict(
+            latitude=latitude,
+            longitude=longitude,
+            current_weather="true",
+            hourly="temperature_2m,relativehumidity_2m,apparent_temperature,uv_index",
+            forecast_days=1,
+            timezone="auto",
+        )
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://api.open-meteo.com/v1/forecast", params=params) as response:
+                data = await response.json()
+
+        weather = data["current_weather"]
+
+        embed = Embed()
+        wind_direction = self.DIRECTIONS[round(weather["winddirection"] / 45)]
+        embed.description = (
+            f"\n## {name}"
+            f"\n### {self.WEATHER_CODES.get(weather['weathercode'], 'Unknown')}"
+            f"\n**- Temperature: `{weather['temperature']} °C`"
+            f"\n- Wind: `{weather['windspeed']} km/h` (from: {wind_direction[1]} {wind_direction[0]})**"
+        )
+
+        # Parse the date string into a datetime object
+        data_time = datetime.datetime.strptime(weather["time"], "%Y-%m-%dT%H:%M")
+        # Create a timezone object based on the timezone string
+        timezone = pytz.timezone(data["timezone"])
+        # Attach the timezone object to the datetime object
+        data_time = timezone.localize(data_time)
+        embed.description += f"\n(at <t:{int(data_time.timestamp())}:f>)"
+
+        time = []
+        # Format it to only show hours and time
+        for i in data["hourly"]["time"]:
+            time.append(i.split("T")[-1])
+
+        # Create the chart
+        qc = QuickChart()
+        qc.version = 4
+        qc.width = 1200
+        qc.height = 750
+        qc.background_color = "#282B30"
+        y_min = helpers.rounddown(min(data["hourly"]["apparent_temperature"] + data["hourly"]["temperature_2m"]), 5)
+
+        qc.config = {
+            "type": "line",
+            "data": {
+                "labels": data["hourly"]["time"],
+                "datasets": [
+                    {
+                        "label": "Temperature",
+                        "data": data["hourly"]["temperature_2m"],
+                        "fill": False,
+                        "borderColor": "#f2b5d4",
+                        "yAxisID": "y_temperature",
+                    },
+                    {
+                        "label": "Apparent Temperature",
+                        "data": data["hourly"]["apparent_temperature"],
+                        "fill": False,
+                        "borderColor": "#eff7f6",
+                        "yAxisID": "y_temperature",
+                    },
+                    {
+                        "label": "Relative Humidity",
+                        "data": data["hourly"]["relativehumidity_2m"],
+                        "fill": False,
+                        "borderColor": "#7bdff2",
+                        "yAxisID": "y_humidity",
+                    },
+                    {
+                        "label": "UV Index",
+                        "data": data["hourly"]["uv_index"],
+                        "fill": False,
+                        "borderColor": "#9381ff",
+                        "yAxisID": "y_uv_index",
+                    },
+                ],
+            },
+            "options": {
+                "layout": {"padding": {"x": 20, "y": 30}},
+                "plugins": {
+                    "title": {
+                        "display": True,
+                        "text": name,
+                        "padding": 30,
+                        "font": {
+                            "family": "Noto Sans Display",
+                            "size": 24,
+                        },
+                    },
+                    "legend": {
+                        "display": True,
+                        "position": "bottom",
+                        "labels": {
+                            "font": {
+                                "family": "Noto Sans",
+                                "size": 16,
+                            },
+                        },
+                    },
+                    "annotation": {
+                        "annotations": [
+                            {
+                                "type": "line",
+                                "scaleID": "x",
+                                "value": data["current_weather"]["time"],
+                                "borderColor": "#ffffff",
+                                "borderWidth": 2,
+                                "label": {
+                                    "enabled": True,
+                                    "content": "Now",
+                                    "position": "start",
+                                    "color": "white",
+                                    "backgroundColor": "#52b2cf",
+                                },
+                            }
+                        ],
+                    },
+                },
+                "scales": {
+                    "y_temperature": {
+                        "title": {
+                            "display": True,
+                            "text": "Temperature (°C)",
+                            "font": {
+                                "family": "Noto Sans",
+                                "size": 20,
+                            },
+                        },
+                        "ticks": {
+                            "font": {
+                                "family": "Noto Sans",
+                                "size": 12,
+                            },
+                            "beginAtZero": False,
+                            "min": y_min,
+                        },
+                    },
+                    "y_uv_index": {
+                        "position": "right",
+                        "grid": {  # grid line settings
+                            "drawOnChartArea": False,  # only want the grid lines for one axis to show up
+                        },
+                        "title": {
+                            "display": True,
+                            "text": "UV Index",
+                            "font": {
+                                "family": "Noto Sans",
+                                "size": 20,
+                            },
+                        },
+                        "ticks": {
+                            "font": {
+                                "family": "Noto Sans",
+                                "size": 12,
+                            },
+                            "beginAtZero": True,
+                        },
+                    },
+                    "y_humidity": {
+                        "position": "right",
+                        "grid": {  # grid line settings
+                            "drawOnChartArea": False,  # only want the grid lines for one axis to show up
+                        },
+                        "title": {
+                            "display": True,
+                            "text": "Humidity (%)",
+                            "font": {
+                                "family": "Noto Sans",
+                                "size": 20,
+                            },
+                        },
+                        "ticks": {
+                            "font": {
+                                "family": "Noto Sans",
+                                "size": 12,
+                            },
+                            "beginAtZero": False,
+                            "min": y_min,
+                        },
+                    },
+                    "x": {
+                        "type": "time",
+                        "title": {
+                            "display": True,
+                            "text": f"Time ({data['timezone_abbreviation']})",
+                        },
+                        "ticks": {
+                            "font": {
+                                "family": "Noto Sans",
+                                "size": 16,
+                            },
+                        },
+                    },
+                },
+            },
+        }
+        embed.set_image(qc.get_short_url())
+
+        await interaction.send(embed=embed)
+
+    async def hko_location_autocomplete(self, interaction: Interaction, data: str):
         if not data:
             # return full list
             await interaction.response.send_autocomplete(dict(sorted(self.location_list.items())[:25]))
@@ -556,15 +843,15 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             }
             await interaction.response.send_autocomplete(dict(sorted(near_locations.items())[:25]))
 
-    @nextcord.slash_command(name="weather", description="Fetches the latest temperature from HK observatory")
-    async def fetch_forecast(
+    @weather.subcommand(name="hk-observatory")
+    async def hko_weather(
         self,
         interaction: Interaction,
         location: str = SlashOption(
             description="Choose a specific location",
             required=False,
             default=None,
-            autocomplete_callback=choose_location_autocomplete,
+            autocomplete_callback=hko_location_autocomplete,
         ),
         language: str = SlashOption(
             description="Language to display the forecasts in",
@@ -573,15 +860,16 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             choices={"English": "Val_Eng", "Chinese": "Val_Chi"},
         ),
     ):
+        """Fetches the latest temperature from HK observatory"""
         if location and location not in self.location_list.keys() and location not in self.location_list.values():
             await interaction.send(f"District not found\n`{location=}`\n", ephemeral=True)
             return
 
         temp = await self.get_temperature(location, language)
-        forecast = await self.get_weather_forecast(language)
+        forecast = await self.get_hko_weather_forecast(language)
         # icon_src = self.get_weather_icon()
 
-        embed = self.get_weather_embed(temp)
+        embed = self.get_hko_weather_embed(temp)
         view = WeatherView(forecast)
 
         view.msg = await interaction.send(embed=embed, view=view)
@@ -592,9 +880,9 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         channel = await guild.fetch_channel(1056236722654031903)
 
         temp = await self.get_temperature("TseungKwanO", "Val_Eng")
-        forecast = await self.get_weather_forecast("Val_Eng")
+        forecast = await self.get_hko_weather_forecast("Val_Eng")
 
-        embed = self.get_weather_embed(temp)
+        embed = self.get_hko_weather_embed(temp)
         view = PersistentWeatherView(forecast)
 
         await channel.send(embed=embed, view=view)
