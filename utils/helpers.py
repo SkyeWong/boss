@@ -16,28 +16,28 @@ from datetime import datetime
 from typing import Literal, Optional, Union
 
 
-def roundup(number, round_to):
+def roundup(number: int, round_to: int) -> int:
     return number if number % round_to == 0 else number + round_to - number % round_to
 
 
-def rounddown(number, round_to):
+def rounddown(number: int, round_to: int) -> int:
     return number if number % round_to == 0 else number - number % round_to
 
 
-def check_if_it_is_skye(interaction: Interaction):
+def check_if_it_is_skye(interaction: Interaction) -> bool:
     return interaction.user.id == 806334528230129695
 
 
-def check_if_not_dev_guild(*args, **kwargs):
+def check_if_not_dev_guild(*args, **kwargs) -> bool:
     return args[1].guild.id != constants.DEVS_SERVER_ID
 
 
-def get_formatted_time():
+def get_formatted_time() -> str:
     """Returns the current time in the format "DD <month> YY HH:MM"."""
     return datetime.now().strftime("%d %B %Y %H:%M")
 
 
-def text_to_num(text: str):
+def text_to_num(text: str) -> int:
     """Converts a text representation of a number into the actual number. Note that the decimals will be dropped.
 
     Args:
@@ -83,7 +83,7 @@ def text_to_num(text: str):
     return math.floor(res)
 
 
-def sec_to_txt(seconds):
+def sec_to_txt(seconds: int) -> str:
     """
     Converts a duration in seconds to a human-readable string.
 
@@ -108,7 +108,7 @@ def sec_to_txt(seconds):
     return time_txt
 
 
-def get_mapping(interaction: Interaction, bot: commands.Bot = None):
+def get_mapping(interaction: Interaction, bot: commands.Bot = None) -> dict:
     """
     Returns a dictionary mapping each cog in the bot to its associated application commands.
 
