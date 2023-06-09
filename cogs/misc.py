@@ -149,14 +149,14 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         description="Generates a maze using the Mazelib Python library",
     )
     @cooldowns.cooldown(1, 180, SlashBucket.author, check=check_if_not_dev_guild)
-    async def gen_maze(
+    async def generate_maze(
         self,
         interaction: Interaction,
-        width: int = SlashOption(description="The width of the maze", max_value=100),
+        width: int = SlashOption(description="The width of the maze", required=True, max_value=60),
         height: int = SlashOption(
             description="The length of the maze. If not set, will be set to `width`.",
             required=False,
-            max_value=100,
+            max_value=60,
         ),
         difficulty: int = SlashOption(
             description="0 to 9 --> 0: easiest, 9: hardest. The bot generates 10 mazes and finds the `n`th short maze",
@@ -661,18 +661,14 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         data_time = timezone.localize(data_time)
         embed.description += f"\n(at <t:{int(data_time.timestamp())}:f>)"
 
-        time = []
-        # Format it to only show hours and time
-        for i in data["hourly"]["time"]:
-            time.append(i.split("T")[-1])
-
         # Create the chart
         qc = QuickChart()
         qc.version = 4
-        qc.width = 1200
-        qc.height = 750
+        qc.width = 600
+        qc.height = 360
         qc.background_color = "#282B30"
-        y_min = helpers.rounddown(min(data["hourly"]["apparent_temperature"] + data["hourly"]["temperature_2m"]), 5)
+        y_min = helpers.rounddown(min(data["hourly"]["apparent_temperature"] + data["hourly"]["temperature_2m"]), 8)
+        y_max = helpers.roundup(max(data["hourly"]["apparent_temperature"] + data["hourly"]["temperature_2m"]), 10)
 
         qc.config = {
             "type": "line",
@@ -685,6 +681,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                         "fill": False,
                         "borderColor": "#f2b5d4",
                         "yAxisID": "y_temperature",
+                        "tension": 0.3,
                     },
                     {
                         "label": "Apparent Temperature",
@@ -692,6 +689,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                         "fill": False,
                         "borderColor": "#eff7f6",
                         "yAxisID": "y_temperature",
+                        "tension": 0.3,
                     },
                     {
                         "label": "Relative Humidity",
@@ -699,13 +697,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                         "fill": False,
                         "borderColor": "#7bdff2",
                         "yAxisID": "y_humidity",
-                    },
-                    {
-                        "label": "UV Index",
-                        "data": data["hourly"]["uv_index"],
-                        "fill": False,
-                        "borderColor": "#9381ff",
-                        "yAxisID": "y_uv_index",
+                        "tension": 0.3,
                     },
                 ],
             },
@@ -715,7 +707,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                     "title": {
                         "display": True,
                         "text": name,
-                        "padding": 30,
+                        "padding": 15,
                         "font": {
                             "family": "Noto Sans Display",
                             "size": 24,
@@ -743,12 +735,14 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                                     "enabled": True,
                                     "content": "Now",
                                     "position": "start",
+                                    "yAdjust": -30,
                                     "color": "white",
                                     "backgroundColor": "#52b2cf",
                                 },
                             }
                         ],
                     },
+                    "colorschemes": {"scheme": "brewer.RdBu5"},
                 },
                 "scales": {
                     "y_temperature": {
@@ -766,29 +760,8 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                                 "size": 12,
                             },
                             "beginAtZero": False,
-                            "min": y_min,
                         },
-                    },
-                    "y_uv_index": {
-                        "position": "right",
-                        "grid": {  # grid line settings
-                            "drawOnChartArea": False,  # only want the grid lines for one axis to show up
-                        },
-                        "title": {
-                            "display": True,
-                            "text": "UV Index",
-                            "font": {
-                                "family": "Noto Sans",
-                                "size": 20,
-                            },
-                        },
-                        "ticks": {
-                            "font": {
-                                "family": "Noto Sans",
-                                "size": 12,
-                            },
-                            "beginAtZero": True,
-                        },
+                        "min": y_min,
                     },
                     "y_humidity": {
                         "position": "right",
@@ -809,14 +782,18 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                                 "size": 12,
                             },
                             "beginAtZero": False,
-                            "min": y_min,
                         },
+                        "max": 100,
                     },
                     "x": {
                         "type": "time",
                         "title": {
                             "display": True,
                             "text": f"Time ({data['timezone_abbreviation']})",
+                            "font": {
+                                "family": "Noto Sans",
+                                "size": 18,
+                            },
                         },
                         "ticks": {
                             "font": {
