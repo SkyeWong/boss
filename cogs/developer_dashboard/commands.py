@@ -15,7 +15,7 @@ from utils import constants, helpers
 from utils.helpers import MoveItemException, TextEmbed
 
 # views and modals
-from views.dev_views import (
+from .views import (
     EditItemView,
     ConfirmItemDelete,
     ConfirmChangelogSend,

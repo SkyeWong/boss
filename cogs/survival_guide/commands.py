@@ -10,7 +10,7 @@ from utils.postgres_db import Database
 from utils import helpers, constants
 from utils.helpers import TextEmbed
 
-from views.utility_views import HelpView, GuideView
+from .views import HelpView, GuideView
 
 # default modules
 import random

@@ -8,7 +8,7 @@ import asyncpg
 from utils.postgres_db import Database
 
 # my modules and constants
-from views.template_views import BaseView
+from utils.template_views import BaseView
 from utils.player import Player
 from utils import constants, helpers
 from utils.helpers import TextEmbed

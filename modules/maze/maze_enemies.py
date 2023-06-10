@@ -12,7 +12,7 @@ from utils import constants
 from utils.helpers import TextEmbed
 
 # maze utils
-from maze.maze_utils import Cell
+from .maze_utils import Cell
 
 
 class MazeEnemy:

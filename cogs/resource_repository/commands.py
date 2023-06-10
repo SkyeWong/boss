@@ -20,12 +20,13 @@ from utils.helpers import MoveItemException, TextEmbed, check_if_not_dev_guild
 from utils.player import Player
 
 # command views
-from views.template_views import ConfirmView
-from views.resource_views import FarmView, InventoryView
+from utils.template_views import ConfirmView
+from .views import FarmView, InventoryView
 
 # trade
-from village.village import TradeView
-from village.villagers import Villager, TradeItem
+from modules.village.village import TradeView
+from utils.helpers import BossItem
+from modules.village.villagers import Villager
 
 from numerize import numerize
 
@@ -157,13 +158,13 @@ class Resource(commands.Cog, name="Resource Repository"):
                             villager.job_title,
                             [
                                 (item.item_id, item.quantity, None, None)
-                                if isinstance(item, TradeItem)
+                                if isinstance(item, BossItem)
                                 else (None, None, item.price, item.currency_type)
                                 for item in villager.demand
                             ],
                             [
                                 (item.item_id, item.quantity, None, None)
-                                if isinstance(item, TradeItem)
+                                if isinstance(item, BossItem)
                                 else (None, None, item.price, item.currency_type)
                                 for item in villager.supply
                             ],

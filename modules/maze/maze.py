@@ -10,11 +10,11 @@ from datetime import datetime
 import asyncio
 
 # my modules and constants
-from views.template_views import BaseView
+from utils.template_views import BaseView
 from utils import constants
-from maze.maze_player import MazePlayer
-from maze.maze_enemies import MazeEnemy
-from maze.maze_utils import ITEMS, MazeItem
+from .maze_player import MazePlayer
+from .maze_enemies import MazeEnemy
+from .maze_utils import ITEMS, MazeItem
 
 # mazelib
 from mazelib import Maze as Mazelib

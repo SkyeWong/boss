@@ -14,10 +14,10 @@ from utils.postgres_db import Database
 from utils.constants import CURRENCY_EMOJIS
 from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, BossPrice
 from utils.player import Player
-from views.template_views import ConfirmView
+from utils.template_views import ConfirmView
 
 # maze
-from maze.maze import Maze
+from modules.maze.maze import Maze
 
 # default modules
 import random

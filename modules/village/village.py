@@ -6,14 +6,15 @@ from nextcord.ui import Button, button, Select, select
 # database
 from utils.postgres_db import Database
 
+# village utils
+from .villagers import Villager
+from utils.helpers import BossPrice, BossItem
+
 # my modules and constants
-from views.template_views import BaseView
+from utils.template_views import BaseView
 from utils.player import Player
 from utils import constants, helpers
 from utils.helpers import TextEmbed
-
-# village utils
-from village.villagers import *
 
 # default modules
 import pytz
@@ -62,15 +63,11 @@ class TradeView(BaseView):
                     i["name"],
                     i["job_title"],
                     [
-                        TradeItem(j["item_id"], j["quantity"])
-                        if j.get("item_id")
-                        else TradePrice(j["price"], j["type"])
+                        BossItem(j["item_id"], j["quantity"]) if j.get("item_id") else BossPrice(j["price"], j["type"])
                         for j in i["demands"]
                     ],
                     [
-                        TradeItem(j["item_id"], j["quantity"])
-                        if j.get("item_id")
-                        else TradePrice(j["price"], j["type"])
+                        BossItem(j["item_id"], j["quantity"]) if j.get("item_id") else BossPrice(j["price"], j["type"])
                         for j in i["supplies"]
                     ],
                     i["remaining_trades"],
@@ -98,11 +95,11 @@ class TradeView(BaseView):
 
         return embed
 
-    async def get_items_str(self, items: list[TradeItem | TradePrice]):
+    async def get_items_str(self, items: list[BossItem | BossPrice]):
         db = self.interaction.client.db
         item_strings = [
             f"{i.quantity} {await i.get_name(db)}"
-            if isinstance(i, TradeItem)  # eg: "5 Aqua Defender"
+            if isinstance(i, BossItem)  # eg: "5 Aqua Defender"
             else f"{i.price:,} {i.currency_type.replace('_', ' ')}"  # eg: "123,456,789 Copper"
             for i in items
         ]
@@ -115,7 +112,7 @@ class TradeView(BaseView):
         for index, villager in enumerate(self.villagers):
             description = ""
 
-            if any([isinstance(i, TradeItem) for i in villager.supply]):
+            if any([isinstance(i, BossItem) for i in villager.supply]):
                 supply_items = await self.get_items_str(villager.supply)
                 description = f"Selling {supply_items}"
             else:
@@ -211,7 +208,7 @@ class TradeView(BaseView):
                 }.items():
                     multiplier = -1 if trade_type == "demand" else 1
                     for item in trade_items:
-                        if isinstance(item, TradePrice):
+                        if isinstance(item, BossPrice):
                             # If the trade is a demand and the player does not have enough currency, send a message to the player and return
                             if trade_type == "demand" and player_currency[item.currency_type] < item.price:
                                 await interaction.send(
@@ -223,7 +220,7 @@ class TradeView(BaseView):
                             # Deduct the required amount of currency from the player's account
                             required_price = multiplier * item.price
                             await player.modify_currency(item.currency_type, required_price)
-                        elif isinstance(item, TradeItem):
+                        elif isinstance(item, BossItem):
                             # get the quantity of the item the player owns with a generator expression
                             owned_quantity = next((x["quantity"] for x in inventory if x["item_id"] == item.item_id), 0)
                             # If the trade is a demand and the player does not have enough of the item, send a message to the player and return

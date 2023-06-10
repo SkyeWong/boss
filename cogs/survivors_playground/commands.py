@@ -13,7 +13,7 @@ from utils.postgres_db import Database
 from utils.helpers import check_if_not_dev_guild, TextEmbed
 
 # command views
-from views.fun_views import (
+from .views import (
     FightPlayer,
     FightView,
     TriviaQuestion,
@@ -28,7 +28,7 @@ import aiohttp
 import random
 
 
-class Fun(commands.Cog, name="Wasteland Fun"):
+class Fun(commands.Cog, name="Survivor's Playground"):
     """Fun commands and mini-games for entertainment"""
 
     COG_EMOJI = "🎢"

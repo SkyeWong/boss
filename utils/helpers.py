@@ -270,7 +270,7 @@ class BossItem:
 
     def __mul__(self, other):
         """
-        Multiply the quantity of this `TradeItem` by a scalar value.
+        Multiply the quantity of this `BossItem` by a scalar value.
 
         Args:
             other (int or float): The scalar value to multiply the quantity by.
@@ -280,7 +280,7 @@ class BossItem:
                 either the int or float classes.
 
         Returns:
-            TradeItem: A new TradeItem instance with a quantity equal to the current quantity multiplied by the scalar value.
+            BossItem: A new BossItem instance with a quantity equal to the current quantity multiplied by the scalar value.
         """
         if not isinstance(other, (int, float)):
             raise NotImplementedError(f"`other` must be type int or float, not {other.__class__}")

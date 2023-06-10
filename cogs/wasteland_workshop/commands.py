@@ -13,7 +13,7 @@ from utils import constants, helpers
 from utils.helpers import check_if_not_dev_guild, TextEmbed
 
 # command views
-from views.misc_views import (
+from .views import (
     EmojiView,
     WeatherView,
     PersistentWeatherView,
@@ -55,7 +55,6 @@ import base64
 import html
 from contextlib import suppress
 from typing import Optional
-import json
 
 
 class Misc(commands.Cog, name="Wasteland Workshop"):
@@ -82,6 +81,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         except:
             print("Failed to update location list from HKO")
         self.announce_temp.start()
+        self.AES_KEY = os.urandom(32)
 
     def search_subcommand(self, cmd: nextcord.SlashApplicationCommand, cmd_name):
         """Search for a subcommand with its name."""
@@ -431,7 +431,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         except:
             await interaction.send(
                 embed=TextEmbed(
-                    "The message could not be decrypted. Are you sure that both of you are using the same key AND initalization vector?"
+                    "The message could not be decrypted. Are you sure that both of you are using the same key?"
                 ),
                 ephemeral=True,
             )
@@ -562,14 +562,21 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                     "https://geocoding-api.open-meteo.com/v1/search", params={"name": data}
                 ) as response:
                     locations = await response.json()
-                    if results := locations.get("results"):
-                        locations = {
-                            f"{i['name']} ({i['timezone']})": f"{i['name']}&{i['latitude']}&{i['longitude']}"
-                            for i in results
-                        }
-                        await interaction.response.send_autocomplete(locations)
-                    else:
-                        await interaction.response.send_autocomplete([])
+            if results := locations.get("results"):
+                choices = {}
+                for i in results:
+                    # Encrypt location data with AES to prevent users from faking location
+                    plaintext = f"{i['name']}&{i['latitude']}&{i['longitude']}".encode("UTF-8")
+                    padded = pad(plaintext, AES.block_size)
+                    cipher = AES.new(self.AES_KEY, AES.MODE_ECB)
+                    ciphertext = cipher.encrypt(padded)
+                    # convert the ciphertext (bytes) into base 64 text
+                    ciphertext = base64.b64encode(ciphertext).decode()
+
+                    choices[f"{i['name']} ({i['timezone']})"] = ciphertext
+                await interaction.response.send_autocomplete(choices)
+            else:
+                await interaction.response.send_autocomplete([])
 
     DIRECTIONS = [
         ("South", "<:CH_S:1091550953376858182>"),  # south
@@ -616,19 +623,24 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
     async def open_meteo_weather(
         self,
         interaction: Interaction,
-        location: str = SlashOption(
-            description="Choose a specific location",
+        encrypted_location: str = SlashOption(
+            name="location",
+            description="Choose a specific location <name (timezone)>",
             autocomplete_callback=open_meteo_location_autocomplete,
         ),
     ):
         """Fetches the current weather data, anywhere in the world!"""
-        res = location.split("&")
-        if len(res) != 3:
-            await interaction.send(embed=TextEmbed("Enter a valid location."))
+        cipher = AES.new(self.AES_KEY, AES.MODE_ECB)
+        try:
+            encrypted_location = base64.b64decode(encrypted_location)
+            data = cipher.decrypt(encrypted_location)
+            decrypted_location = unpad(data, AES.block_size).decode("UTF-8")
+        except:
+            await interaction.send(embed=TextEmbed("Choose a valid location from the list."))
             return
 
         # split the text passed from the autocomplete into 3 parts
-        name, latitude, longitude = res
+        name, latitude, longitude = decrypted_location.split("&")
         # fetch the data from open-meteo.com
         params = dict(
             latitude=latitude,
@@ -648,9 +660,9 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         wind_direction = self.DIRECTIONS[round(weather["winddirection"] / 45)]
         embed.description = (
             f"\n## {name}"
-            f"\n### {self.WEATHER_CODES.get(weather['weathercode'], 'Unknown')}"
-            f"\n**- Temperature: `{weather['temperature']} °C`"
-            f"\n- Wind: `{weather['windspeed']} km/h` (from: {wind_direction[1]} {wind_direction[0]})**"
+            f"\n**{self.WEATHER_CODES.get(weather['weathercode'], 'Unknown')}**"
+            f"\n- Temperature: `{weather['temperature']} °C`"
+            f"\n- Wind: `{weather['windspeed']} km/h` (from: {wind_direction[1]} {wind_direction[0]})"
         )
 
         # Parse the date string into a datetime object

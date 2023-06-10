@@ -1,6 +1,6 @@
 # default modules
 from datetime import datetime
-from maze.maze_utils import ITEMS
+from .maze_utils import ITEMS
 
 
 class MazePlayer:

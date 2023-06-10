@@ -15,7 +15,7 @@ from asyncpg import Record
 from utils.player import Player
 from utils import constants, helpers
 
-from views.template_views import BaseView, ConfirmView
+from utils.template_views import BaseView, ConfirmView
 
 
 def _get_item_embed(item: Record):

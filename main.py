@@ -21,7 +21,7 @@ from utils import constants, helpers
 from utils.helpers import TextEmbed
 from utils.player import Player
 from utils.postgres_db import Database
-from views.misc_views import PersistentWeatherView
+from cogs.wasteland_workshop.views import PersistentWeatherView
 from utils.helpers import CommandCheckException
 
 # default modules
@@ -54,9 +54,10 @@ class BossBot(commands.Bot):
         self.db = Database()
         self.pool = self.db.pool
 
-        for filename in os.listdir("cogs"):
-            if filename.endswith("py") and filename != "__init__.py":
-                self.load_extension(f"cogs.{filename[:-3]}")
+        # Get the modules of all cogs whose directory structure is ./cogs/<module_name>
+        for folder in os.listdir("cogs"):
+            if folder != "__pycache__":
+                self.load_extension(f"cogs.{folder}.commands")
 
     async def on_ready(self):
         if not self.persistent_views_added:

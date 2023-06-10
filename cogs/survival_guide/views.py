@@ -6,7 +6,7 @@ from nextcord.ui import Button, button, Select, select
 # my modules
 from utils import constants
 from utils.constants import SCRAP_METAL, COPPER
-from views.template_views import BaseView
+from utils.template_views import BaseView
 
 # default modules
 from typing import Optional
@@ -39,9 +39,6 @@ class HelpView(BaseView):
         # Check that either `mapping` or `cmd_list` is provided.
         if not mapping and not cmd_list:
             raise ValueError("Either `mapping` or `cmd_list` should be provided.")
-
-        # Set the cog description.
-        self.cog_description = None
 
         # Set the mapping of cog names to lists of commands.
         if cmd_list is None:
@@ -117,16 +114,11 @@ class HelpView(BaseView):
             The created embed.
         """
 
-        embed = Embed(description="")
-        embed.colour = random.choice(constants.EMBED_COLOURS)
+        embed = Embed(description="", colour=0x00294D)
 
         # If a description is provided, add it to the embed.
         if description:
             embed.description = description
-
-        # If a cog description is provided, add it to the embed.
-        if self.cog_description is not None:
-            embed.description += f"\n> {self.cog_description}"
 
         # If the author should be set, set the author of the embed to the bot's user.
         if set_author:
@@ -146,14 +138,14 @@ class HelpView(BaseView):
             value = cmd.description if cmd.description != "No description provided." else "..."
 
             # Get the command's name.
-            name = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
+            name = f"**</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>**"
 
             # If the command has subcommands, add a `has subcommands` suffix to the name.
             if len(cmd.children) > 0:
                 name += " `has subcommands`"
 
-            # Add a field to the embed with the command's name and description.
-            embed.add_field(name=name, value=f"`➸` {value}", inline=False)
+            # Add the command (name and description) to the embed description
+            embed.description += f"{name}\n\n`➸` {value}\n"
 
         # Set the footer of the embed with the current page number and the total number of pages.
         embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}")
@@ -237,14 +229,9 @@ class HelpView(BaseView):
         if "All" in selected_values:
             for cog_name, (cog, commands) in self.mapping.items():
                 cmd_list.extend(commands)
-            self.cog_description = None
         else:
             for value in selected_values:
                 cmd_list.extend(self.mapping[value][1])
-            if len(selected_values) == 1:
-                self.cog_description = self.mapping[value][0].description
-            else:
-                self.cog_description = None
 
         self.cmd_list = cmd_list
         self.page = 1

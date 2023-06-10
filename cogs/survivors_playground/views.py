@@ -7,7 +7,7 @@ from nextcord.ui import View, Button, button, Select, select
 from utils import constants, helpers
 from utils.constants import SCRAP_METAL, COPPER
 from utils.helpers import TextEmbed
-from views.template_views import BaseView
+from utils.template_views import BaseView
 
 from numerize import numerize
 import pytz
