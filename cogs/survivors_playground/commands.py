@@ -20,8 +20,8 @@ from .views import (
     TriviaView,
 )
 
-# mazelib
-from mazelib import Maze
+# maze
+from modules.maze.maze import Maze
 import aiohttp
 
 # default modules
@@ -238,7 +238,7 @@ class Fun(commands.Cog, name="Survivor's Playground"):
 
     @nextcord.slash_command(
         name="maze",
-        description="Wander in a (very) hard maze and maybe get stuck there!",
+        description="Wander in a (very) hard maze! You'll probably get stuck there tho...",
     )
     async def maze(
         self,
