@@ -80,7 +80,7 @@ class EmojiView(BaseView):
             value=f">>> ➼ `Name` - \:{emoji.name}:"
             f"\n➼ `Guild` - {emoji.guild.name}"
             f"\n➼ `ID`    - {emoji.id}"
-            f"\n➼ `Url`   - [{emoji.url}]({emoji.url})"
+            f"\n➼ `Url`   - {emoji.url}"
             f"\n➼ `Mention syntax` - ` {str(emoji)} `",
         )
         return embed

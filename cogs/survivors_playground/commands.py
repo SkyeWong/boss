@@ -10,7 +10,7 @@ from cooldowns import SlashBucket
 # my modules and constants
 from utils import constants, helpers
 from utils.postgres_db import Database
-from utils.helpers import check_if_not_dev_guild, TextEmbed
+from utils.helpers import check_if_not_dev_guild, TextEmbed, command_info
 
 # command views
 from .views import (
@@ -37,6 +37,13 @@ class Fun(commands.Cog, name="Survivor's Playground"):
         self.bot = bot
 
     @nextcord.slash_command(name="roll", description="Roll a random number between two of them.")
+    @command_info(
+        examples={
+            "roll first:100": "Pick a number between 1-100 inclusively.",
+            "roll first:100 second:500": "Pick a number between 100-500 inclusively.",
+            "roll first:500 second:100": "Don't know why you are that smart to swap the 2 options, but this still works exactly the same as the one above.",
+        }
+    )
     @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
     async def roll(
         self,
@@ -48,6 +55,7 @@ class Fun(commands.Cog, name="Survivor's Playground"):
             required=False,
         ),
     ):
+        # Sort the first and second numbers.
         if not second:
             first, second = 1, first
         elif second < first:
@@ -80,11 +88,17 @@ class Fun(commands.Cog, name="Survivor's Playground"):
         await interaction.send(embed=embed)
 
     @nextcord.slash_command(name="8ball", description="I can tell you the future and make decisions! 🎱")
+    @command_info(
+        long_help="This shows a random response from the classic 8ball.",
+        examples={
+            "8ball question:Will I get a girlfriend?": "I think it'll return _'Outlook not so good.'_ What says you?"
+        },
+    )
     @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
     async def eight_ball(
         self,
         interaction: Interaction,
-        whattodecide: str = SlashOption(name="what-to-decide", description="Something to ask me...", max_length=100),
+        question: str = SlashOption(name="question", description="Something to ask me...", max_length=100),
     ):
         RESPONSES = {
             "yes": [
@@ -129,7 +143,7 @@ class Fun(commands.Cog, name="Survivor's Playground"):
         category = RESPONSES[random.choice(list(RESPONSES.keys()))]
         embed.colour = category[0]
         response = random.choice(category[1])
-        embed.add_field(name=f"_{whattodecide}_", value=f"\n```ansi\n{response}\n[0m\n```")
+        embed.add_field(name=f"_{question}_", value=f"\n```ansi\n{response}\n[0m\n```")
         await interaction.send(embed=embed)
 
     @nextcord.slash_command(name="fight", description="Fight with another user!")
@@ -157,7 +171,14 @@ class Fun(commands.Cog, name="Survivor's Playground"):
         await interaction.send(embed=embed, view=view)
         view.msg = await interaction.original_message()
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(name="trivia", description="Test your knowledge with a random trivia question!")
+    @command_info(
+        long_help="This fetches a question from [Open Trivia DB](https://opentdb.com/).",
+        examples={
+            "trivia": "Shows a random question",
+            "trivia category:Animals": "Shows a random question in the category _Animals_.",
+        },
+    )
     async def trivia(
         self,
         interaction: Interaction,
@@ -199,7 +220,6 @@ class Fun(commands.Cog, name="Survivor's Playground"):
             default=None,
         ),
     ):
-        """Test your knowledge with a random trivia question!"""
         params = {
             # predefined
             "type": "multiple",
@@ -239,6 +259,9 @@ class Fun(commands.Cog, name="Survivor's Playground"):
     @nextcord.slash_command(
         name="maze",
         description="Wander in a (very) hard maze! You'll probably get stuck there tho...",
+    )
+    @command_info(
+        "A minigame in which you attempt to solve a maze, with loads of features such as zombies, items and much more! Good luck, because you probably can't get out of the maze."
     )
     async def maze(
         self,

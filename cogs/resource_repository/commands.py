@@ -16,7 +16,7 @@ import asyncpg
 # my modules and constants
 from utils import constants, helpers
 from utils.constants import SCRAP_METAL, COPPER, COPPER_SCRAP_RATE
-from utils.helpers import MoveItemException, TextEmbed, check_if_not_dev_guild
+from utils.helpers import MoveItemException, TextEmbed, check_if_not_dev_guild, command_info
 from utils.player import Player
 
 # command views
@@ -74,7 +74,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             near_items = [item for item in items if data.lower() in item.lower()][:25]
             await interaction.response.send_autocomplete(near_items)
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(name="item", description="Get information of an item.")
     async def item(
         self,
         interaction: Interaction,
@@ -84,7 +84,6 @@ class Resource(commands.Cog, name="Resource Repository"):
             autocomplete_callback=choose_item_autocomplete,
         ),
     ):
-        """Get information of an item."""
         sql = """
             SELECT *
             FROM utility.items

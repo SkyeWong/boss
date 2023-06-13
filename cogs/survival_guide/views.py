@@ -4,7 +4,7 @@ from nextcord import Embed, Interaction, ButtonStyle, SelectOption
 from nextcord.ui import Button, button, Select, select
 
 # my modules
-from utils import constants
+from utils import constants, helpers
 from utils.constants import SCRAP_METAL, COPPER
 from utils.template_views import BaseView
 
@@ -19,50 +19,49 @@ class HelpView(BaseView):
 
     def __init__(
         self,
-        slash_interaction: Interaction,
-        mapping: dict = None,
+        interaction: Interaction,
         cmd_list: list[nextcord.SlashApplicationCommand] = None,
+        with_select_menu: bool = True,
     ):
         """Initializes the HelpView.
 
         Args:
             slash_interaction: The interaction that triggered the view.
-            mapping: A dictionary mapping the name of a command group to a tuple containing the command group object and a list of commands in the group.
             cmd_list: A selected list of commands to display (for example, the subcommands of a command).
+            with_select_menu: Whether to display the select menu for cogs. Should be turned off if only some commands are displayed.
 
         Raises:
             ValueError: If neither `mapping` nor `cmd_list` is provided.
         """
 
-        super().__init__(slash_interaction, timeout=90)
-
-        # Check that either `mapping` or `cmd_list` is provided.
-        if not mapping and not cmd_list:
-            raise ValueError("Either `mapping` or `cmd_list` should be provided.")
+        super().__init__(interaction, timeout=90)
 
         # Set the mapping of cog names to lists of commands.
         if cmd_list is None:
-            self.mapping = mapping
+            self.mapping = helpers.get_mapping(interaction, interaction.client)
             self.cmd_list = []
-            for cog_name, (cog, commands) in mapping.items():
+            for cog_name, (cog, commands) in self.mapping.items():
                 self.cmd_list.extend(commands)
         else:
             self.cmd_list = cmd_list
+            self.mapping = None
 
-        # set the options of the cog select menu
         cog_select_menu = [i for i in self.children if i.custom_id == "cog_select"][0]
-        options = self._get_cogs_options()
-        cog_select_menu.options = options
-        cog_select_menu.max_values = len(options)
+        if with_select_menu:
+            # set the options of the cog select menu
+            options = self._get_cogs_options()
+            cog_select_menu.options = options
+            cog_select_menu.max_values = len(options)
+            # Set the old selected values to ["All"].
+            self.old_selected_values = ["All"]
+        else:
+            self.remove_item(cog_select_menu)
 
         # Set the initial page number to 1.
         self.page = 1
 
         # Set the number of commands per page to 6.
         self.cmd_per_page = 6
-
-        # Set the old selected values to ["All"].
-        self.old_selected_values = ["All"]
 
     def _get_cogs_options(self) -> list[SelectOption]:
         """Gets a list of SelectOption objects for the cogs.
@@ -145,12 +144,19 @@ class HelpView(BaseView):
                 name += " `has subcommands`"
 
             # Add the command (name and description) to the embed description
-            embed.description += f"{name}\n\n`➸` {value}\n"
+            embed.description += f"{name}\n<:reply:1117458829869858917> {value}\n"
 
         # Set the footer of the embed with the current page number and the total number of pages.
         embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}")
 
         return embed
+
+    async def send(self, *args, **kwargs):
+        """Respond to the interaction by sending a message. *args and **kwargs will be passed to `HelpView.help_embed()`."""
+        embed = self.help_embed(*args, **kwargs)
+        # disable certain paginating buttons
+        self.btn_disable()
+        await self.interaction.send(embed=embed, view=self)
 
     def get_page_start_index(self):
         """

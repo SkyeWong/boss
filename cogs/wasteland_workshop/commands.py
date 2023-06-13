@@ -10,7 +10,7 @@ from cooldowns import SlashBucket
 
 # my modules and constants
 from utils import constants, helpers
-from utils.helpers import check_if_not_dev_guild, TextEmbed
+from utils.helpers import check_if_not_dev_guild, TextEmbed, command_info
 
 # command views
 from .views import (
@@ -83,70 +83,14 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         self.announce_temp.start()
         self.AES_KEY = os.urandom(32)
 
-    def search_subcommand(self, cmd: nextcord.SlashApplicationCommand, cmd_name):
-        """Search for a subcommand with its name."""
-        cmd_found = False
-        subcommands = cmd.children.values()
-        for x in subcommands:
-            if x.qualified_name in cmd_name:
-                if cmd_name == x.qualified_name:
-                    cmd_found = True
-                    cmd = x
-                    break
-                elif x.children:
-                    return self.search_subcommand(x, cmd_name)
-
-        if not cmd_found:
-            raise helpers.CommandNotFound()
-        return cmd
-
-    def get_all_subcmd_names(self, guild_id: int, cmd):
-        """Get all subcommand names of a command."""
-        cmd_names = []
-        for subcmd in cmd.children.values():
-            base_cmd = cmd
-            while not isinstance(base_cmd, nextcord.SlashApplicationCommand):
-                base_cmd = base_cmd.parent_cmd
-            cmd_in_guild = False
-            if base_cmd.is_global:
-                cmd_in_guild = True
-            elif guild_id in base_cmd.guild_ids:
-                cmd_in_guild = True
-            if cmd_in_guild == True:
-                cmd_names.append(subcmd.qualified_name)
-            if len(subcmd.children) > 0:
-                cmd_names.extend(self.get_all_subcmd_names(guild_id, subcmd))
-        return cmd_names
-
-    async def choose_command_autocomplete(self, interaction: Interaction, data: str):
-        """
-        Return every command and subcommand in the bot.
-        Returns command that match `data` if it is provided.
-        """
-        base_cmds = interaction.client.get_all_application_commands()
-        cmd_names = []
-        for base_cmd in base_cmds:
-            cmd_in_guild = False
-            if base_cmd.is_global:
-                cmd_in_guild = True
-            elif interaction.guild_id in base_cmd.guild_ids:
-                cmd_in_guild = True
-            if cmd_in_guild == True:
-                cmd_names.append(base_cmd.name)
-            if hasattr(base_cmd, "children") and len(base_cmd.children) > 0:
-                cmd_names.extend(self.get_all_subcmd_names(interaction.guild_id, base_cmd))
-        cmd_names.sort()
-        if not data:
-            # return full list
-            await interaction.response.send_autocomplete(cmd_names[:25])
-        else:
-            # send a list of nearest matches from the list of item
-            near_items = [cmd for cmd in cmd_names if data.lower() in cmd.lower()]
-            await interaction.response.send_autocomplete(near_items[:25])
-
-    @nextcord.slash_command(
-        name="generate-maze",
-        description="Generates a maze using the Mazelib Python library",
+    @nextcord.slash_command(name="generate-maze", description="Generate a maze using the Mazelib Python library")
+    @command_info(
+        long_help="You can set multiple properties of the maze from its size, to difficulty and more!\n"
+        "> Note: this command takes a while to run, so be patient!",
+        examples={
+            "generate-maze width:50": "Generates a maze with a width of 50 cells.",
+            "generate-maze difficulty: 9": "Makes 10 mazes and choose the one with the longest solution",
+        },
     )
     @cooldowns.cooldown(1, 180, SlashBucket.author, check=check_if_not_dev_guild)
     async def generate_maze(
@@ -297,9 +241,12 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         near_emojis = sorted([emoji.name for emoji in emojis if emoji.name.lower().startswith(data.lower())])
         return near_emojis[:25]
 
-    @nextcord.slash_command(
-        name="emoji",
-        description="Search for emojis!",
+    @nextcord.slash_command(name="emoji", description="Search for emojis in the server!")
+    @command_info(
+        examples={
+            "emoji": "Displays the full list of the server's emoji",
+            "emoji emoji:<query>": "Search for emojis whose names match the query",
+        },
     )
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def emoji(
@@ -354,7 +301,19 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             else:
                 await interaction.send(embed=Embed(description=f"No emojis are found for `{emoji_name}`."))
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(name="encrypt", description="Send (truly) private messages with your friend using AES!")
+    @command_info(
+        long_help="This performs a bit of complex magic that converts your human readable text into random characters, "
+        "which can be shown again using </decrypt:1100243607065219193>.",
+        notes=[
+            "you can enter an optional `key` for the encryption. Be sure to only keep it between the people you are communicating with!"
+        ],
+        examples={
+            "encrypt plaintext:hello world": "Encrypts _hello world_ with a random generated key.",
+            "encrypt plaintext:hello world key:<key>": "Encrypts _hello world_ with the provided key. "
+            "If the same message is encrypted with the same key twice, it will yield the same results.",
+        },
+    )
     async def encrypt(
         self,
         interaction: Interaction,
@@ -364,7 +323,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             required=False,
         ),
     ):
-        """Send (truly) private messages with your friend using AES!"""
         if key is None:
             key = os.urandom(32)
         else:
@@ -399,14 +357,20 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             )
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(name="decrypt", description="Decrypt that gibberish your friend just sent you!")
+    @command_info(
+        long_help="This turns the random characters produced from </encrypt:1100243604896759910> back to normal text.",
+        notes=["you do need the key to work, so maybe ask your friend to send you it beforehand"],
+        examples={
+            "decrypt ciphertext:<random characters> key:<key>": "Decrypts the random characters.",
+        },
+    )
     async def decrypt(
         self,
         interaction: Interaction,
         ciphertext: str = SlashOption(description="The message to decrypt"),
         key: str = SlashOption(description="The base64-encoded key to be used in AES."),
     ):
-        """Decrypt that gibberish your friend just sent you!"""
         data = {
             "ciphertext": ciphertext,
             "key": key,
@@ -454,99 +418,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
     @decrypt.before_invoke
     async def defer_ephemeral(interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
-
-    async def get_temperature(self, location: str, language="Val_Eng"):
-        async with aiohttp.ClientSession() as session:
-            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json") as response:
-                html = await response.json()
-
-        temp_list: dict[dict] = html.get("DYN_DAT_MINDS_RHRREAD")
-
-        date = temp_list.get("BulletinDate")[language]
-        time = temp_list.get("BulletinTime")[language]
-        hk_tz = pytz.timezone("Asia/Hong_Kong")
-        temp_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(tzinfo=hk_tz)
-        if not location:
-            location_name = "Hong Kong Observatory"
-            temp = temp_list.get("HongKongObservatoryTemperature")[language]
-        else:
-            try:
-                location_name = temp_list.get(f"{location}LocationName")[language]
-                temp = temp_list.get(f"{location}Temperature")[language]
-            except TypeError:
-                return temp_time, location_name
-
-        humidty = temp_list.get("HongKongObservatoryRelativeHumidity")[language]
-        messages = []
-        # using 2 seperate for loops to make sure `Message` always goes first.
-        for k, v in temp_list.items():
-            if "Message" in k and v[language] != "":
-                messages.append(v[language])
-        for k, v in temp_list.items():
-            if "AdditionalInformation" in k and v[language] != "":
-                messages.append(v[language])
-
-        return (
-            temp_time,
-            location_name,
-            float(temp),
-            float(humidty),
-            "\n".join(messages),
-        )
-
-    async def get_hko_weather_forecast(self, language="Val_Eng"):
-        async with aiohttp.ClientSession() as session:
-            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json") as response:
-                html = await response.json()
-
-        response: dict[dict] = html.get("DYN_DAT_MINDS_FLW")
-        date = response.get("BulletinDate")[language]
-        time = response.get("BulletinTime")[language]
-        hk_tz = pytz.timezone("Asia/Hong_Kong")
-        forecast_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(tzinfo=hk_tz)
-
-        situation = response.get("FLW_WxForecastGeneralSituation")[language]
-        situation += "\n\n"
-        situation += response.get("FLW_WxForecastWxDesc")[language]
-
-        outlook = response.get("FLW_WxOutlookContent")[language]
-
-        return forecast_time, situation, outlook
-
-    def get_hko_weather_embed(self, temp):
-        embed = Embed()
-        embed.set_author(
-            name=f"Information fetched from HK Observatory",
-            url="https://www.hko.gov.hk/en/",
-        )
-
-        if len(temp) > 2:  # fetching info succeeded
-            embed.add_field(name=f"Temperature", value=f"{temp[1]} - {temp[2]}°C", inline=True)
-            embed.add_field(name=f"Humidty", value=f"{temp[3]}%", inline=True)
-            if temp[2] >= 35:
-                embed.colour = 0x9F294C  # dark red
-            elif temp[2] >= 31:
-                embed.colour = 0xC38A54  # orange
-            elif temp[2] >= 26:
-                embed.colour = 0xC09D63  # yellow
-            elif temp[2] >= 21:
-                embed.colour = 0x879A84  # green
-            elif temp[2] >= 16:
-                embed.colour = 0x438190  # turqoise
-            elif temp[2] >= 10:
-                embed.colour = 0x275B80  # dark blue
-            else:
-                embed.colour = 0x39517F  # indigo
-        else:
-            embed.add_field(
-                name="Unavailable",
-                value=f"Required information is not available for the location `{temp[1]}`",
-            )
-        if temp[4]:
-            embed.add_field(name="Message", value=temp[4], inline=False)
-        embed.timestamp = temp[0]
-
-        return embed
 
     @nextcord.slash_command(name="weather")
     async def weather(self, interaction: Interaction):
@@ -619,7 +490,11 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         99: "Heavy thunderstorm with hail",
     }
 
-    @weather.subcommand(name="open-meteo")
+    @weather.subcommand(name="global", description="Have a look at the current weather, anywhere in the world!")
+    @command_info(
+        long_help="This uses the [Open Meteo API](https://api.open-meteo.com) to shows the real-time, up-to-date weather around the globe.\n"
+        "Choose a location from the autocompleted results.",
+    )
     async def open_meteo_weather(
         self,
         interaction: Interaction,
@@ -629,7 +504,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             autocomplete_callback=open_meteo_location_autocomplete,
         ),
     ):
-        """Fetches the current weather data, anywhere in the world!"""
         cipher = AES.new(self.AES_KEY, AES.MODE_ECB)
         try:
             encrypted_location = base64.b64decode(encrypted_location)
@@ -832,7 +706,102 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             }
             await interaction.response.send_autocomplete(dict(sorted(near_locations.items())[:25]))
 
-    @weather.subcommand(name="hk-observatory")
+    async def get_temperature(self, location: str, language="Val_Eng"):
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json") as response:
+                html = await response.json()
+
+        temp_list: dict[dict] = html.get("DYN_DAT_MINDS_RHRREAD")
+
+        date = temp_list.get("BulletinDate")[language]
+        time = temp_list.get("BulletinTime")[language]
+        hk_tz = pytz.timezone("Asia/Hong_Kong")
+        temp_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(tzinfo=hk_tz)
+        if not location:
+            location_name = "Hong Kong Observatory"
+            temp = temp_list.get("HongKongObservatoryTemperature")[language]
+        else:
+            try:
+                location_name = temp_list.get(f"{location}LocationName")[language]
+                temp = temp_list.get(f"{location}Temperature")[language]
+            except TypeError:
+                return temp_time, location_name
+
+        humidty = temp_list.get("HongKongObservatoryRelativeHumidity")[language]
+        messages = []
+        # using 2 seperate for loops to make sure `Message` always goes first.
+        for k, v in temp_list.items():
+            if "Message" in k and v[language] != "":
+                messages.append(v[language])
+        for k, v in temp_list.items():
+            if "AdditionalInformation" in k and v[language] != "":
+                messages.append(v[language])
+
+        return (
+            temp_time,
+            location_name,
+            float(temp),
+            float(humidty),
+            "\n".join(messages),
+        )
+
+    async def get_hko_weather_forecast(self, language="Val_Eng"):
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json") as response:
+                html = await response.json()
+
+        response: dict[dict] = html.get("DYN_DAT_MINDS_FLW")
+        date = response.get("BulletinDate")[language]
+        time = response.get("BulletinTime")[language]
+        hk_tz = pytz.timezone("Asia/Hong_Kong")
+        forecast_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(tzinfo=hk_tz)
+
+        situation = response.get("FLW_WxForecastGeneralSituation")[language]
+        situation += "\n\n"
+        situation += response.get("FLW_WxForecastWxDesc")[language]
+
+        outlook = response.get("FLW_WxOutlookContent")[language]
+
+        return forecast_time, situation, outlook
+
+    def get_hko_weather_embed(self, temp):
+        embed = Embed()
+        embed.set_author(
+            name=f"Information fetched from HK Observatory",
+            url="https://www.hko.gov.hk/en/",
+        )
+
+        if len(temp) > 2:  # fetching info succeeded
+            embed.add_field(name=f"Temperature", value=f"{temp[1]} - {temp[2]}°C", inline=True)
+            embed.add_field(name=f"Humidty", value=f"{temp[3]}%", inline=True)
+            if temp[2] >= 35:
+                embed.colour = 0x9F294C  # dark red
+            elif temp[2] >= 31:
+                embed.colour = 0xC38A54  # orange
+            elif temp[2] >= 26:
+                embed.colour = 0xC09D63  # yellow
+            elif temp[2] >= 21:
+                embed.colour = 0x879A84  # green
+            elif temp[2] >= 16:
+                embed.colour = 0x438190  # turqoise
+            elif temp[2] >= 10:
+                embed.colour = 0x275B80  # dark blue
+            else:
+                embed.colour = 0x39517F  # indigo
+        else:
+            embed.add_field(
+                name="Unavailable",
+                value=f"Required information is not available for the location `{temp[1]}`",
+            )
+        if temp[4]:
+            embed.add_field(name="Message", value=temp[4], inline=False)
+        embed.timestamp = temp[0]
+        return embed
+
+    @weather.subcommand(name="hong-kong", description="Show the latest weather from HK observatory")
+    @command_info(
+        long_help="Displays the weather at Hong Kong using the API provided by [HK Observatory](https://www.hko.gov.hk/), along with a forecast and any warnings the HKO hoisted."
+    )
     async def hko_weather(
         self,
         interaction: Interaction,
@@ -849,7 +818,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             choices={"English": "Val_Eng", "Chinese": "Val_Chi"},
         ),
     ):
-        """Fetches the latest temperature from HK observatory"""
         if location and location not in self.location_list.keys() and location not in self.location_list.values():
             await interaction.send(f"District not found\n`{location=}`\n", ephemeral=True)
             return
@@ -943,7 +911,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             default=False,
         ),
     ):
-        """Searches for videos on Youtube"""
+        """Searches for videos on Youtube. Only available for the owners."""
         # initalise the youtube api cilent
         api_service_name = "youtube"
         api_version = "v3"
@@ -1090,7 +1058,14 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         )
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command(name="next-train")
+    @nextcord.slash_command(name="next-train", description="View information about the HK MTR train system.")
+    @command_info(
+        long_help="With this command, you can get the real-time info of when trains are departing/arriving at a station!\n",
+        notes=[
+            "not all railway lines are supported yet, we hope that MTR will update their API soon.",
+            "when using this command, make sure to choose the `line` first before you choose a `station`.",
+        ],
+    )
     async def next_train(
         self,
         interaction: Interaction,
@@ -1100,7 +1075,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         ),
         station: str = SlashOption(name="station", description="Any station in the line"),
     ):
-        """Shows information of the HK MTR train system."""
         # validate data
         # `line` is verified by discord, we only need to check `station`
         if station not in LINE_STATION_CODES[line].values():

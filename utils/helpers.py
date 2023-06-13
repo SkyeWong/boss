@@ -1,6 +1,6 @@
 # nextcord
 from nextcord.ext import commands
-from nextcord import Embed, Interaction
+from nextcord import Embed, Interaction, BaseApplicationCommand, CallbackWrapper
 from nextcord.ui import View, Button
 import nextcord
 
@@ -106,6 +106,28 @@ def sec_to_txt(seconds: int) -> str:
         seconds %= seconds_of_unit
 
     return time_txt
+
+
+def command_info(
+    long_help: Optional[str] = None,
+    notes: Optional[list[str]] = None,
+    examples: Optional[dict[str, str]] = None,
+    **kwargs,
+):
+    """Adds additional information to a command, which can be displayed in /help."""
+
+    class AddCommandInfo(CallbackWrapper):
+        def modify(self, app_cmd: BaseApplicationCommand) -> None:
+            app_cmd.long_help = long_help
+            app_cmd.notes = notes
+            app_cmd.examples = examples
+            for k, v in kwargs.items():
+                setattr(app_cmd, k, v)
+
+    def wrapper(func):
+        return AddCommandInfo(func)
+
+    return wrapper
 
 
 def get_mapping(interaction: Interaction, bot: commands.Bot = None) -> dict:
@@ -432,3 +454,9 @@ class ComponentLabelTooLong(BossException):
 
 class NegativeBalance(BossException):
     pass
+
+
+class BossWarning(Warning):
+    def __init__(self, text=None, *args: object) -> None:
+        super().__init__(*args)
+        self.text = text
