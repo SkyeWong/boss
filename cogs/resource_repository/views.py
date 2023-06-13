@@ -192,7 +192,7 @@ class FarmView(BaseView):
     async def get_msg(self, embed: Embed = None, **kwargs):
         if not embed:
             embed = Embed()
-        embed.set_author(name=f"{self.interaction.user.name}'s Farm")
+        embed.set_author(name=f"{self.player.user.name}'s Farm")
 
         msg = await _get_farm_embed_and_img(
             self.player,
