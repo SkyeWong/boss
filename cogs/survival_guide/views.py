@@ -134,7 +134,11 @@ class HelpView(BaseView):
         # Iterate over the commands on the current page.
         for cmd in command_list[start_index:end_index]:
             # Get the command's description.
-            value = cmd.description if cmd.description != "No description provided." else "..."
+            value = (
+                f"\n<:reply:1117458829869858917> {cmd.description}"
+                if cmd.description != "No description provided."
+                else ""
+            )
 
             # Get the command's name.
             name = f"**</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>**"
@@ -144,7 +148,7 @@ class HelpView(BaseView):
                 name += " `has subcommands`"
 
             # Add the command (name and description) to the embed description
-            embed.description += f"{name}\n<:reply:1117458829869858917> {value}\n"
+            embed.description += f"{name}{value}\n"
 
         # Set the footer of the embed with the current page number and the total number of pages.
         embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}")
