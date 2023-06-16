@@ -10,6 +10,7 @@ from cooldowns import SlashBucket
 
 # my modules and constants
 from utils import constants, helpers
+from utils.template_views import BaseView
 from utils.helpers import check_if_not_dev_guild, TextEmbed, command_info
 
 # command views
@@ -88,19 +89,19 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         long_help="You can set multiple properties of the maze from its size, to difficulty and more!\n"
         "> Note: this command takes a while to run, so be patient!",
         examples={
-            "generate-maze width:50": "Generates a maze with a width of 50 cells.",
-            "generate-maze difficulty: 9": "Makes 10 mazes and choose the one with the longest solution",
+            "generate-maze width:20": "Generates a maze with a width of 50 cells.",
+            "generate-maze width:10 difficulty: 9": "Makes 10 mazes and choose the one with the longest solution",
         },
     )
     @cooldowns.cooldown(1, 180, SlashBucket.author, check=check_if_not_dev_guild)
     async def generate_maze(
         self,
         interaction: Interaction,
-        width: int = SlashOption(description="The width of the maze", required=True, max_value=60),
+        width: int = SlashOption(description="The width of the maze", required=True, max_value=30),
         height: int = SlashOption(
             description="The length of the maze. If not set, will be set to `width`.",
             required=False,
-            max_value=60,
+            max_value=30,
         ),
         difficulty: int = SlashOption(
             description="0 to 9 --> 0: easiest, 9: hardest. The bot generates 10 mazes and finds the `n`th short maze",
@@ -129,7 +130,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         height = width if not height else height
 
         if height < 3 or width < 3:
-            await msg.edit(content="The maze must be at least 3x3 large!", embed=None)
+            await msg.edit(embed=TextEmbed("The maze must be at least 3x3 large!"))
             return
 
         m = Maze()
@@ -188,45 +189,82 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         for k, v in SPRITES.items():
             SPRITES[k] = v.resize((sprite_width, sprite_width))
 
-        maze_img = Image.new("RGBA", (sprite_width * len(m.grid[0]), sprite_width * len(m.grid)))
+        solved_img = Image.new("RGBA", (sprite_width * len(m.grid[0]), sprite_width * len(m.grid)))
 
+        # generate the solved maze image
         for y_i, y in enumerate(m_str.splitlines()):
             for x_i, x in enumerate(y):
                 if x == "#":
                     sprite = SPRITES["wall"]
                 elif x == " ":
                     sprite = SPRITES["ground"]
-                elif x == "+":
-                    sprite = SPRITES["path"]
                 elif x == "S":
                     sprite = SPRITES["start"]
                 elif x == "E":
                     sprite = SPRITES["finish"]
-                maze_img.paste(sprite, (x_i * sprite_width, y_i * sprite_width))
+                elif x == "+":
+                    sprite = SPRITES["path"]
+                # paste the cell into solved image
+                solved_img.paste(sprite, (x_i * sprite_width, y_i * sprite_width))
 
-        output = BytesIO()
-        maze_img.thumbnail((1600, 1600))
-        maze_img.save(output, format="PNG")
-        output.seek(0)
+        unsolved_img = solved_img.copy()
+        # convert every path image into ground image in unsolved image
+        for y_i, y in enumerate(m_str.splitlines()):
+            for x_i, x in enumerate(y):
+                if x == "+":
+                    unsolved_img.paste(SPRITES["ground"], (x_i * sprite_width, y_i * sprite_width))
 
-        file = nextcord.File(output, "maze.png")
+        def save_img(image: Image.Image):
+            output = BytesIO()
+            image.thumbnail((1600, 1600))
+            image.save(output, format="PNG")
+            output.seek(0)
+            return output
+
         embed.set_image("attachment://maze.png")
-
         embed.set_author(name="Generating maze successful!")
-        embed.description = f"**Width (inputted - actual)**: `{width}` - `{len(m.grid[0])}`\n"
-        embed.description += f"**Height (inputted - actual)**: `{height}` - `{len(m.grid)}`"
-        await msg.edit(file=file, embed=embed)
+        embed.description = f"**Width**: `{width}`\n"
+        embed.description += f"**Height**: `{height}`"
 
-        view = View()
-        button = Button(label="View", url=msg.jump_url)
-        view.add_item(button)
+        solve_view = BaseView(interaction, timeout=180)
+        solve_button = Button(label="Solve")
+
+        async def toggle_solve(button_interaction: Interaction):
+            embed.set_footer(text="Changing image, please wait...")
+            solve_button.disabled = True
+            await button_interaction.response.edit_message(embed=embed, view=solve_view)
+            if solve_button.label == "Solve":
+                # change the image to "solved" image
+                solve_button.label = "Unsolve"
+                file = nextcord.File(save_img(solved_img), "maze.png")
+            else:
+                # change the image to "unsolved" image
+                solve_button.label = "Solve"
+                file = nextcord.File(save_img(unsolved_img), "maze.png")
+            solve_button.disabled = False
+            embed.set_footer(text=None)  # clear the footer text
+            await msg.edit(file=file, embed=embed, view=solve_view)
+
+        solve_button.callback = toggle_solve
+        solve_view.add_item(solve_button)
+
+        # default to the unsolved image
+        file = nextcord.File(save_img(unsolved_img), "maze.png")
+
+        msg = await msg.edit(file=file, embed=embed, view=solve_view)
+
+        # send a message to notify users that the maze has finished generating,
+        # and add a "jump" button to let users jump to the maze message
+        jump_view = View()
+        jump_button = Button(label="View", url=msg.jump_url)
+        jump_view.add_item(jump_button)
         int_time = int(interaction.created_at.timestamp())
         await interaction.send(
             interaction.user.mention,
-            embed=Embed(
-                description=f"Your {width}x{height} maze requested at <t:{int_time}:R> | <t:{int_time}:f> has been successfully generated!"
+            embed=TextEmbed(
+                f"Your {width}x{height} maze requested at <t:{int_time}:R> | <t:{int_time}:f> has been successfully generated!"
             ),
-            view=view,
+            view=jump_view,
             ephemeral=True,
         )
 
