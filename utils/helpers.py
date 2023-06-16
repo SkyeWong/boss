@@ -6,7 +6,7 @@ import nextcord
 
 # constants
 from utils import constants
-from utils.constants import SCRAP_METAL, COPPER
+from utils.constants import SCRAP_METAL, COPPER, EmbedColour
 from utils.postgres_db import Database
 
 # inbuilt modules
@@ -22,10 +22,6 @@ def roundup(number: int, round_to: int) -> int:
 
 def rounddown(number: int, round_to: int) -> int:
     return number if number % round_to == 0 else number - number % round_to
-
-
-def check_if_it_is_skye(interaction: Interaction) -> bool:
-    return interaction.user.id == 806334528230129695
 
 
 def check_if_not_dev_guild(*args, **kwargs) -> bool:
@@ -126,6 +122,31 @@ def command_info(
 
     def wrapper(func):
         return AddCommandInfo(func)
+
+    return wrapper
+
+
+def work_in_progress(dev_guild_only: bool = True):
+    """Marks a command as work in progress, so it would display a message when used.
+
+    Args:
+        dev_guild_only (bool, optional): make the command available only in the dev server. Defaults to True.
+    """
+
+    class WorkInProgressCommand(CallbackWrapper):
+        def modify(self, app_cmd: BaseApplicationCommand) -> None:
+            app_cmd.original_callback = self.callback
+
+            async def callback(*args, **kwargs):
+                if args[1].guild_id == constants.DEVS_SERVER_ID and dev_guild_only:
+                    await app_cmd.original_callback(*args, **kwargs)
+                else:
+                    await args[1].send(embed=TextEmbed("This command is work in progress. Check back later maybe?"))
+
+            app_cmd.callback = callback
+
+    def wrapper(func):
+        return WorkInProgressCommand(func)
 
     return wrapper
 
@@ -239,8 +260,8 @@ def format_with_link(text: str):
 class TextEmbed(Embed):
     """A `nextcord.Embed` with the description set as `text`."""
 
-    def __init__(self, text: str):
-        super().__init__(description=text)
+    def __init__(self, text: str, colour: EmbedColour = EmbedColour.DEFAULT):
+        super().__init__(description=text, colour=colour.value)
 
 
 class BossItem:

@@ -1,6 +1,7 @@
 import os
 import enum
 
+
 EMBED_COLOURS = [
     # blues (deep -> light)
     0x00001B,
@@ -48,6 +49,14 @@ class IntEnum(Enum):
 
     def __int__(self):
         return self.value
+
+
+class EmbedColour(Enum):
+    INFO = 0x7FB2F0  # light blue
+    SUCCESS = 0x88E08C  # light green
+    FAIL = 0xFF8F8F  # light red
+    WARNING = 0xFFC87D  # light orange
+    DEFAULT = 0xA9A9A9  # light gray
 
 
 class InventoryType(IntEnum):

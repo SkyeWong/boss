@@ -550,11 +550,12 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
 
     @nextcord.slash_command()
+    @helpers.work_in_progress(dev_guild_only=True)
     async def use(
         self, interaction: Interaction, itemname: str = SlashOption(name="item", description="The item to use")
     ):
         """Use an item to activiate its unique ability for some special effects or benefits!"""
-        pass
+        await interaction.send(embed=TextEmbed("Used nothing! :)"))
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)

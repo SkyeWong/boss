@@ -12,6 +12,7 @@ from cooldowns import SlashBucket
 from utils import constants, helpers
 from utils.template_views import BaseView
 from utils.helpers import check_if_not_dev_guild, TextEmbed, command_info
+from utils.constants import EmbedColour
 
 # command views
 from .views import (
@@ -47,7 +48,6 @@ import pytz
 
 # default modules
 import datetime
-import random
 from PIL import Image
 from io import BytesIO
 import asyncio
@@ -121,7 +121,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         ),
     ):
         embed = Embed()
-        embed.colour = random.choice(constants.EMBED_COLOURS)
+        embed.colour = EmbedColour.DEFAULT.value
         embed.set_author(name="Generating maze... Please wait patiently")
         embed.description = "I will ping you when it has finished!"
         embed.description += "\n`1.` Your request has been received and is processing... "
@@ -223,6 +223,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
         embed.set_image("attachment://maze.png")
         embed.set_author(name="Generating maze successful!")
+        embed.colour = EmbedColour.SUCCESS.value
         embed.description = f"**Width**: `{width}`\n"
         embed.description += f"**Height**: `{height}`"
 
