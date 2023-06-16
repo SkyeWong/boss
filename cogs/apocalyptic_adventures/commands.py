@@ -11,6 +11,7 @@ from cooldowns import SlashBucket
 from utils.postgres_db import Database
 
 # my modules and constants
+from utils import constants, helpers
 from utils.constants import CURRENCY_EMOJIS
 from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, BossPrice
 from utils.player import Player
@@ -110,21 +111,11 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
             return
 
-        success_msgs = [
-            "You've struck gold! Just kidding, it's just {item}.",
-            "You went bonkers and finally found {item} after hours of work!",
-            "You've found {item}, which is slightly more valuable than a pile of dirt.",
-            "You've unearthed {item}. Now you just need to find someone who cares.",
-            "After hours of back-breaking labor, you've found a {item}. Time to retire.",
-            "You've dug up {item}. Better luck next time.",
-        ]
         item: BossItem
         await player.add_item(item.item_id, item.quantity)
         await interaction.send(
             embed=TextEmbed(
-                random.choice(success_msgs).format(
-                    item=f"**{item.quantity} {await item.get_name(db)}** {await item.get_emoji(db)}"
-                )
+                f"You dug in the ground and unearthed **{item.quantity} {await item.get_name(db)}** {await item.get_emoji(db)}!"
             )
         )
 
@@ -168,15 +159,8 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             )
             return
 
-        success_msgs = [
-            "Wow, you actually found a {item}. I suppose even a blind squirrel finds a nut every once in a while.",
-            "You hit the jackpot and obtained a {item}! Just kidding, you got lucky.",
-            "You found a {item}! It's almost like you knew what you were doing... or maybe you just got lucky.",
-            "Well, looks like you're not as useless as I thought. You found a {item}.",
-            "You found a {item}! It's almost like you have a sixth sense for mining... or maybe you just stumbled upon it.",
-        ]
         embed = TextEmbed(
-            random.choice(success_msgs).format(item=f"**{await item.get_name(db)}** {await item.get_emoji(db)}")
+            f"You went to the quarries and mined out **{await item.get_name(db)}** {await item.get_emoji(db)}"
         )
         await interaction.send(embed=embed)
 
@@ -226,27 +210,13 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
             return
 
-        success_msgs = [
-            "Wow, you managed to scavenge {reward}. You're basically a survival expert now, I suppose.",
-            "Congrats, you found {reward}. You're one step closer to taking down the apocalypse.",
-            "Oh wow, it's another {reward}. Just what you needed.",
-            "You found {reward}. Too bad it's not worth anything in this world.",
-            "You found {reward}. It's not much, but at least it's something.",
-            "You found {reward}. Just don't expect anyone to be impressed by it.",
-            "Great work, you found {reward}. Maybe you can use it to decorate your trash heap.",
-            "Excellent, you found {reward}. It's almost like finding a penny on the ground - not really worth much, but hey, you still found something.",
-            "You have successfully scavenged {reward}. I bet you're thrilled to add it to your pile of junk.",
-        ]
+        msg = "You searched absolutely everywhere and finally got {reward}"
         if isinstance(reward, BossPrice):
             await player.modify_currency(reward.currency_type, reward.price)
-            msg = random.choice(success_msgs).format(
-                reward=f"**{CURRENCY_EMOJIS[reward.currency_type]} {reward.price}**"
-            )
+            msg = msg.format(reward=f"**{CURRENCY_EMOJIS[reward.currency_type]} {reward.price}**")
         elif isinstance(reward, BossItem):
             await player.add_item(reward.item_id, reward.quantity)
-            msg = random.choice(success_msgs).format(
-                reward=f"**{reward.quantity} {await reward.get_name(db)}** {await reward.get_emoji(db)}"
-            )
+            msg = msg.format(reward=f"**{reward.quantity} {await reward.get_name(db)}** {await reward.get_emoji(db)}")
         await interaction.send(embed=TextEmbed(msg))
 
     async def adventure_pyramid(self, button, interaction: Interaction):
@@ -427,6 +397,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         await interaction.send(f"You visited a {structure_type} called {structure_name}")
 
     @nextcord.slash_command()
+    @helpers.work_in_progress(dev_guild_only=True)
     async def missions(self, interaction: Interaction):
         pass
 
