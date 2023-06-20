@@ -237,11 +237,13 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             if solve_button.label == "Solve":
                 # change the image to "solved" image
                 solve_button.label = "Unsolve"
-                file = nextcord.File(save_img(solved_img), "maze.png")
+                future = loop.run_in_executor(None, save_img, solved_img)
             else:
                 # change the image to "unsolved" image
                 solve_button.label = "Solve"
-                file = nextcord.File(save_img(unsolved_img), "maze.png")
+                future = loop.run_in_executor(None, save_img, unsolved_img)
+            output = loop.run_until_complete(future)
+            file = nextcord.File(output, "maze.png")
             solve_button.disabled = False
             embed.set_footer(text=None)  # clear the footer text
             await msg.edit(file=file, embed=embed, view=solve_view)
@@ -250,7 +252,9 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         solve_view.add_item(solve_button)
 
         # default to the unsolved image
-        file = nextcord.File(save_img(unsolved_img), "maze.png")
+        future = loop.run_in_executor(None, save_img, unsolved_img)
+        output = loop.run_until_complete(future)
+        file = nextcord.File(output, "maze.png")
 
         msg = await msg.edit(file=file, embed=embed, view=solve_view)
 
