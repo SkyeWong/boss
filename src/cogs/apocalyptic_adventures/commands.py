@@ -12,7 +12,7 @@ from utils.postgres_db import Database
 
 # my modules and constants
 from utils import constants, helpers
-from utils.constants import CURRENCY_EMOJIS
+from utils.constants import CURRENCY_EMOJIS, EmbedColour
 from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, BossPrice
 from utils.player import Player
 from utils.template_views import ConfirmView
@@ -22,6 +22,7 @@ from modules.maze.maze import Maze
 
 # default modules
 import random
+import asyncio
 
 
 class Survival(commands.Cog, name="Apocalyptic Adventures"):
@@ -31,6 +32,50 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    async def cog_application_command_before_invoke(self, interaction: Interaction) -> None:
+        await super().cog_application_command_before_invoke(interaction)
+        hunger = await self.bot.db.fetchval(
+            """
+            SELECT hunger
+            FROM players.players
+            WHERE player_id = $1
+            """,
+            interaction.user.id,
+        )
+        # if the hunger is smaller than 30, wait for 3 seconds before continuing
+        if hunger < 30:
+            await interaction.send(
+                embed=TextEmbed(
+                    "You are too hungry! Consume some food before running commands again.\nContinuing after 3 seconds...",
+                    EmbedColour.WARNING,
+                )
+            )
+            await asyncio.sleep(3)
+
+    async def cog_application_command_after_invoke(self, interaction: Interaction) -> None:
+        # decrease the player's hunger
+        old_hunger, new_hunger = await self.bot.db.fetchrow(
+            """
+            UPDATE players.players
+            SET hunger = hunger - $1
+            WHERE player_id = $2
+            RETURNING 
+                (SELECT hunger
+                FROM players.players
+                WHERE player_id = $2) AS old_hunger, 
+                hunger
+            """,
+            random.randint(1, 3),
+            interaction.user.id,
+        )
+        if old_hunger >= 30 and new_hunger < 30:
+            await interaction.user.send(
+                embed=TextEmbed(
+                    "Your hunger is smaller than 30! Commands running from now on will become slower.",
+                    EmbedColour.WARNING,
+                )
+            )
 
     # `% getting one of them`: `list of animals`
     HUNT_LOOT = [

@@ -18,14 +18,18 @@ from keep_alive import keep_alive
 
 # my modules
 from utils import constants, helpers
-from utils.helpers import TextEmbed
+from utils.constants import EmbedColour
+from utils.helpers import TextEmbed, CommandCheckException
 from utils.player import Player
 from utils.postgres_db import Database
 from cogs.wasteland_workshop.views import PersistentWeatherView
-from utils.helpers import CommandCheckException
 
 # default modules
-import os, random, sys, traceback
+import asyncio
+import os
+import random
+import sys
+import traceback
 from datetime import datetime, timezone
 
 
@@ -249,37 +253,29 @@ async def before_invoke(interaction: Interaction):
 
 @bot.application_command_after_invoke
 async def after_invoke(interaction: Interaction):
-    old_experience_level = (
-        await bot.db.fetchval(
-            """
-        SELECT experience
-        FROM players.players
-        WHERE player_id = $1
-        """,
-            interaction.user.id,
-        )
-        // 100
-    )
-    new_experience_level = (
-        await bot.db.fetchval(
-            """
+    old_exp, new_exp = await bot.db.fetchrow(
+        """
         UPDATE players.players
         SET experience = experience + $1
         WHERE player_id = $2
-        RETURNING experience
+        RETURNING 
+            (SELECT experience
+            FROM players.players
+            WHERE player_id = $2) AS old_experience, 
+            experience
         """,
-            random.randint(1, 5),
-            interaction.user.id,
-        )
-        // 100
+        random.randint(1, 5),
+        interaction.user.id,
     )
-    if new_experience_level > old_experience_level:  # player levelled up
+    new_level = new_exp // 100
+    old_level = old_exp // 100
+    if new_level > old_level:  # player levelled up
         await interaction.user.send(
             embed=Embed(
                 title="Level up!",
-                description=f"Poggers! You levelled up from level **{old_experience_level}** to level **{new_experience_level}**!",
+                description=f"Poggers! You levelled up from level **{old_level}** to level **{new_level}**!",
                 timestamp=datetime.now(),
-                colour=random.choice(constants.EMBED_COLOURS),
+                colour=EmbedColour.INFO,
             )
         )
 

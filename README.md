@@ -30,14 +30,14 @@ And more!
 |    **Developer Dashboard** |    ⚙️     | Toolkit for developers to assist moderate the bot. |
 
 ## Item Types
-|    Category | Description                                                      | Examples                                                     |
-| ----------: | ---------------------------------------------------------------- | ------------------------------------------------------------ |
-|     Salvage | Things salvaged or repurposed from the remnants of the old world | scrap metal, broken electronics, and salvaged car parts      |
-|       Decor | Decorative items that let users ornament their bases             | graffiti art, rusted metal signs, and scrap metal sculptures |
-|   Necessity | Essential for survival in a harsh and dangerous world            | food, medical supplies, building materials                   |
-|      Bundle | Sets of items which users can then open to obtain them           | boxes                                                        |
-| Collectible | Scavenged or traded among users as valuable collectibles         | rare coins, antique weapons, and unique trinkets             |
-|  Battlegear | Weapons, gear, and armor that are used for combat or survival    | swords, guns, shields, and armour                            |
+|    Category | Description                                                   | Examples                                                     |
+| ----------: | ------------------------------------------------------------- | ------------------------------------------------------------ |
+|        Food | Essential for survival in a harsh and dangerous world         | food, potions                                                |
+|    Resource | Natural resources that are found or harvested                 | building materials, wood, stone, and minerals                |
+| Collectible | Scavenged or traded among users as valuable collectibles      | rare coins, antique weapons, and unique trinkets             |
+|  Battlegear | Weapons, gear, and armor that are used for combat or survival | swords, guns, shields, and armour                            |
+|       Decor | Decorative items that let users ornament their bases          | graffiti art, rusted metal signs, and scrap metal sculptures |
+|      Bundle | Sets of items which users can then open to obtain them        | boxes                                                        |
 
 ## Getting Started
 

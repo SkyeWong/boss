@@ -72,12 +72,12 @@ class InventoryType(IntEnum):
 
 
 class ItemType(IntEnum):
-    SALVAGE = 0
-    DECOR = 1
-    NECESSITY = 2
-    BUNDLE = 3
-    COLLECTIBLE = 4
-    BATTLEGEAR = 5
+    FOOD = 1
+    RESOURCE = 2
+    COLLECTIBLE = 3
+    BATTLEGEAR = 4
+    DECOR = 5
+    BUNDLE = 6
 
 
 class ItemRarity(IntEnum):

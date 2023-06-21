@@ -141,7 +141,11 @@ def work_in_progress(dev_guild_only: bool = True):
                 if args[1].guild_id == constants.DEVS_SERVER_ID and dev_guild_only:
                     await app_cmd.original_callback(*args, **kwargs)
                 else:
-                    await args[1].send(embed=TextEmbed("This command is work in progress. Check back later maybe?"))
+                    await args[1].send(
+                        embed=TextEmbed(
+                            "This command is work in progress.\nYou can't use it rn, but keep checking for updates!"
+                        )
+                    )
 
             app_cmd.callback = callback
 

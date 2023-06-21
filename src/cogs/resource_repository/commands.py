@@ -566,11 +566,11 @@ class Resource(commands.Cog, name="Resource Repository"):
         db: Database = self.bot.db
         item = await db.fetchrow(
             """
-            SELECT items.item_id, items.name, items.emoji_name, items.emoji_id, items.sell_price, inv.quantity
-                FROM players.inventory As inv
-                INNER JOIN utility.items
-                ON inv.item_id = items.item_id
-            WHERE inv.player_id = $1 AND inv.inv_type = 0 AND (items.name ILIKE $2 or items.emoji_name ILIKE $2)
+            SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, inv.quantity
+                FROM players.inventory AS inv
+                INNER JOIN utility.items AS i
+                ON inv.item_id = i.item_id
+            WHERE inv.player_id = $1 AND inv.inv_type = 0 AND (i.name ILIKE $2 or i.emoji_name ILIKE $2)
             ORDER BY name ASC
             """,
             interaction.user.id,
@@ -580,7 +580,15 @@ class Resource(commands.Cog, name="Resource Repository"):
             await interaction.send(embed=TextEmbed("The item does not exist.", colour=EmbedColour.WARNING))
             return
         if func := getattr(use_item, f"use_item_{item['item_id']}", None):
-            await func(interaction, quantity)
+            if item["quantity"] < quantity:
+                await interaction.send(
+                    embed=TextEmbed(f"You don't have enough {item['emoji']} **{item['name']}**!", EmbedColour.WARNING)
+                )
+                return
+            res = await func(interaction, quantity)
+            if res == True:
+                player = Player(db, interaction.user)
+                await player.add_item(item["item_id"], -quantity)
         else:
             await interaction.send(embed=TextEmbed("You can't use this item", colour=EmbedColour.WARNING))
 
@@ -611,17 +619,17 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         profile = await db.fetchrow(
             """
-            SELECT scrap_metal, copper, experience
+            SELECT scrap_metal, copper, experience, hunger
             FROM players.players
             WHERE player_id = $1
             """,
             user.id,
         )
 
-        profile_ui = Embed()
-        profile_ui.colour = random.choice(constants.EMBED_COLOURS)
-        profile_ui.set_thumbnail(url=user.display_avatar.url)
-        profile_ui.set_author(name=f"{user.name}'s Profile")
+        embed = Embed()
+        embed.colour = EmbedColour.DEFAULT
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.set_author(name=f"{user.name}'s Profile")
 
         experience = profile["experience"]
 
@@ -652,32 +660,34 @@ class Resource(commands.Cog, name="Resource Repository"):
         if item_worth is None:
             item_worth = 0
 
-        profile_ui.add_field(
-            name="Scrap Metal",
-            value=f"{SCRAP_METAL} `{numerize.numerize(profile['scrap_metal'])}`",
+        embed.add_field(name="Scrap Metal", value=f"{SCRAP_METAL} `{numerize.numerize(profile['scrap_metal'])}`")
+        embed.add_field(name="Copper", value=f"{COPPER} `{numerize.numerize(profile['copper'])}`")
+        embed.add_field(
+            name="Net worth",
+            value=f"{SCRAP_METAL} `{numerize.numerize(item_worth + profile['scrap_metal'])}`",
         )
-        profile_ui.add_field(name="Copper", value=f"{COPPER} `{numerize.numerize(profile['copper'])}`")
+
         experience_progress_bar_filled = round((experience % 100) / 10)
-        profile_ui.add_field(
+        embed.add_field(
             name="Experience",
-            inline=False,
             value=f"Level: `{math.floor(experience / 100)}`\n"
-            f"Progress: `{experience % 100}/100` "
-            f"[`{'█' * experience_progress_bar_filled}{' ' * (10 - experience_progress_bar_filled)}`]",
+            f"`{experience % 100}/100` [`{'█' * experience_progress_bar_filled}{' ' * (10 - experience_progress_bar_filled)}`]",
+            inline=True,
         )
-        profile_ui.add_field(
+        hunger_progress_bar_filled = round((profile["hunger"] % 100) / 10)
+        embed.add_field(
+            name="Hunger",
+            value=f"`{profile['hunger']}/100` [`{'█' * hunger_progress_bar_filled}{' ' * (10 - hunger_progress_bar_filled)}`]",
+            inline=True,
+        )
+        embed.add_field(
             name="Items",
             value=f"Unique: `{unique_items}`\n"
             f"Total: `{total_items}`\n"
             f"Worth: {SCRAP_METAL} `{numerize.numerize(item_worth)}`\n",
             inline=False,
         )
-        profile_ui.add_field(
-            name="Net worth",
-            value=f"{SCRAP_METAL} `{numerize.numerize(item_worth + profile['scrap_metal'])}`",
-            inline=False,
-        )
-        await interaction.send(embed=profile_ui)
+        await interaction.send(embed=embed)
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
