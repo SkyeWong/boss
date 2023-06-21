@@ -1,7 +1,7 @@
 # nextcord
 import nextcord
 from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import Button, button, Select, select
+from nextcord.ui import Button, button, Select, select, TextInput
 
 # database
 from utils.postgres_db import Database
@@ -11,12 +11,13 @@ from .villagers import Villager
 from utils.helpers import BossPrice, BossItem
 
 # my modules and constants
-from utils.template_views import BaseView
+from utils.template_views import BaseView, BaseModal
 from utils.player import Player
 from utils import constants, helpers
 from utils.helpers import TextEmbed
 
 # default modules
+import re
 import pytz
 import datetime
 
@@ -27,6 +28,7 @@ class TradeView(BaseView):
         self.villagers: list[Villager] = []
         self.current_villager: Villager = None
         self.current_index = 0
+        self.msg: nextcord.Message = None
 
     async def send(self):
         await self.get_villagers()
@@ -34,7 +36,7 @@ class TradeView(BaseView):
 
         embed = await self.get_embed()
         await self.update_view()
-        await self.interaction.send(embed=embed, view=self)
+        self.msg = await self.interaction.send(embed=embed, view=self)
 
     async def get_villagers(self) -> None:
         db: Database = self.interaction.client.db
@@ -164,34 +166,49 @@ class TradeView(BaseView):
         await self.update_view()
         await interaction.response.edit_message(view=self, embed=embed)
 
-    @button(label="Trade", style=ButtonStyle.blurple, custom_id="trade")
-    async def trade(self, button: Button, interaction: Interaction):
+    @button(label="Trade Once", style=ButtonStyle.green, custom_id="trade_once")
+    async def trade_once(self, button: Button, interaction: Interaction):
+        """Trade with a villager once"""
+        await self.trade(interaction, trade_quantity=1)
+
+    @button(label="Trade Custom Amount", style=ButtonStyle.blurple, custom_id="trade_custom")
+    async def trade_custom(self, button: Button, interaction: Interaction):
+        """Trade with a villager for a custom amount that the user specifies."""
+
+        async def modal_callback(modal_interaction: Interaction):
+            input = [i for i in modal.children if i.custom_id == "input"][0]
+            quantity: str = input.value
+            if re.search(r"\D", quantity):
+                await modal_interaction.send(embed=TextEmbed("That's not a number."), ephemeral=True)
+            else:
+                await self.trade(interaction, trade_quantity=int(quantity))
+
+        modal = BaseModal(
+            title="Trade Custom Amount",
+            inputs=[TextInput(label="Amount", required=True, custom_id="input")],
+            callback=modal_callback,
+        )
+        await interaction.response.send_modal(modal)
+
+    async def trade(self, interaction: Interaction, trade_quantity: int):
         """Handle the player's trade with a villager."""
         current_villager = self.current_villager
 
         # If there are no remaining trades for the villager, send a message to the player and return
-        if current_villager.remaining_trades <= 0:
+        if current_villager.remaining_trades < trade_quantity:
             await interaction.send(
-                embed=TextEmbed(f"{current_villager.name} is out of stock. Maybe try again later."),
+                embed=TextEmbed(f"{current_villager.name} does not have that much stock."),
                 ephemeral=True,
             )
             return
 
         db: Database = interaction.client.db
         player = Player(db, interaction.user)
+        remaining_inventory = []
 
         async with db.pool.acquire() as conn:
             async with conn.transaction():
-                # Retrieve the player's currency and inventory from the database
-                player_currency = await conn.fetchrow(
-                    """
-                    SELECT scrap_metal, copper
-                    FROM players.players
-                    WHERE player_id = $1
-                    """,
-                    interaction.user.id,
-                )
-
+                # Retrieve the player's inventory from the database
                 inventory = await conn.fetch(
                     """
                     SELECT item_id, quantity
@@ -209,33 +226,42 @@ class TradeView(BaseView):
                     multiplier = -1 if trade_type == "demand" else 1
                     for item in trade_items:
                         if isinstance(item, BossPrice):
-                            # If the trade is a demand and the player does not have enough currency, send a message to the player and return
-                            if trade_type == "demand" and player_currency[item.currency_type] < item.price:
+                            try:
+                                # Deduct the required amount of currency from the player's account
+                                required_price = multiplier * item.price * trade_quantity
+                                remaining_currency = (
+                                    item.currency_type,
+                                    await player.modify_currency(item.currency_type, required_price),
+                                )
+                            except helpers.NegativeBalance:
+                                # The player does not have enough currency, send a message to the player and return
                                 await interaction.send(
                                     embed=TextEmbed("You don't have enough scrap metal."),
                                     ephemeral=True,
                                 )
                                 return
-
-                            # Deduct the required amount of currency from the player's account
-                            required_price = multiplier * item.price
-                            await player.modify_currency(item.currency_type, required_price)
                         elif isinstance(item, BossItem):
                             # get the quantity of the item the player owns with a generator expression
-                            owned_quantity = next((x["quantity"] for x in inventory if x["item_id"] == item.item_id), 0)
-                            # If the trade is a demand and the player does not have enough of the item, send a message to the player and return
-                            if trade_type == "demand" and owned_quantity < item.quantity:
+                            owned_quantity = next((i["quantity"] for i in inventory if i["item_id"] == item.item_id), 0)
+                            try:
+                                # Add/remove the required amount of items to/from the player's inventory
+                                required_quantity = multiplier * item.quantity * trade_quantity
+                                new_quantity = await player.add_item(item.item_id, required_quantity)
+                                remaining_inventory.append(
+                                    BossItem(
+                                        item.item_id,
+                                        new_quantity,
+                                    )
+                                )
+                            except helpers.NegativeInvQuantity:
+                                # The player does not have enough of the item, send a message to the player and return
                                 await interaction.send(
                                     embed=TextEmbed(
-                                        f"You are {item.quantity - (owned_quantity if owned_quantity else 0)} short in {await item.get_emoji(db)} {await item.get_name(db)}."
+                                        f"You are {item.quantity * trade_quantity - owned_quantity} short in {await item.get_emoji(db)} {await item.get_name(db)}."
                                     ),
                                     ephemeral=True,
                                 )
                                 return
-
-                            required_quantity = multiplier * item.quantity
-                            # Add/remove the required amount of items to/from the player's inventory
-                            await player.add_item(item.item_id, required_quantity)
 
                 # Update the remaining trades for the current villager with the player in the database
                 current_villager.remaining_trades = await db.fetchval(
@@ -244,19 +270,33 @@ class TradeView(BaseView):
                     VALUES (
                         $1, 
                         $2, 
-                        (SELECT num_trades FROM trades.villagers WHERE id = $2) - 1
+                        (SELECT num_trades FROM trades.villagers WHERE id = $2) - $3
                     )
                     ON CONFLICT(player_id, villager_id) DO UPDATE
-                        SET remaining_trades = t.remaining_trades - 1
+                        SET remaining_trades = t.remaining_trades - $3
                     RETURNING remaining_trades
                     """,
                     player.user.id,
                     current_villager.villager_id,
+                    trade_quantity,
                 )
 
         # Update the message to show the new remaining trades
         embed = await self.get_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
+        await self.msg.edit(embed=embed, view=self)
         # Send a message to the player indicating what they received from the trade
-        demand_msg, supply_msg = await current_villager.format_trade()
-        await interaction.send(embed=TextEmbed(f"You successfully received: {supply_msg}"), ephemeral=True)
+        supply_msg = ""
+        for i in current_villager.supply:
+            if isinstance(i, BossPrice):
+                supply_msg += f"\n- {constants.CURRENCY_EMOJIS[i.currency_type]} ` {i.price * trade_quantity:,} `"
+            elif isinstance(i, BossItem):
+                supply_msg += f"\n- ` {i.quantity * trade_quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"  # fmt: skip
+        # Send a message to the player indicating how many resources they still have
+        remaining_msg = f"\n- {constants.CURRENCY_EMOJIS[remaining_currency[0]]} ` {remaining_currency[1]:,} `"
+        for i in remaining_inventory:
+            remaining_msg += f"\n- ` {i.quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"  # fmt: skip
+
+        await interaction.send(
+            embed=TextEmbed(f"You successfully received: {supply_msg}\n\nYou now have: {remaining_msg}"),
+            ephemeral=True,
+        )

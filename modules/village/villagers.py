@@ -7,6 +7,7 @@ from utils.helpers import BossItem, BossPrice
 
 # default modules
 import random
+from typing import Optional
 
 
 class Villager:
@@ -41,14 +42,14 @@ class Villager:
         self.remaining_trades = num_trades
         self.db = db
 
-    async def format_trade(self):
+    async def format_trade(self, trade_quantity: Optional[int] = 1):
         msgs = ["", ""]
         for index, value in enumerate((self.demand, self.supply)):
             for i in value:
                 if isinstance(i, BossPrice):
-                    msgs[index] += f"\n{constants.CURRENCY_EMOJIS[i.currency_type]} ` {i.price:,} `"
+                    msgs[index] += f"\n{constants.CURRENCY_EMOJIS[i.currency_type]} ` {i.price * trade_quantity:,} `"
                 elif isinstance(i, BossItem):
-                    msgs[index] += f"\n` {i.quantity}x ` {await i.get_emoji(self.db)} {await i.get_name(self.db)}"
+                    msgs[index] += f"\n` {i.quantity * trade_quantity}x ` {await i.get_emoji(self.db)} {await i.get_name(self.db)}"  # fmt: skip
         return msgs[0], msgs[1]
 
 

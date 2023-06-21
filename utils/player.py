@@ -143,18 +143,23 @@ class Player:
     async def add_item(self, item_id: int, quantity: int = 1, inv_type: int = 0):
         """Add an item into the player's inventory."""
         if await self.is_present():
-            return await self.db.fetchval(
-                """
-                INSERT INTO players.inventory (player_id, inv_type, item_id, quantity)
-                VALUES ($1, $2, $3, $4)
-                ON CONFLICT(player_id, inv_type, item_id) DO UPDATE
-                    SET quantity = inventory.quantity + excluded.quantity
-                RETURNING quantity
-                """,
-                self.user.id,
-                inv_type,
-                item_id,
-                quantity,
-            )
+            async with self.db.pool.acquire() as conn:
+                async with conn.transaction():
+                    quantity = await conn.fetchval(
+                        """
+                        INSERT INTO players.inventory (player_id, inv_type, item_id, quantity)
+                        VALUES ($1, $2, $3, $4)
+                        ON CONFLICT(player_id, inv_type, item_id) DO UPDATE
+                            SET quantity = inventory.quantity + $4
+                        RETURNING quantity
+                        """,
+                        self.user.id,
+                        inv_type,
+                        item_id,
+                        quantity,
+                    )
+                    if quantity < 0:
+                        raise helpers.NegativeInvQuantity()
+                    return quantity
         else:
             raise helpers.PlayerNotExist()

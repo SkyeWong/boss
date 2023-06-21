@@ -1,13 +1,14 @@
 # nextcord
 import nextcord
 from nextcord import Embed, Interaction, ButtonStyle
-from nextcord.ui import View, Button, button
+from nextcord.ui import View, Button, button, Modal, TextInput
 
 # my modules and constants
 from utils import constants, helpers
 from utils.helpers import TextEmbed
 
 # default modules
+from typing import Optional, Callable
 
 
 class BaseView(View):
@@ -94,3 +95,30 @@ class ConfirmView(BaseView):
         await self.cancel(button, interaction)
         if self.cancel_func:
             await self.cancel_func(button, interaction)
+
+
+class BaseModal(Modal):
+    """A template modal for the bot."""
+
+    def __init__(
+        self,
+        title: str,
+        inputs: list[TextInput],
+        callback: Callable,
+        timeout: Optional[int] = 3 * 60,  # three minutes
+    ):
+        """Generates a nextcord modal which lets users input values.
+
+        Args:
+            title (str): Title of the modal
+            inputs (list[TextInput]): A list of TextInputs for the modal. It is recommended to set their `custom_id`
+            callback (Callable): The callback which takes the modal and the interaction as parameters
+            timeout (int, optional): The time in seconds before the modal stops responding. Defaults to None.
+        """
+        super().__init__(title=title, timeout=timeout)
+        for input in inputs:
+            self.add_item(input)
+        self.callback = callback
+
+    async def on_timeout(self) -> None:
+        return await super().on_timeout()
