@@ -46,10 +46,10 @@ def home():
         <body>
         <article class="markdown-body">
     """
-    with open("README.md", "r", encoding="utf-8") as f:
-        md = "> **This is the README.md file of the bot [Github repo](https://github.com/skyewong/boss). Check the repo for the full code and more.**\n"
-        md += f.read()
-        html += render_markdown(md)
+    r = requests.get("https://raw.githubusercontent.com/SkyeWong/boss/main/README.md")
+    md = "> **This is the README.md file of the bot [Github repo](https://github.com/skyewong/boss). Check the repo for the full code and more.**\n"
+    md += r.text
+    html += render_markdown(md)
     html += """
         </article>
         </body>
