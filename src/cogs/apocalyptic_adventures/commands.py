@@ -32,37 +32,38 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    # `% getting one of them`: `list of animals`
+    HUNT_LOOT = [
+        [20, [None]],  # --fail--
+        [
+            40,
+            (
+                # --common--
+                BossItem(23),  # duck
+                BossItem(24),  # rabbit
+                BossItem(26),  # skunk
+            ),
+        ],
+        [
+            30,
+            (
+                # --uncommon--
+                BossItem(18),  # deer
+                BossItem(22),  # cow
+                BossItem(25),  # sheep
+            ),
+        ],
+        [7, (BossItem(21),)],  # --rare--  # boar
+        [3, (BossItem(20),)],  # --downright impossible--  # dragon
+    ]
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def hunt(self, interaction: Interaction):
         """Go hunting and bring back some animals if you are lucky!"""
         db: Database = self.bot.db
         player = Player(db, interaction.user)
-        # `% getting one of them`: `list of animals`
-        animals = [
-            [20, [None]],  # --fail--
-            [
-                40,
-                (
-                    # --common--
-                    BossItem(23),  # duck
-                    BossItem(24),  # rabbit
-                    BossItem(26),  # skunk
-                ),
-            ],
-            [
-                30,
-                (
-                    # --uncommon--
-                    BossItem(18),  # deer
-                    BossItem(22),  # cow
-                    BossItem(25),  # sheep
-                ),
-            ],
-            [7, (BossItem(21),)],  # --rare--  # boar
-            [3, (BossItem(20),)],  # --downright impossible--  # dragon
-        ]
-        animal_category = random.choices([i[1] for i in animals], [i[0] for i in animals])[0]
+        animal_category = random.choices([i[1] for i in self.HUNT_LOOT], [i[0] for i in self.HUNT_LOOT])[0]
         item = random.choice(animal_category)
 
         if item is None:
@@ -74,31 +75,32 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         embed = TextEmbed(f"You went hunting and found a **{await item.get_name(db)}** {await item.get_emoji(db)}!")
         await interaction.send(embed=embed)
 
+    # `% getting one of them`: `list of rewards`
+    DIG_LOOT = [
+        [
+            90,
+            (
+                # --fail--
+                None,  # nothing
+                BossItem(31, random.randint(1, 5)),  # dirt
+            ),
+        ],
+        [
+            10,
+            (
+                # --common--
+                BossItem(27),  # Anicient Coin
+            ),
+        ],
+    ]
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def dig(self, interaction: Interaction):
         """Dig in the ground and find some buried treasure."""
         db: Database = self.bot.db
         player = Player(db, interaction.user)
-        # `% getting one of them`: `list of rewards`
-        items = [
-            [
-                90,
-                (
-                    # --fail--
-                    None,  # nothing
-                    BossItem(31, random.randint(1, 5)),  # dirt
-                ),
-            ],
-            [
-                10,
-                (
-                    # --common--
-                    BossItem(27),  # Anicient Coin
-                ),
-            ],
-        ]
-        item_category = random.choices([i[1] for i in items], [i[0] for i in items])[0]
+        item_category = random.choices([i[1] for i in self.DIG_LOOT], [i[0] for i in self.DIG_LOOT])[0]
         item = random.choice(item_category)
 
         if item is None:
@@ -119,20 +121,21 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             )
         )
 
+    # `% getting one of them`: `list of rewards`
+    MINE_LOOT = [
+        [50, [None]],  # --fail--
+        [25, (BossItem(44),)],  # --common--  # Iron ore
+        [20, (BossItem(45),)],  # --rare--  # Emerald ore
+        [5, (BossItem(34),)],  # --epic--  # Diamond ore
+    ]
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def mine(self, interaction: Interaction):
         """Go mining in the caves!"""
         db: Database = self.bot.db
         player = Player(db, interaction.user)
-        # `% getting one of them`: `list of rewards`
-        items = [
-            [50, [None]],  # --fail--
-            [25, (BossItem(44),)],  # --common--  # Iron ore
-            [20, (BossItem(45),)],  # --rare--  # Emerald ore
-            [5, (BossItem(34),)],  # --epic--  # Diamond ore
-        ]
-        item_category = random.choices([i[1] for i in items], [i[0] for i in items])[0]
+        item_category = random.choices([i[1] for i in self.MINE_LOOT], [i[0] for i in self.MINE_LOOT])[0]
         item = random.choice(item_category)
 
         if item is None:
@@ -164,39 +167,40 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         )
         await interaction.send(embed=embed)
 
+    # `% getting one of them`: `list of rewards`
+    SCAVENGE_LOOT = [
+        [60, [None]],  # --fail--
+        [
+            25,
+            (
+                # --common--
+                BossPrice.from_range(500, 1000),  # 500 - 1000 scrap metal
+            ),
+        ],
+        [
+            13.5,
+            (
+                # --rare--
+                BossPrice.from_range(1500, 5000),  # 1500 - 5000 scrap metal
+            ),
+        ],
+        [
+            1.5,
+            (
+                # --epic--
+                BossPrice(1, "copper"),  # 1 copper
+                BossItem(46, random.randint(1, 3)),  # 1 - 3 banknote
+            ),
+        ],
+    ]
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def scavenge(self, interaction: Interaction):
         """Scavenge for resources in post-apocalyptic world, maybe you'll actually found something!"""
         db: Database = self.bot.db
         player = Player(db, interaction.user)
-        # `% getting one of them`: `list of rewards`
-        rewards = [
-            [60, [None]],  # --fail--
-            [
-                25,
-                (
-                    # --common--
-                    BossPrice.from_range(500, 1000),  # 500 - 1000 scrap metal
-                ),
-            ],
-            [
-                13.5,
-                (
-                    # --rare--
-                    BossPrice.from_range(1500, 5000),  # 1500 - 5000 scrap metal
-                ),
-            ],
-            [
-                1.5,
-                (
-                    # --epic--
-                    BossPrice(1, "copper"),  # 1 copper
-                    BossItem(46, random.randint(1, 3)),  # 1 - 3 banknote
-                ),
-            ],
-        ]
-        reward_category = random.choices([i[1] for i in rewards], [i[0] for i in rewards])[0]
+        reward_category = random.choices([i[1] for i in self.SCAVENGE_LOOT], [i[0] for i in self.SCAVENGE_LOOT])[0]
         reward = random.choice(reward_category)
 
         if reward is None:
@@ -224,41 +228,6 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         view = Maze(interaction, maze_size)
         embed = view.get_embed()
         view.message = await interaction.send(embed=embed, view=view)
-
-    async def adventure_village(self, button, interaction: Interaction):
-        if random.randint(1, 5) > 2:
-            await interaction.send(
-                embed=TextEmbed("OH GOD they are **FOES**! They chased you for 10 km, luckily you outran them."),
-                ephemeral=True,
-            )
-        else:
-            db: Database = self.bot.db
-            villages = await db.fetch(
-                """
-                SELECT structure_id, name
-                FROM utility.structures
-                WHERE structure_type_id = 1
-                """
-            )
-            village = random.choice(villages)
-
-            # add village to player's discovered structures list
-            await db.execute(
-                """
-                INSERT INTO players.discovered_structures (player_id, structure_id)
-                VALUES ($1, $2)
-                """,
-                interaction.user.id,
-                village["structure_id"],
-            )
-            await interaction.send(
-                embed=TextEmbed(
-                    f"It turns out you came across the lovely village, **{village['name']}**.\n"
-                    "The villagers are very willing to meet you and trade with you!\n"
-                    "Use </visit:1081863670189006868> to visit the village."
-                ),
-                ephemeral=True,
-            )
 
     async def adventure_scrap_metal(self, button, interaction: Interaction):
         player = Player(self.bot.db, interaction.user)
@@ -322,10 +291,6 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                     "Wait what? You found... a random slave! Adopt him, he'd like to.",
                     self.adventure_slave,
                 ),
-                30: (
-                    "While you were wandering in the woods, you saw some smoke rising in the sky. You walked forward and saw civilisation! Wanna meet the people?",
-                    self.adventure_village,
-                ),
                 50: (
                     "A bag of scrap metals was lying on the ground. You saw no one around you. Have you finally decided on whether to snatch it yet?",
                     self.adventure_scrap_metal,
@@ -353,48 +318,6 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             )
             await interaction.send(embed=TextEmbed(random.choice(msg)))
             cooldowns.reset_cooldown("adventure")
-
-    async def choose_structure_autocomplete(self, interaction: Interaction, data: str):
-        """Returns a list of autocompleted choices of a user's discovered structures."""
-        db: Database = self.bot.db
-        structures = await db.fetch(
-            """
-            SELECT INITCAP(CONCAT(st.name, ' - ', s.name))
-                FROM players.discovered_structures As ds
-
-                INNER JOIN utility.structures As s
-                ON ds.structure_id = s.structure_id
-                
-                INNER JOIN utility.structure_types As st
-                ON s.structure_type_id = st.structure_type_id
-            WHERE ds.player_id = $1
-            """,
-            interaction.user.id,
-        )
-        if not data:
-            # return full list
-            return sorted([structure[0] for structure in structures])
-        # send a list of nearest matches from the list of item
-        near_structures = sorted(
-            [structure[0] for structure in structures if structure[0].lower().startswith(data.lower())]
-        )
-        return near_structures
-
-    @nextcord.slash_command()
-    @cooldowns.cooldown(1, 60, SlashBucket.author, check=check_if_not_dev_guild)
-    async def visit(
-        self,
-        interaction: Interaction,
-        structure_name: str = SlashOption(
-            name="structure",
-            description="The structure to visit",
-            required=True,
-            autocomplete_callback=choose_structure_autocomplete,
-        ),
-    ):
-        """Visit a structure that you have unlocked!"""
-        structure_type, structure_name = structure_name.split(" - ")
-        await interaction.send(f"You visited a {structure_type} called {structure_name}")
 
     @nextcord.slash_command()
     @helpers.work_in_progress(dev_guild_only=True)
