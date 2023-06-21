@@ -199,7 +199,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         now = datetime.datetime.now(tz=utc).strftime("%y-%#m-%#d %#H:%#M %Z")
         print(f"\033[1;30mUpdated villagers at {now}.\033[0m")
         await db.execute(f"COMMENT ON TABLE trades.villagers IS '{now}'")
-        await self.bot.get_guild(919223073054539858).get_channel(988046548309016586).send(
+        await self.bot.get_guild(919223073054539858).get_channel(1120926567930007582).send(
             embed=TextEmbed(f"villagers updated at {now}")
         )
 
@@ -972,7 +972,7 @@ class Resource(commands.Cog, name="Resource Repository"):
 
     @nextcord.slash_command(name="move-item")
     @cooldowns.cooldown(1, 18, SlashBucket.author, check=check_if_not_dev_guild)
-    async def move_item(
+    async def move_item_command(
         self,
         interaction: Interaction,
         item_name: str = SlashOption(

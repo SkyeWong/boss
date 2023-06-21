@@ -4,8 +4,7 @@ from nextcord import Embed, Interaction, ButtonStyle, SelectOption
 from nextcord.ui import View, Button, button, Select, select
 
 # my modules
-from utils import constants, helpers
-from utils.constants import SCRAP_METAL, COPPER
+from utils.constants import EmbedColour
 from utils.helpers import TextEmbed
 from utils.template_views import BaseView
 
@@ -65,7 +64,7 @@ class EmojiView(BaseView):
 
         emoji: nextcord.Emoji = emojis[page]
 
-        embed.colour = random.choice(constants.EMBED_COLOURS)
+        embed.colour = EmbedColour.DEFAULT
         embed.set_footer(
             text=f"Page {page + 1}/{len(emojis)} • List {self.page + 1}/{math.ceil(len(self.emojis) / 25)}"
         )  # + 1 because self.page uses zero-indexing

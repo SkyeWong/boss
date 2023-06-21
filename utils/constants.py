@@ -19,11 +19,13 @@ EMBED_COLOURS = [
 
 
 class EmbedColour:
-    INFO = 0x7FB2F0  # light blue
-    SUCCESS = 0x88E08C  # light green
-    FAIL = 0xFF8F8F  # light red
-    WARNING = 0xFFC87D  # light orange
-    DEFAULT = 0x282B30  # light gray
+    """A list of preset colours to be used in embeds"""
+
+    INFO = BLUE = 0x7FB2F0  # light blue
+    SUCCESS = GREEN = 0x88E08C  # light green
+    FAIL = RED = 0xFF8F8F  # light red
+    WARNING = YELLOW = 0xFFC87D  # light orange
+    DEFAULT = GREY = 0x282B30  # light grey
 
 
 TOKEN = os.getenv("DISCORD_TOKEN")

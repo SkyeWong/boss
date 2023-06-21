@@ -1,24 +1,16 @@
 # nextcord
 import nextcord
-from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import View, Button, button, Select, select
+from nextcord import Embed, Interaction, ButtonStyle
+from nextcord.ui import Button, button
 
 # my modules
 from utils import constants, helpers
-from utils.constants import SCRAP_METAL, COPPER
-from utils.helpers import TextEmbed
+from utils.helpers import TextEmbed, EmbedColour
 from utils.template_views import BaseView
 
-from numerize import numerize
-import pytz
-
 # default modules
-import datetime
-from typing import Optional
-import enum
 import html
 import random
-import math
 
 
 class FightPlayer:
@@ -120,8 +112,10 @@ class TriviaAnswerButton(Button):
         await interaction.response.defer()
 
         view: TriviaView = self.view
+        embed = view.message.embeds[0]
 
         if self.label == view.question.correct_answer:  # the user got the question correct
+            embed.colour = EmbedColour.GREEN
             self.style = ButtonStyle.green
 
             msgs = (
@@ -141,6 +135,7 @@ class TriviaAnswerButton(Button):
             )
             msg = random.choice(msgs)  # choose a random msg
         else:  # the user got the question wrong
+            embed.colour = EmbedColour.RED
             self.style = ButtonStyle.red
 
             msgs = (
@@ -199,7 +194,7 @@ class TriviaView(BaseView):
 
     def _get_embed(self):
         embed = Embed()
-        embed.colour = random.choice(constants.EMBED_COLOURS)
+        embed.colour = EmbedColour.GREY
         embed.title = self.question.question
         embed.description = f"_You have {self.timeout} seconds to answer._"
 

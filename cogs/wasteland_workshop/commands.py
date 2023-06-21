@@ -54,7 +54,6 @@ import asyncio
 import os
 import base64
 import html
-import binascii
 from contextlib import suppress
 from typing import Optional
 
