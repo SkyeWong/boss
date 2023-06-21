@@ -8,6 +8,7 @@ from utils.postgres_db import Database
 
 # my modules and constants
 from utils import helpers, constants
+from utils.constants import EmbedColour
 from utils.helpers import TextEmbed, command_info
 
 from .views import HelpView, GuideView
@@ -209,7 +210,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                         embed.add_field(name="Examples", value=example_txt, inline=False)
 
                     embed.set_footer(text="Syntax: <required> [optional]")
-                    embed.colour = random.choice(constants.EMBED_COLOURS)
+                    embed.colour = EmbedColour.INFO
                     await interaction.send(embed=embed)
 
     @nextcord.slash_command()

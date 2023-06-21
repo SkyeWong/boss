@@ -54,6 +54,7 @@ import asyncio
 import os
 import base64
 import html
+import binascii
 from contextlib import suppress
 from typing import Optional
 
@@ -121,7 +122,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         ),
     ):
         embed = Embed()
-        embed.colour = EmbedColour.DEFAULT.value
+        embed.colour = EmbedColour.DEFAULT
         embed.set_author(name="Generating maze... Please wait patiently")
         embed.description = "I will ping you when it has finished!"
         embed.description += "\n`1.` Your request has been received and is processing... "
@@ -223,7 +224,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
         embed.set_image("attachment://maze.png")
         embed.set_author(name="Generating maze successful!")
-        embed.colour = EmbedColour.SUCCESS.value
+        embed.colour = EmbedColour.SUCCESS
         embed.description = f"**Width**: `{width}`\n"
         embed.description += f"**Height**: `{height}`"
 
@@ -367,7 +368,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         ),
     ):
         if key is None:
-            key = os.urandom(32)
+            key = os.urandom(16)
         else:
             try:
                 key = base64.b64decode(key)
@@ -379,25 +380,33 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         try:
             cipher = AES.new(key, AES.MODE_ECB)
         except:
-            await interaction.send(embed=TextEmbed("The key is invalid!"))
+            await interaction.send(embed=TextEmbed("The key is invalid!", EmbedColour.FAIL))
             return
 
         b = plaintext.encode("UTF-8")
         padded_data = pad(b, AES.block_size)
         ciphertext = cipher.encrypt(padded_data)
 
-        data = {
-            "Plaintext": plaintext,
-            "Ciphertext": ciphertext,
-            "AES Key": key,
-        }
-        embed = Embed()
-        for k, v in data.items():
-            embed.add_field(
-                name=k,
-                value=f"```{base64.b64encode(v).decode()}```" if isinstance(v, bytes) else f"```{v}```",
-                inline=False,
-            )
+        embed = Embed(colour=EmbedColour.SUCCESS)
+        embed.add_field(
+            name="Plaintext",
+            value=f"```{plaintext}```",
+            inline=False,
+        )
+        embed.add_field(
+            name="Ciphertext (base64)",
+            value=f"```{base64.b64encode(ciphertext).decode()}```",
+            inline=False,
+        )
+        embed.add_field(
+            name="AES Key (base 64)",
+            value=f"```{base64.b64encode(key).decode()}```",
+            inline=False,
+        )
+        for i in embed.fields:
+            if len(i.value) > 1024:
+                await interaction.send(embed=TextEmbed("The message is too long!", EmbedColour.WARNING))
+                return
         await interaction.send(embed=embed)
 
     @nextcord.slash_command(name="decrypt", description="Decrypt that gibberish your friend just sent you!")
@@ -422,7 +431,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             try:
                 data[k] = base64.b64decode(v)
             except:
-                await interaction.send(embed=TextEmbed(f"The {k} is not properly encoded in base64."))
+                await interaction.send(embed=TextEmbed(f"The {k} is not properly encoded in base64.", EmbedColour.FAIL))
                 return
 
         # Decrypt data with AES
@@ -438,23 +447,23 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         except:
             await interaction.send(
                 embed=TextEmbed(
-                    "The message could not be decrypted. Are you sure that both of you are using the same key?"
+                    "The message could not be decrypted. Are you sure that both of you are using the same key?",
+                    EmbedColour.FAIL,
                 ),
                 ephemeral=True,
             )
             return
-
-        data = {
-            "Decrypted message": unpadded_data,
-            "Ciphertext": ciphertext,
-        }
-        embed = Embed()
-        for k, v in data.items():
-            embed.add_field(
-                name=k,
-                value=f"```{base64.b64encode(v).decode()}```" if isinstance(v, bytes) else f"```{v}```",
-                inline=False,
-            )
+        embed = Embed(color=EmbedColour.SUCCESS)
+        embed.add_field(
+            name="Decrypted message",
+            value=f"```{unpadded_data}```",
+            inline=False,
+        )
+        embed.add_field(
+            name="Ciphertext (base 64)",
+            value=f"```{ciphertext}```",
+            inline=False,
+        )
         await interaction.send(embed=embed)
 
     @encrypt.before_invoke
@@ -573,7 +582,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
         weather = data["current_weather"]
 
-        embed = Embed()
+        embed = Embed(color=EmbedColour.INFO)
         wind_direction = self.DIRECTIONS[round(weather["winddirection"] / 45)]
         embed.description = (
             f"\n## {name}"

@@ -5,7 +5,7 @@ from nextcord.ui import Button, button, Select, select
 
 # my modules
 from utils import constants, helpers
-from utils.constants import SCRAP_METAL, COPPER
+from utils.constants import SCRAP_METAL, COPPER, EmbedColour
 from utils.template_views import BaseView
 
 # default modules
@@ -113,7 +113,7 @@ class HelpView(BaseView):
             The created embed.
         """
 
-        embed = Embed(description="", colour=0x00294D)
+        embed = Embed(description="", colour=EmbedColour.INFO)
 
         # If a description is provided, add it to the embed.
         if description:

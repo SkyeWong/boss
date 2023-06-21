@@ -17,6 +17,15 @@ EMBED_COLOURS = [
     0xFFD753,
 ]
 
+
+class EmbedColour:
+    INFO = 0x7FB2F0  # light blue
+    SUCCESS = 0x88E08C  # light green
+    FAIL = 0xFF8F8F  # light red
+    WARNING = 0xFFC87D  # light orange
+    DEFAULT = 0x282B30  # light gray
+
+
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 SCRAP_METAL = "<:ScrapMetal:1102208993407021086>"
@@ -40,23 +49,18 @@ class Enum(enum.Enum):
 
     @classmethod
     def to_dict(cls):
-        """Returns a `dict` containing each attribute, with its name as the key and value as value."""
-        return {i.name: i.value for i in cls}
+        """Returns a `dict` containing each attribute, with its name as the key and value as value. The name will be automatically converted to lowercase."""
+        return {i.name.lower(): i.value for i in cls}
 
 
 class IntEnum(Enum):
     """An enum that supports comparing and hashing as an int."""
 
-    def __int__(self):
+    def __int__(self) -> int:
         return self.value
 
-
-class EmbedColour(Enum):
-    INFO = 0x7FB2F0  # light blue
-    SUCCESS = 0x88E08C  # light green
-    FAIL = 0xFF8F8F  # light red
-    WARNING = 0xFFC87D  # light orange
-    DEFAULT = 0xA9A9A9  # light gray
+    def __str__(self) -> str:
+        return self.name.lower()
 
 
 class InventoryType(IntEnum):
@@ -66,11 +70,12 @@ class InventoryType(IntEnum):
 
 
 class ItemType(IntEnum):
-    TOOL = 0
-    COLLECTABLE = 1
-    POWER_UP = 2
-    SELLABLE = 3
-    BUNDLE = 4
+    SALVAGE = 0
+    DECOR = 1
+    NECESSITY = 2
+    BUNDLE = 3
+    COLLECTIBLE = 4
+    BATTLEGEAR = 5
 
 
 class ItemRarity(IntEnum):

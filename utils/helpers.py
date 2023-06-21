@@ -192,7 +192,7 @@ def get_error_message():
     embed = Embed()
     embed.title = "An error occurred. Try again in a few seconds."
     embed.description = ">>> If this continues to happen, please report it in our [server](https://discord.gg/SPtMSrCTAS 'BOSS Server')."
-    embed.colour = random.choice(constants.EMBED_COLOURS)
+    embed.colour = constants.EmbedColour.FAIL
     view = View()
     button = Button(label="Join server", url="https://discord.gg/tsTRMqEMFH")
     view.add_item(button)
@@ -201,7 +201,7 @@ def get_error_message():
 
 def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
     embed = Embed()
-    embed.colour = random.choice(constants.EMBED_COLOURS)
+    embed.colour = constants.EmbedColour.INFO
     embed.title = item["name"]
 
     description = ""
@@ -235,20 +235,10 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
             prices_txt += f"`{k.capitalize()}`: {SCRAP_METAL} {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
 
-    item_rarity = [i.name for i in constants.ItemRarity if i.value == item["rarity"]][0]
-    embed.add_field(
-        name="Rarity",
-        value=item_rarity.replace("_", " ").capitalize(),
-        inline=True,
-    )
-
-    item_type = [i.name for i in constants.ItemType if i.value == item["type"]][0]
-    embed.add_field(
-        name="Type",
-        value=item_type.replace("_", " ").capitalize(),
-        inline=True,
-    )
+    item_rarity = constants.ItemRarity(item["rarity"])
+    item_type = constants.ItemType(item["type"])
     embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
+    embed.set_footer(text=f"{item_rarity} {item_type}".replace("_", " ").title())
     return embed
 
 
@@ -260,8 +250,8 @@ def format_with_link(text: str):
 class TextEmbed(Embed):
     """A `nextcord.Embed` with the description set as `text`."""
 
-    def __init__(self, text: str, colour: EmbedColour = EmbedColour.DEFAULT):
-        super().__init__(description=text, colour=colour.value)
+    def __init__(self, text: str, colour: int = EmbedColour.DEFAULT):
+        super().__init__(description=text, colour=colour)
 
 
 class BossItem:
@@ -474,6 +464,10 @@ class ComponentLabelTooLong(BossException):
 
 
 class NegativeBalance(BossException):
+    pass
+
+
+class NegativeInvQuantity(BossException):
     pass
 
 

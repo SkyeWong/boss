@@ -47,6 +47,9 @@ class Database:
             self.reconnecting = True
             try:
                 self.pool = await asyncpg.create_pool(DSN_DB.format(**self.params))
+            except asyncpg.exceptions.InternalServerError:
+                self.reconnecting = False
+                await self.connect()
             finally:
                 self.reconnecting = False
             print(

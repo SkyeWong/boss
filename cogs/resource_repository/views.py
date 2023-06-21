@@ -12,14 +12,15 @@ from utils.template_views import BaseView
 from utils.player import Player
 from utils import constants, helpers
 from utils.helpers import TextEmbed
+from utils.constants import EmbedColour
 
 # default modules
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import pytz
-import random
+import re
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 from string import ascii_uppercase
 
@@ -52,6 +53,7 @@ async def _get_farm_embed_and_img(
     if embed is None:
         embed = Embed()
         embed.set_author(name=f"{player.user.name}'s Farm")
+    embed.colour = constants.EmbedColour.DEFAULT
 
     db: Database = player.db
     crop_types = await db.fetch(
@@ -423,7 +425,7 @@ class PlantView(BaseView):
         for crop_type in crop_types:
             type_select.options.append(
                 SelectOption(
-                    label=crop_type["name"].capitalize(),
+                    label=f"{crop_type['name'].capitalize()} ({str(crop_type['growth_period'])})",
                     value=crop_type["id"],
                     emoji=f"<:{crop_type['emoji_name']}:{crop_type['emoji_id']}>",
                     default=crop_type["id"] == self.type_to_plant,
@@ -512,7 +514,9 @@ class PlantView(BaseView):
 
             if not empty_tiles:
                 await interaction.send(
-                    embed=TextEmbed("There are no empty tiles! Harvest crops that are unready to remove them."),
+                    embed=TextEmbed(
+                        "There are no empty tiles! Harvest crops that are unready to remove them.", EmbedColour.WARNING
+                    ),
                     ephemeral=True,
                 )
                 return
@@ -595,7 +599,9 @@ class PlantView(BaseView):
         type_name, type_emoji = [
             (option.label, option.emoji) for option in type_select.options if option.default == True
         ][0]
-
+        # `type_name` will now be "Carrot (0:30:00)"
+        type_name = re.sub(r" \(.+\)", "", type_name)
+        # `type_name` will now be "Carrot"
         await interaction.send(
             embed=TextEmbed(f"Planted {planted_crops} **{type_name}** {type_emoji}!"),
             ephemeral=True,
@@ -876,6 +882,12 @@ class InventoryView(BaseView):
 
         self.message: nextcord.Message = None
 
+    async def send(self):
+        await self.get_inv_content()
+        self.disable_buttons()
+        embed = self.get_inv_embed()
+        self.message = await self.interaction.send(embed=embed, view=self)
+
     async def get_inv_content(self):
         db: Database = self.interaction.client.db
         self.inv = await db.fetch(
@@ -895,14 +907,14 @@ class InventoryView(BaseView):
         user = self.user
         inv = self.inv
 
-        inv_type = [i.name for i in constants.InventoryType if i.value == self.inv_type][0]
+        inv_type = str(constants.InventoryType(self.inv_type))
 
         embed = Embed(description="")
         embed.set_author(
             name=f"{user.name}'s {inv_type}",
             icon_url=user.display_avatar.url,
         )
-        embed.colour = self.message.embeds[0].colour if self.message else random.choice(constants.EMBED_COLOURS)
+        embed.colour = constants.EmbedColour.DEFAULT
         storage_emojis_url = [
             "https://i.imgur.com/AsS2mHU.png",  # backpack
             "https://i.imgur.com/UU7ixCv.png",  # chest

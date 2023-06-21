@@ -14,6 +14,7 @@ from asyncpg import Record
 # my modules and constants
 from utils.player import Player
 from utils import constants, helpers
+from utils.helpers import TextEmbed
 
 from utils.template_views import BaseView, ConfirmView
 
@@ -91,9 +92,9 @@ class EditItemModal(Modal):
                 not include or column_name in include
             ) and column_name not in exclude:  # if no `include` list is provided, ignore that it is not included
                 if column_name == "rarity":
-                    value = [i.name for i in constants.ItemRarity if i.value == self.item[column_name]][0]
+                    value = constants.ItemRarity(self.item["rarity"])
                 elif column_name == "type":
-                    value = [i.name for i in constants.ItemType if i.value == self.item[column_name]][0]
+                    value = constants.ItemType(self.item["type"])
                 else:
                     value = self.item[column_name]
                 value = str(value)
@@ -143,11 +144,11 @@ class EditItemModal(Modal):
                     values[column] = int(inputted_value)
 
             if column == "rarity":
-                inputted_value = inputted_value.lower().strip()
+                inputted_value = inputted_value.strip().upper()
                 if inputted_value.isnumeric():
                     try:
                         values[column] = constants.ItemRarity(inputted_value).value
-                    except:
+                    except ValueError:
                         errors.append(
                             "use numbers 0-5 respectively representing `common`, `uncommon`, `rare`, `epic`, `legendary`, `epic` only"
                         )
@@ -160,20 +161,21 @@ class EditItemModal(Modal):
                         )
 
             if column == "type":
-                inputted_value = inputted_value.lower().strip()
+                inputted_value = inputted_value.strip().upper()
                 if inputted_value.isnumeric():
                     try:
                         values[column] = constants.ItemRarity(inputted_value).value
-                    except:
+                    except ValueError:
                         errors.append(
-                            "use numbers 0-4 respectively representing the types: `tool`, `collectable`, `power-up`, `sellable`, `bundle` only"
+                            "use the following numbers to represent the item types:\n"
+                            + "\n".join([f"> {int(i)} - {str(i)}" for i in constants.ItemType])
                         )
                 else:
                     try:
                         values[column] = constants.ItemType[inputted_value].value
                     except KeyError:
                         errors.append(
-                            "The type must be one of these: `tool`, `collectable`, `power-up`, `sellable`, `bundle`"
+                            "The type must be one of these:\n" + ", ".join([str(i) for i in constants.ItemType])
                         )
 
         # if it is an invalid value send a message and return the function
@@ -191,7 +193,7 @@ class EditItemModal(Modal):
 
         if not changed_values:
             await interaction.send(
-                embed=Embed(description="You didn't change anything, did you."),
+                embed=TextEmbed("You didn't change anything, did you."),
                 ephemeral=True,
             )
             return
@@ -199,11 +201,11 @@ class EditItemModal(Modal):
         try:
             db: Database = self.slash_interaction.client.db
             sql = (
-                "UPDATE utility.items "
-                "SET "
-                f"{', '.join([f'{column} = ${i + 2}' for i, column in enumerate(changed_values)])} "
-                "WHERE item_id = $1 "
-                "RETURNING *"
+                "UPDATE utility.items"
+                + " SET "
+                + ", ".join([f"{column} = ${i + 2}" for i, column in enumerate(changed_values)])
+                + " WHERE item_id = $1 "
+                + " RETURNING *"
             )  # basically add each changed column into the query
             new_item = await db.fetchrow(sql, self.item["item_id"], *changed_values.values())
 
