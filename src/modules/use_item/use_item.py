@@ -20,3 +20,6 @@ async def use_item_44(interaction: Interaction, quantity: int):
     await player.add_item(50, quantity)
     await player.add_item(44, -quantity)
     await interaction.send(embed=TextEmbed(f"Converted {quantity} iron ore into ingots!", EmbedColour.SUCCESS))
+
+
+# maybe just add an "active item" in database?

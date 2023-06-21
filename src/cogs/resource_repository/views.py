@@ -679,23 +679,26 @@ class HarvestView(BaseView):
                 if now > ready_at:
                     ready_tiles.append(index)
 
-        select_all_btn = [i for i in self.children if i.custom_id == "select_all_ready"][0]
+        select_ready_btn = [i for i in self.children if i.custom_id == "select_all_ready"][0]
 
         if not ready_tiles:  # if there are no full grown tiles, we disable the select_all btn
-            select_all_btn.disabled = True
-            select_all_btn.label = f"Select all ready tiles (0)"
+            select_ready_btn.disabled = True
+            select_ready_btn.label = f"Select all ready tiles (0)"
         else:
-            select_all_btn.disabled = False
-
-            if self.crops_to_harvest:
-                select_all_btn.label = "Deselect all"
-            else:
-                select_all_btn.label = f"Select all ready tiles ({len(ready_tiles)})"
+            select_ready_btn.disabled = False
+            select_ready_btn.label = f"Select all ready tiles ({len(ready_tiles)})"
 
         # update whether harvest button is disabled
         if self.crops_to_harvest:
             harvest_btn = [i for i in self.children if i.custom_id == "harvest_btn"][0]
             harvest_btn.disabled = False
+
+        # update te select all button to toggle between "deselect" and "select"
+        select_ready_btn = [i for i in self.children if i.custom_id == "select_all"][0]
+        if self.crops_to_harvest:
+            select_ready_btn.label = "Deselect all"
+        else:
+            select_ready_btn.label = "Select all"
 
     async def get_msg(self, embed: Embed = None, **kwargs):
         if not embed:
@@ -735,47 +738,58 @@ class HarvestView(BaseView):
         await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_harvest))
 
     @button(
+        label="Select all tiles",
+        style=ButtonStyle.grey,
+        custom_id="select_all",
+    )
+    async def choose_all_tiles(self, button: Button, interaction: Interaction):
+        if self.crops_to_harvest:  # deselect all
+            self.crops_to_harvest = []
+        else:  # select all
+            self.crops_to_harvest = list(range(len(self.farm)))
+
+        await self.update_components()
+        await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_harvest))
+
+    @button(
         label="Select all ready tiles",
         style=ButtonStyle.blurple,
         custom_id="select_all_ready",
     )
     async def choose_all_ready_tiles(self, button: Button, interaction: Interaction):
-        if self.crops_to_harvest:  # deselect all
-            self.crops_to_harvest = []
-        else:  # select all
-            ready_tiles = []
+        # select all
+        ready_tiles = []
 
-            crop_types = await self.player.db.fetch(
-                """
-                SELECT crop_type_id AS id, name, growth_period
-                FROM utility.crop_types
-                """
+        crop_types = await self.player.db.fetch(
+            """
+            SELECT crop_type_id AS id, name, growth_period
+            FROM utility.crop_types
+            """
+        )
+
+        now = datetime.now(tz=pytz.UTC)
+
+        for index, crop in enumerate(self.farm):
+            if crop is not None:
+                # find the relevant crop type
+                crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
+
+                # check if it has passed the `ready_at` time, which means the crop is ready to be harvested.
+                ready_at: datetime = crop["planted_at"] + crop_type["growth_period"]
+
+                if now > ready_at:
+                    ready_tiles.append(index)
+
+        if not ready_tiles:
+            await interaction.send(
+                embed=TextEmbed("There are no fully grown crops!"),
+                ephemeral=True,
             )
+            return
 
-            now = datetime.now(tz=pytz.UTC)
-
-            for index, crop in enumerate(self.farm):
-                if crop is not None:
-                    # find the relevant crop type
-                    crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
-
-                    # check if it has passed the `ready_at` time, which means the crop is ready to be harvested.
-                    ready_at: datetime = crop["planted_at"] + crop_type["growth_period"]
-
-                    if now > ready_at:
-                        ready_tiles.append(index)
-
-            if not ready_tiles:
-                await interaction.send(
-                    embed=TextEmbed("There are no fully grown crops!"),
-                    ephemeral=True,
-                )
-                return
-
-            self.crops_to_harvest = ready_tiles
+        self.crops_to_harvest = ready_tiles
 
         await self.update_components()
-
         await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_harvest))
 
     @button(label="Go Back", row=3)
