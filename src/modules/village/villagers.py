@@ -151,7 +151,7 @@ class Armourer(Villager):
         trades = [  # price is `random * quantity * unit price[min AND max]`
             {
                 "demand": [
-                    BossPrice.from_range("420m", "999m"),
+                    BossPrice.from_range("500m", "999m"),
                     BossItem(34, round(rand * 5)),  # diamond ore
                 ],
                 "supply": [BossItem(4, 1)]  # aqua defender

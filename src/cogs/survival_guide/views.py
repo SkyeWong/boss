@@ -151,7 +151,9 @@ class HelpView(BaseView):
             embed.description += f"{name}{value}\n"
 
         # Set the footer of the embed with the current page number and the total number of pages.
-        embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)}")
+        embed.set_footer(
+            text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)} • {len(command_list)} commands in total"
+        )
 
         return embed
 

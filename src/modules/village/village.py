@@ -97,7 +97,7 @@ class TradeView(BaseView):
 
         return embed
 
-    async def get_items_str(self, items: list[BossItem | BossPrice]):
+    async def _get_items_str(self, items: list[BossItem | BossPrice]):
         db = self.interaction.client.db
         item_strings = [
             f"{i.quantity} {await i.get_name(db)}"
@@ -115,11 +115,12 @@ class TradeView(BaseView):
             description = ""
 
             if any([isinstance(i, BossItem) for i in villager.supply]):
-                supply_items = await self.get_items_str(villager.supply)
+                supply_items = await self._get_items_str(villager.supply)
                 description = f"Selling {supply_items}"
             else:
-                demand_items = await self.get_items_str(villager.demand)
+                demand_items = await self._get_items_str(villager.demand)
                 description = f"Buying {demand_items}"
+            description += f", {villager.remaining_trades} trades left"
 
             if len(description) > 100:
                 description = f"{description[:97]}..."
@@ -166,7 +167,7 @@ class TradeView(BaseView):
         await self.update_view()
         await interaction.response.edit_message(view=self, embed=embed)
 
-    @button(label="Trade Once", style=ButtonStyle.green, custom_id="trade_once")
+    @button(label="Trade Once", style=ButtonStyle.blurple, custom_id="trade_once")
     async def trade_once(self, button: Button, interaction: Interaction):
         """Trade with a villager once"""
         await self.trade(interaction, trade_quantity=1)
@@ -174,6 +175,34 @@ class TradeView(BaseView):
     @button(label="Trade Custom Amount", style=ButtonStyle.blurple, custom_id="trade_custom")
     async def trade_custom(self, button: Button, interaction: Interaction):
         """Trade with a villager for a custom amount that the user specifies."""
+        db: Database = interaction.client.db
+        currencies = await db.fetchrow(
+            """
+            SELECT scrap_metal, copper
+            FROM players.players
+            WHERE player_id = $1
+            """,
+            interaction.user.id,
+        )
+        inventory = await db.fetch(
+            """
+            SELECT item_id, quantity
+            FROM players.inventory
+            WHERE player_id = $1 AND inv_type = 0
+            """,
+            interaction.user.id,
+        )
+        # calculate the max amount of times that the user can trade with, and set it to the default value of the modal input
+        num_trades = []  # a list to store how many times the user can trade for each item
+        for item in self.current_villager.demand:
+            if isinstance(item, BossItem):
+                owned_quantity = next((i["quantity"] for i in inventory if i["item_id"] == item.item_id), 0)
+                num_trades.append(owned_quantity // item.quantity)
+            elif isinstance(item, BossPrice):
+                num_trades.append(currencies[item.currency_type] // item.price)
+        # the user can trade for `max_num_trades` at most
+        # note that if we use max() then users may not have enough of all items, so we need to use min()
+        max_num_trades = min(num_trades)
 
         async def modal_callback(modal_interaction: Interaction):
             input = [i for i in modal.children if i.custom_id == "input"][0]
@@ -185,7 +214,7 @@ class TradeView(BaseView):
 
         modal = BaseModal(
             title="Trade Custom Amount",
-            inputs=[TextInput(label="Amount", required=True, custom_id="input")],
+            inputs=[TextInput(label="Times to trade", required=True, placeholder=max_num_trades, custom_id="input")],
             callback=modal_callback,
         )
         await interaction.response.send_modal(modal)
