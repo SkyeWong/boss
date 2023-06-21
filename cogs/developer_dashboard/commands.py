@@ -293,7 +293,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             player_id = interaction.user.id
         try:
             player_id = int(player_id)
-            player = await interaction.client.fetch_user(player_id)
+            player: nextcord.User = await interaction.client.fetch_user(player_id)
         except (nextcord.NotFound, nextcord.HTTPException, ValueError):
             await interaction.send(
                 embed=Embed(description="Either an internal error occured or you entered an incorrect user_id."),
@@ -364,9 +364,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             return
 
         inv_type_str = [i.name for i in constants.InventoryType if i.value == inv_type][0]
-        embed = Embed(
-            title=f"{interaction.user.name} **UPDATED** `{player.name}#{player.discriminator}'s {inv_type_str}`"
-        )
+        embed = Embed(title=f"{interaction.user.name} **UPDATED** `{player.name}'s {inv_type_str}`")
         embed.add_field(name="Item", value=item["name"], inline=False)
         embed.add_field(
             name="Quantites",
