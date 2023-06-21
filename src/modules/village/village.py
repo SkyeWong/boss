@@ -204,6 +204,7 @@ class TradeView(BaseView):
 
         db: Database = interaction.client.db
         player = Player(db, interaction.user)
+        remaining_currency = None
         remaining_inventory = []
 
         async with db.pool.acquire() as conn:
@@ -292,7 +293,11 @@ class TradeView(BaseView):
             elif isinstance(i, BossItem):
                 supply_msg += f"\n- ` {i.quantity * trade_quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"  # fmt: skip
         # Send a message to the player indicating how many resources they still have
-        remaining_msg = f"\n- {constants.CURRENCY_EMOJIS[remaining_currency[0]]} ` {remaining_currency[1]:,} `"
+        if remaining_currency is not None:
+            # some trades may not include scrap metal/copper, then `remaining_currency` will be `None`
+            remaining_msg = f"\n- {constants.CURRENCY_EMOJIS[remaining_currency[0]]} ` {remaining_currency[1]:,} `"
+        else:
+            remaining_msg = ""
         for i in remaining_inventory:
             remaining_msg += f"\n- ` {i.quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"  # fmt: skip
 
