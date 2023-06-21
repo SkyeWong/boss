@@ -274,7 +274,8 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             )
 
     @nextcord.slash_command()
-    @cooldowns.cooldown(1, 30, SlashBucket.author, cooldown_id="adventure", check=check_if_not_dev_guild)
+    @cooldowns.cooldown(1, 30, SlashBucket.author, cooldown_id="adventure_fail", check=check_if_not_dev_guild)
+    @cooldowns.cooldown(1, 3 * 60, SlashBucket.author, cooldown_id="adventure_success", check=check_if_not_dev_guild)
     async def adventure(
         self,
         interaction: Interaction,
@@ -296,14 +297,21 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                     self.adventure_scrap_metal,
                 ),
             }
+            # choose a random outcome
             outcome = random.choices(list(outcomes.values()), list(outcomes.keys()))[0]
 
             embed = Embed(title="Adventure time!", description=outcome[0])
 
+            # if the user confirms the adventure, reset the "fail" cooldown --> only the "success" cooldown remains
+            async def confirm_func(button, interaction):
+                cooldowns.reset_cooldown("adventure_fail")
+                await outcome[1](button, interaction)
+
             view = ConfirmView(
                 slash_interaction=interaction,
-                confirm_func=outcome[1],
-                cancel_func=lambda button, interaction: cooldowns.reset_cooldown("adventure"),
+                confirm_func=confirm_func,
+                # if the user cancels the adventure, reset the "success" cooldown --> only the "fail" cooldown remains
+                cancel_func=lambda button, interaction: cooldowns.reset_cooldown("adventure_success"),
                 embed=embed,
             )
             await interaction.send(embed=view.embed, view=view)
@@ -317,7 +325,8 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 "What's happening? You wanted to move, but your body just doesn't seem to obey your mind.",
             )
             await interaction.send(embed=TextEmbed(random.choice(msg)))
-            cooldowns.reset_cooldown("adventure")
+            # if the user does not get an adventure, reset the "success" cooldown --> only the "fail" cooldown remains
+            cooldowns.reset_cooldown("adventure_success")
 
     @nextcord.slash_command()
     @helpers.work_in_progress(dev_guild_only=True)
