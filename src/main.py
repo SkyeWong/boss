@@ -55,7 +55,7 @@ class BossBot(commands.Bot):
         self.pool = self.db.pool
 
         # Get the modules of all cogs whose directory structure is ./cogs/<module_name>
-        for folder in os.listdir("src/cogs"):
+        for folder in os.listdir("cogs"):
             if folder != "__pycache__":
                 self.load_extension(f"cogs.{folder}.commands")
 
