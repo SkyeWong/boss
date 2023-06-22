@@ -72,7 +72,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         if old_hunger >= 30 and new_hunger < 30:
             await interaction.user.send(
                 embed=TextEmbed(
-                    "Your hunger is smaller than 30! Commands running from now on will become slower.",
+                    "Your hunger is smaller than 30! Commands running from now on will have a slight delay.\nConsume some food before continuing.",
                     EmbedColour.WARNING,
                 )
             )

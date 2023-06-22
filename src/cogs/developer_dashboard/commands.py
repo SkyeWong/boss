@@ -10,8 +10,9 @@ from utils.postgres_db import Database
 import parsedatetime as pdt
 
 # my modules and constants
-from utils.player import Player
 from utils import constants, helpers
+from utils.player import Player
+from utils.constants import EmbedColour
 from utils.helpers import MoveItemException, TextEmbed
 
 # views and modals
@@ -27,6 +28,7 @@ from .views import (
 from datetime import datetime
 import random
 from collections import defaultdict
+import json
 
 
 class DevOnly(commands.Cog, name="Developer Dashboard"):
@@ -67,23 +69,17 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         embed.set_image(user.display_avatar.url)
         await interaction.send(embed=embed)
 
+    GET_ITEM_SQL = """
+        SELECT * 
+        FROM utility.items AS i
+        INNER JOIN utility.SearchItem('diamond') AS s
+        ON i.item_id = s.item_id
+    """
+
     async def choose_item_autocomplete(self, interaction: Interaction, data: str):
-        sql = """
-            SELECT name
-            FROM utility.items
-            ORDER BY name
-        """
         db: Database = self.bot.db
-        result = await db.fetch(sql)
-        items = [i[0] for i in result]
-        if not data:
-            # return full list
-            await interaction.response.send_autocomplete(items[:25])
-            return
-        else:
-            # send a list of nearest matches from the list of item
-            near_items = [item for item in items if data.lower() in item.lower()][:25]
-            await interaction.response.send_autocomplete(near_items)
+        items = await db.fetch(self.GET_ITEM_SQL, data)
+        await interaction.response.send_autocomplete([i["name"] for i in items][:25])
 
     @nextcord.slash_command(name="modify", guild_ids=[constants.DEVS_SERVER_ID])
     async def modify(self, interaction: Interaction):
@@ -397,6 +393,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         buy_price: str = SlashOption(required=False, default="0", description="0 --> unable to be bought"),
         sell_price: str = SlashOption(required=False, default="0", description="0 --> unable to be sold"),
         trade_price: str = SlashOption(required=False, default="0", description="0 --> unknown value"),
+        other_attributes: str = SlashOption(required=False, default="", description="in JSON format"),
     ):
         errors = []
         prices = {"buy": buy_price, "sell": sell_price, "trade": trade_price}
@@ -413,11 +410,20 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             errors.append("The emoji id is invalid")
         else:
             emoji_id = int(emoji_id)
+
+        # load the other attributes json text into dict
+        try:
+            other_attributes = json.loads(other_attributes)
+        except json.JSONDecodeError:
+            errors.append("The format of other attributes are invalid")
+        if not isinstance(other_attributes, dict):
+            errors.append("The other attributes should be in a dictionary format.")
+
         # if an error occured send a message and return the function
         if len(errors) > 0:
             embed = Embed()
-            embed.set_author(name="The following error(s) occured:\n>>> ")
-            embed.description = ""
+            embed.set_author(name="The following error(s) occured:")
+            embed.description = ">>> "
             for index, error in enumerate(errors):
                 embed.description += f"{index + 1}. {error}\n"
             await interaction.send(embed=embed, ephemeral=True)
@@ -440,12 +446,17 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             return
 
         try:
+            sql = (
+                "INSERT INTO utility.items (name, description, emoji_name, emoji_id, buy_price, sell_price, trade_price, rarity, type, "
+                + ", ".join(other_attributes.keys())
+                + ") "
+                + "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, "
+                + ", ".join([f"${i + 10}" for i, column in enumerate(other_attributes)])
+                + ") "
+                + "RETURNING *"
+            )
             item = await db.fetchrow(
-                """
-                INSERT INTO utility.items (name, description, emoji_name, emoji_id, buy_price, sell_price, trade_price, rarity, type)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                RETURNING *
-                """,
+                sql,
                 name,
                 description,
                 emoji_name,
@@ -455,13 +466,12 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 prices["trade"],
                 rarity,
                 item_type,
+                *other_attributes.values(),
             )
+            "INSERT INTO utility.items (name, description, emoji_name, emoji_id, buy_price, sell_price, trade_price, rarity, type, food_value_min, food_value_max)VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)RETURNING *"
         except Exception as e:
-            await interaction.send(
-                "either you entered an invalid value or an internal error occured.",
-                ephemeral=True,
-            )
-            raise e
+            await interaction.send(embed=TextEmbed(f"{e.__class__.__name__}: {e}", EmbedColour.WARNING))
+            return
 
         embed = helpers.get_item_embed(item)
 
@@ -486,29 +496,23 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     @modify_item.subcommand(
         name="edit",
         description="Edit an item's name, description, trade price etc",
-        inherit_hooks=True,
     )
     async def edit_item(
         self,
         interaction: Interaction,
-        item: str = SlashOption(
+        itemname: str = SlashOption(
+            name="item",
             description="The item to edit",
             autocomplete_callback=choose_item_autocomplete,
         ),
     ):
         db: Database = self.bot.db
-        item = await db.fetchrow(
-            """
-            SELECT item_id, name, description, emoji_name, emoji_id, buy_price, sell_price, trade_price, rarity, type
-            FROM utility.items
-            WHERE name ILIKE $1 or emoji_name ILIKE $1
-            ORDER BY name ASC
-            """,
-            f"%{item}%",
-        )
+        item = await db.fetchrow(self.GET_ITEM_SQL, itemname)
         if not item:
-            await interaction.send("The item is not found!", ephemeral=True)
+            await interaction.send(TextEmbed("The item is not found!", EmbedColour.WARNING))
         else:
+            item = dict(item)
+            item.pop("sml")
             view = EditItemView(interaction, item)
             embed = view.get_item_embed()
             await interaction.send(embed=embed, view=view)
@@ -546,7 +550,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     @changelog.subcommand(
         name="send",
         description="Notify users about a new change in the changelog.",
-        inherit_hooks=True,
     )
     async def send_changelog(
         self,
@@ -670,7 +673,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     @changelog.subcommand(
         name="edit",
         description="Edit an existing message in the changelog",
-        inherit_hooks=True,
     )
     async def edit_changelog(
         self,

@@ -4,19 +4,22 @@ from nextcord.ext import commands
 from nextcord import Embed, Interaction, ButtonStyle, SelectOption
 from nextcord.ui import View, Modal, Button, button, Select, select, TextInput
 
-# default modules
-import random
-
 # database
 from utils.postgres_db import Database
 from asyncpg import Record
 
 # my modules and constants
-from utils.player import Player
 from utils import constants, helpers
+from utils.player import Player
+from utils.constants import EmbedColour
 from utils.helpers import TextEmbed
 
 from utils.template_views import BaseView, ConfirmView
+
+# default modules
+import random
+import json
+from typing import Optional
 
 
 def _get_item_embed(item: Record):
@@ -51,10 +54,10 @@ class EditItemView(BaseView):
         await model.popuplate_inputs(include=("buy_price", "sell_price", "trade_price"))
         await interaction.response.send_modal(model)
 
-    @button(label="Edit Rarities and Types")
+    @button(label="Edit Other Attributes")
     async def edit_rarities_types(self, button: Button, interaction: Interaction):
         model = EditItemModal(self.interaction, self.item)
-        await model.popuplate_inputs(include=("rarity", "type"))
+        await model.popuplate_inputs(include=("rarity", "type"), other_attributes=True)
         await interaction.response.send_modal(model)
 
 
@@ -68,7 +71,13 @@ class EditItemModal(Modal):
         )
         self.inputs = {}
 
-    async def popuplate_inputs(self, *, include: tuple[str] = None, exclude: tuple[str] = None):
+    async def popuplate_inputs(
+        self,
+        *,
+        include: Optional[tuple] = None,
+        exclude: Optional[tuple] = None,
+        other_attributes: Optional[bool] = False,
+    ):
         """Populate the modal's list of input, and include/exclude any columns that have been provided."""
         # typecast the tuples
         if include is None:
@@ -111,6 +120,39 @@ class EditItemModal(Modal):
                 # add the input to list of children of `nextcord.ui.Modal`
                 self.inputs[column_name] = input
                 self.add_item(input)
+        if other_attributes:
+            # add the "other_attributes" input
+            item = dict(self.item)
+            # remove the "normal" attributes
+            for i in (
+                "item_id",
+                "name",
+                "description",
+                "emoji_name",
+                "emoji_id",
+                "type",
+                "rarity",
+                "buy_price",
+                "sell_price",
+                "trade_price",
+            ):
+                item.pop(i, None)  # ignore if key does not exists
+            # remove columns with `NULL` value
+            for k, v in item.copy().items():
+                if v is None:
+                    item.pop(k)
+
+            input = TextInput(
+                label="Other attributes",
+                # if the column is description set the style to `paragraph`
+                style=nextcord.TextInputStyle.paragraph,
+                placeholder="in JSON format",
+                default_value=json.dumps(item),
+                required=False,
+            )
+            # add the input to list of children of `nextcord.ui.Modal`
+            self.inputs["other_attributes"] = input
+            self.add_item(input)
 
     async def callback(self, interaction: Interaction):
         errors = []
@@ -178,6 +220,15 @@ class EditItemModal(Modal):
                             "The type must be one of these:\n" + ", ".join([str(i) for i in constants.ItemType])
                         )
 
+            if column == "other_attributes":
+                try:
+                    other_attributes = json.loads(inputted_value)
+                except json.JSONDecodeError:
+                    errors.append("The format of other attributes are invalid")
+                else:
+                    if not isinstance(other_attributes, dict):
+                        errors.append("The other attributes should be in a dictionary format.")
+
         # if it is an invalid value send a message and return the function
         if len(errors) > 0:
             embed = Embed()
@@ -188,8 +239,9 @@ class EditItemModal(Modal):
             await interaction.send(embed=embed, ephemeral=True)
             return
 
-        inputted_values = [(column, value) for column, value in values.items()]
-        changed_values = {column: value for column, value in inputted_values if value != self.item[column]}
+        changed_values = {column: value for column, value in values.items() if value != self.item[column]}
+        # add the other_attributes into inputted values
+        changed_values.update(**other_attributes)
 
         if not changed_values:
             await interaction.send(
@@ -210,11 +262,7 @@ class EditItemModal(Modal):
             new_item = await db.fetchrow(sql, self.item["item_id"], *changed_values.values())
 
         except Exception as e:
-            await interaction.send(
-                "either you entered an invalid value or an internal error occured.",
-                ephemeral=True,
-            )
-            raise e
+            await interaction.send(embed=TextEmbed(f"{e.__class__.__name__}: {e}", EmbedColour.WARNING), ephemeral=True)
 
         view = EditItemView(interaction, new_item)
         embed = view.get_item_embed()

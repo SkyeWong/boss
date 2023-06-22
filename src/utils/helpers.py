@@ -239,6 +239,13 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
             prices_txt += f"`{k.capitalize()}`: {SCRAP_METAL} {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
 
+    if (food_min := item.get("food_value_min")) and (food_max := item.get("food_value_max")):
+        embed.add_field(
+            name="Additional info",
+            value=f"- </use:1107319705070477462>: restore {food_min} - {food_max} points of hunger",
+            inline=False,
+        )
+
     item_rarity = constants.ItemRarity(item["rarity"])
     item_type = constants.ItemType(item["type"])
     embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
@@ -249,6 +256,50 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
 def format_with_link(text: str):
     """Formats a text with its markdown link form: \[text](link)"""
     return f"[`{text}`](https://boss-bot.onrender.com/)"
+
+
+def upper(text: str):
+    """Capitalize the first letter of a string while leaving all other letters in their original case."""
+    if text and text[0].isalpha():
+        text = text[0].upper() + text[1:]
+    return text
+
+
+PB_EMOJIS = {
+    # lighter colours
+    "PB1E": "<:PB1E:1121318451500290088>",
+    "PB1HF": "<:PB1HF:1121322335060901928>",
+    "PB1F": "<:PB1F:1121318454285320324>",
+    "PB2E": "<:PB2E:1121318455996592148>",
+    "PB2HF": "<:PB2HF:1121318443837296660>",
+    "PB2F": "<:PB2F:1121318441845018634>",
+    "PB3E": "<:PB3E:1121318446257406023>",
+    "PB3F": "<:PB3F:1121318449352822788>",
+}
+
+
+def create_pb(percentage: int):
+    """Creates a progress bar with the width of 6 and with `filled` emojis set to the filled variants."""
+    filled = round(percentage / 100 * 5)
+    pb = ""
+    # if even 1 block needs to be filled set the first block to filled, otherwise leave it empty
+    pb += PB_EMOJIS["PB1F"] if filled > 0 else PB_EMOJIS["PB1E"]
+    # if filled is 5, then the last one will be filled, so we need to fill 3 blocks (5 minus the first and last "rounded" blocks)
+    # otherwise we fill (filled - 1) blocks since the first one is filled by the above line
+    pb += PB_EMOJIS["PB2F"] * (3 if filled == 5 else filled - 1)
+    # if filled is 0, similar to the above line, we leave 3 blocks as empty
+    # otherwise we leave the remaining blocks out of 3 empty (5 minus the first and last "rounded" blocks)
+    pb += PB_EMOJIS["PB2E"] * (3 if filled == 0 else 3 - (filled - 1))
+    # lastly fill in the last block with reasons similar to the first block
+    pb += PB_EMOJIS["PB3F"] if filled == 5 else PB_EMOJIS["PB3E"]
+    if filled != 5:
+        # check if filled is not 5 because if the last one is filled then we don't need to replace
+        # replace the last "filled" block with the "half-filled" one to make it rounded
+        pb = PB_EMOJIS["PB2HF"].join(pb.rsplit(PB_EMOJIS["PB2F"], 1))
+    if filled == 1:
+        # if only 1 block is filled, then replace the first block with its half-filled variant
+        pb = pb.replace(PB_EMOJIS["PB1F"], PB_EMOJIS["PB1HF"], 1)
+    return pb
 
 
 class TextEmbed(Embed):

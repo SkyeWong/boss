@@ -78,6 +78,7 @@ class ItemType(IntEnum):
     BATTLEGEAR = 4
     DECOR = 5
     BUNDLE = 6
+    ANIMAL = 7
 
 
 class ItemRarity(IntEnum):

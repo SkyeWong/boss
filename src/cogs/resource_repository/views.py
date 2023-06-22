@@ -887,45 +887,85 @@ class HarvestView(BaseView):
 
 
 class InventoryView(BaseView):
-    def __init__(self, interaction: Interaction, user: nextcord.User, inv_type: int):
+    def __init__(self, interaction: Interaction, user: nextcord.User, inv_type: constants.ItemType, page: int = 1):
         super().__init__(interaction, timeout=60)
         self.user = user
-        self.inv_type = inv_type
-        self.page = 1
+        self.inv_type = inv_type.value
+        self.page = page
         self.items_per_page = 6
+
+        self.items = []
+        self.item_types = []
 
         self.message: nextcord.Message = None
 
-    async def send(self):
-        await self.get_inv_content()
-        self.disable_buttons()
-        embed = self.get_inv_embed()
-        self.message = await self.interaction.send(embed=embed, view=self)
+    def _get_types_options(self) -> list[SelectOption]:
+        """Gets a list of SelectOption objects for the item categories.
+
+        Returns:
+            A list of SelectOption objects.
+        """
+
+        # Create a list of SelectOption objects for the categories.
+        options = []
+        # Add an option for every category
+        for i in constants.ItemType:
+            if next((j for j in self.inv if j["type"] == i.value), None):
+                options.append(SelectOption(label=i.name.capitalize(), value=str(i.value), default=False))
+
+        # Sort the options by label.
+        options.sort(key=lambda x: x.label)
+
+        options.insert(0, SelectOption(label="All", default=True))  # Add an "All" option to select every category
+
+        return options
+
+    @classmethod
+    async def send(cls, interaction: Interaction, user: nextcord.User, inv_type: constants.ItemType, page: int = 1):
+        """Respond to the interaction by sending a message."""
+        view = cls(interaction, user, inv_type, page)
+        await view.get_inv_content()
+
+        types_select_menu = [i for i in view.children if i.custom_id == "type_select"][0]
+        # set the options of the cog select menu
+        options = view._get_types_options()
+        types_select_menu.options = options
+        types_select_menu.max_values = len(options)
+        # Set the old selected values to ["All"].
+        view.old_selected_values = ["All"]
+
+        embed = await view.get_inv_embed()
+        view.disable_buttons()
+        view.message = await interaction.send(embed=embed, view=view)
 
     async def get_inv_content(self):
         db: Database = self.interaction.client.db
         self.inv = await db.fetch(
             """
-            SELECT items.name, items.emoji_name, items.emoji_id, items.rarity, items.type, inv.quantity
-                FROM players.inventory as inv
-                INNER JOIN utility.items
-                ON inv.item_id = items.item_id
+            SELECT i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, i.rarity, i.type, inv.quantity
+                FROM players.inventory AS inv
+                INNER JOIN utility.items AS i
+                ON inv.item_id = i.item_id
             WHERE inv.player_id = $1 AND inv.inv_type = $2
-            ORDER BY items.name
+            ORDER BY 
+                (CASE WHEN (SELECT inv_worth_sort FROM players.settings WHERE player_id = $1) is True THEN i.trade_price END) DESC NULLS LAST, 
+                i.name ASC
             """,
             self.user.id,
             self.inv_type,
         )
+        if self.page * self.items_per_page > len(self.inv):
+            self.page = math.ceil(len(self.inv) / self.items_per_page)
+        return self.inv
 
-    def get_inv_embed(self):
+    async def get_inv_embed(self):
         user = self.user
-        inv = self.inv
 
         inv_type = str(constants.InventoryType(self.inv_type))
 
         embed = Embed(description="")
         embed.set_author(
-            name=f"{user.name}'s {inv_type}",
+            name=f"{helpers.upper(user.name)}'s {inv_type}",
             icon_url=user.display_avatar.url,
         )
         embed.colour = constants.EmbedColour.DEFAULT
@@ -936,29 +976,54 @@ class InventoryView(BaseView):
         ]
         embed.set_thumbnail(url=storage_emojis_url[self.inv_type])
 
-        if len(inv) == 0:
+        if self.item_types:  # if a filter is set, apply it, otherwise show the whole list
+            self.items = [i for i in self.inv if i["type"] in self.item_types]
+        else:
+            self.items = self.inv
+
+        if len(self.items) == 0:
             embed.description = "Empty"
             return embed
 
-        for item in inv[self.get_page_start_index() : self.get_page_end_index() + 1]:
+        compact = await self.interaction.client.db.fetchval(
+            "SELECT compact_mode FROM players.settings WHERE player_id = $1", self.user.id
+        )
+
+        for item in self.items[self.get_page_start_index() : self.get_page_end_index() + 1]:
             item_type = [i.name for i in constants.ItemType if i.value == item["type"]][0]
             item_rarity = [i.name for i in constants.ItemRarity if i.value == item["rarity"]][0]
-            embed.description += (
-                f"\n\n**<:{item['emoji_name']}:{item['emoji_id']}>  {item['name']}** ─ {item['quantity']}\n"
-            )
-            embed.description += f"➸ `{item_rarity} {item_type}`".replace("_", " ").title()
-        embed.set_footer(text=f"Page {self.page}/{math.ceil(len(self.inv) / self.items_per_page)}")
+            embed.description += f"{item['emoji']} **{item['name']}** ─ {item['quantity']}\n"
+            if not compact:
+                embed.description += f"➸ `{item_rarity} {item_type}`\n\n".replace("_", " ").title()
+        embed.set_footer(
+            text=f"Page {self.page}/{math.ceil(len(self.items) / self.items_per_page)} • {len(self.items)} unique items in total"
+        )
         return embed
 
     def get_page_start_index(self):
+        """
+        Returns the start index of the current page of commands.
+        For example, if `self.page` is 2 and `self.cmd_per_page` is 6, then the start index will be 6.
+        """
         return (self.page - 1) * self.items_per_page
 
     def get_page_end_index(self):
+        """
+        Returns the end index of the current page of commands.
+
+        For example, if `self.page` is 2 and `self.cmd_per_page` is 6, then the end index will be 11.
+        """
         index = self.get_page_start_index() + self.items_per_page - 1
-        inv = self.inv
-        return index if index < len(inv) else len(inv) - 1
+        return index if index < len(self.items) else len(self.items) - 1
 
     def disable_buttons(self):
+        """
+        Updates the state of the buttons to disable the previous, current, and next buttons if they are not applicable.
+        Should be run *after* get_inv_embed() is run.
+
+        - For example, if the first page is being shown, then the previous and back buttons will be disabled.
+        - If the last page is being shown, then the next and last buttons will be disabled.
+        """
         back_btn = [i for i in self.children if i.custom_id == "back"][0]
         first_btn = [i for i in self.children if i.custom_id == "first"][0]
         if self.page == 1:
@@ -969,19 +1034,56 @@ class InventoryView(BaseView):
             first_btn.disabled = False
         next_btn = [i for i in self.children if i.custom_id == "next"][0]
         last_btn = [i for i in self.children if i.custom_id == "last"][0]
-        if self.get_page_end_index() == len(self.inv) - 1:
+        if self.get_page_end_index() == len(self.items) - 1:
             next_btn.disabled = True
             last_btn.disabled = True
         else:
             next_btn.disabled = False
             last_btn.disabled = False
 
+    @select(
+        placeholder="Choose a category...",
+        options=[],
+        min_values=1,
+        max_values=1,
+        custom_id="type_select",
+    )
+    async def select_type(self, select: Select, interaction: Interaction):
+        """
+        Updates the commands displayed in the embed based on the selected cog.
+
+        The selected cog is passed to the `get_embed()` method and the new embed is then displayed.
+        """
+        await interaction.response.defer()
+        selected_values = select.values
+        if "All" in [i for i in selected_values if i not in self.old_selected_values]:
+            selected_values = ["All"]
+        elif "All" in [i for i in self.old_selected_values if i in selected_values]:
+            selected_values.remove("All")
+
+        if "All" in selected_values:
+            self.item_types = []
+        else:
+            self.item_types = [int(i) for i in selected_values]
+
+        self.page = 1
+
+        embed = await self.get_inv_embed()
+        self.disable_buttons()
+        # disable the buttons, and make the select menu "sticky"
+        for option in select.options:
+            option.default = False
+            if option.value in selected_values:
+                option.default = True
+        await self.message.edit(embed=embed, view=self)
+        self.old_selected_values = selected_values
+
     @button(emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True)
     async def first(self, button: Button, interaction: Interaction):
         await interaction.response.defer()
         self.page = 1
         self.disable_buttons()
-        embed = self.get_inv_embed()
+        embed = await self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back")
@@ -989,16 +1091,16 @@ class InventoryView(BaseView):
         await interaction.response.defer()
         self.page -= 1
         self.disable_buttons()
-        embed = self.get_inv_embed()
+        embed = await self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="🔄", style=nextcord.ButtonStyle.blurple, custom_id="refresh_msg")
     async def refresh_msg(self, button: Button, interaction: Interaction):
         await interaction.response.defer()
-        self.disable_buttons()
 
         await self.get_inv_content()
-        embed = self.get_inv_embed()
+        embed = await self.get_inv_embed()
+        self.disable_buttons()
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="▶️", style=nextcord.ButtonStyle.blurple, custom_id="next")
@@ -1006,13 +1108,13 @@ class InventoryView(BaseView):
         await interaction.response.defer()
         self.page += 1
         self.disable_buttons()
-        embed = self.get_inv_embed()
+        embed = await self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="⏭️", style=nextcord.ButtonStyle.blurple, custom_id="last")
     async def last(self, button: Button, interaction: Interaction):
         await interaction.response.defer()
-        self.page = math.ceil(len(self.inv) / self.items_per_page)
+        self.page = math.ceil(len(self.items) / self.items_per_page)
         self.disable_buttons()
-        embed = self.get_inv_embed()
+        embed = await self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)

@@ -25,7 +25,6 @@ from utils.postgres_db import Database
 from cogs.wasteland_workshop.views import PersistentWeatherView
 
 # default modules
-import asyncio
 import os
 import random
 import sys

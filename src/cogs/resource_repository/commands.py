@@ -1,7 +1,8 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands, tasks
-from nextcord import Interaction, Embed, SlashOption
+from nextcord.ui import View, Button
+from nextcord import Interaction, Embed, SlashOption, ButtonStyle
 
 # slash command cooldowns
 import cooldowns
@@ -28,9 +29,6 @@ from modules.village.village import TradeView
 from utils.helpers import BossItem
 from modules.village.villagers import Villager
 
-# use
-from modules.use_item import use_item
-
 from numerize import numerize
 
 # default modules
@@ -41,6 +39,7 @@ import datetime
 import pytz
 import operator
 import math
+import asyncio
 
 
 class Resource(commands.Cog, name="Resource Repository"):
@@ -59,43 +58,17 @@ class Resource(commands.Cog, name="Resource Repository"):
             asyncpg.exceptions.InterfaceError,
         )
 
-    async def choose_item_autocomplete(self, interaction: Interaction, data: str):
-        sql = """
-            SELECT name
-            FROM utility.items
-            ORDER BY name
-        """
-        db: Database = self.bot.db
-        result = await db.fetch(sql)
-        items = [i[0] for i in result]
-        if not data:
-            # return full list
-            await interaction.response.send_autocomplete(items[:25])
-            return
-        else:
-            # send a list of nearest matches from the list of item
-            near_items = [item for item in items if data.lower() in item.lower()][:25]
-            await interaction.response.send_autocomplete(near_items)
+    GET_ITEM_SQL = """
+        SELECT * 
+        FROM utility.items AS i
+        INNER JOIN utility.SearchItem($1) AS s
+        ON i.item_id = s.item_id
+    """
 
-    async def choose_backpack_autocomplete(self, interaction: Interaction, data: str):
-        """Returns a list of autocompleted choices of a user's backpack"""
+    async def choose_item_autocomplete(self, interaction: Interaction, data: str):
         db: Database = self.bot.db
-        items = await db.fetch(
-            """
-            SELECT items.name
-                FROM players.inventory as inv
-                INNER JOIN utility.items
-                ON inv.item_id = items.item_id
-            WHERE inv.player_id = $1 AND inv.inv_type = 0 AND items.sell_price > 0
-            """,
-            interaction.user.id,
-        )
-        if not data:
-            # return full list
-            return sorted([item[0] for item in items])[:25]
-        # send a list of nearest matches from the list of item
-        near_items = sorted([item[0] for item in items if item[0].lower().startswith(data.lower())])
-        return near_items[:25]
+        items = await db.fetch(self.GET_ITEM_SQL, data)
+        await interaction.response.send_autocomplete([i["name"] for i in items][:25])
 
     @nextcord.slash_command(name="item", description="Get information of an item.")
     async def item(
@@ -107,14 +80,8 @@ class Resource(commands.Cog, name="Resource Repository"):
             autocomplete_callback=choose_item_autocomplete,
         ),
     ):
-        sql = """
-            SELECT *
-            FROM utility.items
-            WHERE name ILIKE $1 or emoji_name ILIKE $1
-            ORDER BY name ASC
-        """
         db: Database = self.bot.db
-        item = await db.fetchrow(sql, f"%{itemname.lower()}%")
+        item = await db.fetchrow(self.GET_ITEM_SQL, itemname)
         if not item:
             await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
         else:
@@ -178,6 +145,13 @@ class Resource(commands.Cog, name="Resource Repository"):
                             i + 1,
                             villager.name,
                             villager.job_title,
+                            # the composite type `trade_item` has the following fields:
+                            #   - item_id  (items)
+                            #   - quantity (items)
+                            #   - price    (currencies)
+                            #   - type     (currencies)
+                            # therefore if the item in question is an item, leave the last 2 fields empty
+                            # if it is a currency/price, leave the first 2 columns blank
                             [
                                 (item.item_id, item.quantity, None, None)
                                 if isinstance(item, BossItem)
@@ -206,7 +180,8 @@ class Resource(commands.Cog, name="Resource Repository"):
     @update_villagers.before_loop
     async def before_update_villagers(self):
         now = datetime.datetime.now()
-        # Wait until the start of the next hour before starting the task loop
+        # Wait until the start of the next hour before starting the task loop,
+        # so that the trades get updated at the start of hours (HH:00)
         start_of_next_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         await nextcord.utils.sleep_until(start_of_next_hour)
 
@@ -217,13 +192,12 @@ class Resource(commands.Cog, name="Resource Repository"):
 
     @farm.before_invoke
     async def create_farm(interaction: Interaction):
+        # if the user hasn't started his/her farm, then we need to insert his/her record into the table
+        # if the user has already started farming, then do nothing (ON CONFLICT DO NOTHING)
         await interaction.client.db.execute(
             """
             INSERT INTO players.farm(player_id, farm)
-            VALUES(
-                $1,
-                $2
-            )
+            VALUES($1, $2)
             ON CONFLICT(player_id) DO NOTHING
             """,
             interaction.user.id,
@@ -253,10 +227,20 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         sold_items = sorted(sold_items, key=lambda item: item["quantity"], reverse=True)
         quantities = {item["quantity"] for item in sold_items}
+        # get the length of the item with the largest quantity,
+        # so that the quantities indents nicely like this:
+        # (the emojis are removed)
+        #     ──────────────────────
+        #     ` 139x ` Banknote (9,452,000)
+        #     `  99x ` Cow (2,970,000)
+        #     `  78x ` Deer (7,799,922)
+        #     `  56x ` Wheat (1,680,000)
+        #     `  43x ` Carrot (1,720,000)
+        #     ──────────────────────
         max_quantity_length = len(str(max(quantities)))
 
         for item in sold_items:
-            embed.description += f"` {item['quantity']: >{max_quantity_length}}x ` <:{item['emoji_name']}:{item['emoji_id']}> {item['name']} ({SCRAP_METAL} {item['sell_price'] * item['quantity']:,})\n"
+            embed.description += f"` {item['quantity']: >{max_quantity_length}}x ` {item['emoji']} {item['name']} ({SCRAP_METAL} {item['sell_price'] * item['quantity']:,})\n"
 
         embed.description += "─" * (len(embed.title) + 5)
         embed.description += f"\n**`Total`**: {SCRAP_METAL} __{total_price:,}__"
@@ -267,22 +251,23 @@ class Resource(commands.Cog, name="Resource Repository"):
             async with conn.transaction():
                 sold_items = await conn.fetch(
                     """
-                    UPDATE players.inventory As inv
+                    UPDATE players.inventory AS inv
                     SET quantity = 0
-                    FROM utility.items
+                    FROM utility.items AS i
                     WHERE 
-                        inv.item_id = items.item_id AND 
+                        inv.item_id = i.item_id AND 
 
                         player_id = $1 AND 
                         inv_type = 0 AND 
-                        items.sell_price > 0 AND
-                        NOT items.item_id = ANY($2::int[])
+                        i.sell_price > 0 AND
+                        NOT i.item_id = ANY($2::int[])
                     RETURNING 
-                        items.name, 
-                        items.emoji_name,
-                        items.emoji_id,
-                        items.sell_price,
-                        (SELECT quantity As old_quantity FROM players.inventory WHERE player_id = $1 AND inv_type = 0 AND item_id = items.item_id) As quantity 
+                        i.name, 
+                        CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji,
+                        i.sell_price,
+                        (SELECT quantity As old_quantity 
+                        FROM players.inventory 
+                        WHERE player_id = $1 AND inv_type = 0 AND item_id = i.item_id) As quantity 
                     """,
                     interaction.user.id,
                     interaction.attached.exclude_items,
@@ -294,6 +279,28 @@ class Resource(commands.Cog, name="Resource Repository"):
                     total_price += item["sell_price"] * item["quantity"]
                 await player.modify_scrap(total_price)
         return total_price
+
+    GET_SELLABLE_SQL = """
+        SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, i.sell_price, bp.quantity
+            FROM utility.items AS i
+            INNER JOIN utility.SearchItem('$2) AS s
+            ON i.item_id = s.item_id
+            LEFT JOIN 
+                (SELECT inv.item_id, inv.quantity
+                FROM players.inventory AS inv
+                WHERE inv.player_id = $1 AND inv.inv_type = 0) AS bp
+            ON bp.item_id = i.item_id
+        WHERE i.sell_price > 0;
+    """
+
+    async def choose_backpack_sellable_autocomplete(self, interaction: Interaction, data: str):
+        """Returns a list of autocompleted choices of the sellable items in a user's backpack"""
+        db: Database = self.bot.db
+        items = await db.fetch(
+            self.GET_SELLABLE_SQL,
+            interaction.user.id,
+        )
+        await interaction.response.send_autocomplete([i["name"] for i in items][:25])
 
     @nextcord.slash_command()
     async def sell(self, interaction):
@@ -321,42 +328,36 @@ class Resource(commands.Cog, name="Resource Repository"):
 
             for item_name in exclude_item_names:
                 item = await db.fetchrow(
-                    """
-                    SELECT items.item_id
-                        FROM players.inventory as inv
-                        INNER JOIN utility.items
-                        ON inv.item_id = items.item_id
-                    WHERE 
-                        inv.player_id = $1 AND 
-                        inv.inv_type = 0 AND 
-                        items.sell_price > 0 AND
-                        (items.name ILIKE $2 OR items.emoji_name ILIKE $2)
-                    """,
+                    self.GET_SELLABLE_SQL,
                     interaction.user.id,
-                    f"%{item_name}%",
+                    item_name,
                 )
                 # the item is not found, or the user does not own any
                 if item is None:
                     await interaction.send(
-                        embed=Embed(
-                            description=f"Either you don't have any `{item_name}` in your backpack or it doesn't exist."
-                        )
+                        embed=TextEmbed(f"The item `{item_name}` doesn't exist.", EmbedColour.WARNING)
+                    )
+                    return
+                if item["quantity"] is None:
+                    await interaction.send(
+                        embed=TextEmbed(f"You don't own any {item['emoji']} **{item['name']}**", EmbedColour.WARNING)
                     )
                     return
 
                 exclude_items.append(item["item_id"])
 
+        # get the remaining sellable items in the user's backpack where the item is not excluded
         sellable_items = await db.fetch(
             """
-            SELECT items.item_id, items.name, items.emoji_name, items.emoji_id, inv.quantity, items.sell_price
-                FROM players.inventory as inv
-                INNER JOIN utility.items
-                ON inv.item_id = items.item_id
-            WHERE 
-                inv.player_id = $1 AND 
-                inv.inv_type = 0 AND
-                items.sell_price > 0 AND
-                NOT items.item_id = ANY($2::int[])
+                SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, inv.quantity, i.sell_price
+                    FROM players.inventory AS inv
+                    INNER JOIN utility.items AS i
+                    ON inv.item_id = i.item_id
+                WHERE 
+                    inv.player_id = $1 AND 
+                    inv.inv_type = 0 AND
+                    i.sell_price > 0 AND
+                    NOT i.item_id = ANY($2::int[])
             """,
             interaction.user.id,
             exclude_items,
@@ -365,6 +366,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             await interaction.send(embed=Embed(description="You sold nothing! What a shame..."))
             return
 
+        # calculate the total price of the sold items
         total_price = 0
         for item in sellable_items:
             total_price += item["sell_price"] * item["quantity"]
@@ -388,7 +390,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             name="item",
             description="The item to sell",
             required=True,
-            autocomplete_callback=choose_backpack_autocomplete,
+            autocomplete_callback=choose_backpack_sellable_autocomplete,
         ),
         quantity: int = SlashOption(
             description="Amount of items to sell. Defaults to selling every one of the item.",
@@ -399,25 +401,22 @@ class Resource(commands.Cog, name="Resource Repository"):
         """Sell a specific item in your backpack."""
         db: Database = self.bot.db
         item = await db.fetchrow(
-            """
-            SELECT items.item_id, items.name, items.emoji_name, items.emoji_id, items.sell_price, inv.quantity
-                FROM players.inventory As inv
-                INNER JOIN utility.items
-                ON inv.item_id = items.item_id
-            WHERE inv.player_id = $1 AND inv.inv_type = 0 AND (items.name ILIKE $2 or items.emoji_name ILIKE $2)
-            ORDER BY name ASC
-            """,
+            self.GET_SELLABLE_SQL,
             interaction.user.id,
-            f"%{item_name}%",
+            item_name,
         )
         if not item:
             await interaction.send(
-                embed=Embed(description="Either you don't own the item or it does not exist!"),
+                embed=TextEmbed("The item does not exist.", EmbedColour.WARNING),
             )
             return
 
         if not item["sell_price"]:
-            await interaction.send(embed=Embed(description="The item can't be sold! Try trading them."))
+            await interaction.send(embed=TextEmbed("The item can't be sold! Try trading them.", EmbedColour.WARNING))
+            return
+
+        if not item["quantity"]:
+            await interaction.send(embed=TextEmbed("You don't own any of the item.", EmbedColour.WARNING))
             return
 
         inv_quantity = item["quantity"]
@@ -426,7 +425,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         if inv_quantity < quantity:
             embed = Embed()
             embed.description = (
-                f"You only have {inv_quantity}x <:{item['emoji_name']}:{item['emoji_id']}>{item['name']}, which is {quantity - inv_quantity} short."
+                f"You only have {inv_quantity}x {item['emoji']} {item['name']}, which is {quantity - inv_quantity} short."
                 "Don't imagine yourself as such a rich person, please."
             )
             await interaction.send(embed=embed)
@@ -436,9 +435,9 @@ class Resource(commands.Cog, name="Resource Repository"):
             async with conn.transaction():
                 await conn.execute(
                     """
-                    UPDATE players.inventory
-                    SET quantity = quantity - $3
-                    WHERE player_id = $1 AND inv_type = 0 AND item_id = $2
+                        UPDATE players.inventory
+                        SET quantity = quantity - $3
+                        WHERE player_id = $1 AND inv_type = 0 AND item_id = $2
                     """,
                     interaction.user.id,
                     item["item_id"],
@@ -448,7 +447,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 player = Player(db, interaction.user)
                 total_price = item["sell_price"] * quantity
                 await player.modify_scrap(total_price)
-        item = dict(item)
+        item = dict(item)  # convert the item into a dictionary so that we can modify it
         item["quantity"] = quantity
         embed = self.get_sell_item_embed((item,), total_price)
 
@@ -485,6 +484,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             )
             return
 
+        # set the exchange rate so that the user loses some of the currency's value when they exchange them
         if from_currency == "scrap_metal":
             exchange_rate = constants.COPPER_SCRAP_RATE * random.uniform(1, 1.2)
             op = operator.truediv
@@ -498,6 +498,8 @@ class Resource(commands.Cog, name="Resource Repository"):
         db: Database = interaction.client.db
         player = Player(db, interaction.user)
 
+        # when we use transactions, if an error occurs/the function returns in the context manager,
+        # then changes will be rolled back
         async with db.pool.acquire() as conn:
             async with conn.transaction():
                 try:
@@ -505,7 +507,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                     to_amount = await player.modify_currency(to_currency, exchanged_amount)
                 except helpers.NegativeBalance:
                     await interaction.send(
-                        embed=TextEmbed(f"You don't have that enough {from_currency_msg} to make this exchange.")
+                        embed=TextEmbed(f"You don't have enough {from_currency_msg} to make this exchange.")
                     )
                     return
 
@@ -552,8 +554,31 @@ class Resource(commands.Cog, name="Resource Repository"):
             copper,
         )
 
-    @nextcord.slash_command()
+    GET_BACKPACK_SQL = """
+        SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, i.type, bp.quantity
+        FROM utility.items AS i
+        INNER JOIN utility.SearchItem($2) AS s
+        ON i.item_id = s.item_id
+        LEFT JOIN 
+            (SELECT inv.item_id, inv.quantity
+            FROM players.inventory AS inv
+            WHERE inv.player_id = $1 AND inv.inv_type = 0) AS bp
+        ON bp.item_id = i.item_id
+    """
+
+    async def choose_backpack_autocomplete(self, interaction: Interaction, data: str):
+        """Returns a list of autocompleted choices of all the items in a user's backpack"""
+        db: Database = self.bot.db
+        items = await db.fetch(
+            self.GET_BACKPACK_SQL,
+            interaction.user.id,
+            data if data else "",
+        )
+        await interaction.response.send_autocomplete([i["name"] for i in items][:25])
+
+    @nextcord.slash_command(name="use", description="Use an item to activiate its unique ability!")
     @helpers.work_in_progress(dev_guild_only=True)
+    @cooldowns.cooldown(1, 12, SlashBucket.author, check=check_if_not_dev_guild)
     async def use(
         self,
         interaction: Interaction,
@@ -562,35 +587,112 @@ class Resource(commands.Cog, name="Resource Repository"):
         ),
         quantity: int = SlashOption(description="Amount of the item to be used", required=None, default=1),
     ):
-        """Use an item to activiate its unique ability!"""
         db: Database = self.bot.db
         item = await db.fetchrow(
-            """
-            SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, inv.quantity
-                FROM players.inventory AS inv
-                INNER JOIN utility.items AS i
-                ON inv.item_id = i.item_id
-            WHERE inv.player_id = $1 AND inv.inv_type = 0 AND (i.name ILIKE $2 or i.emoji_name ILIKE $2)
-            ORDER BY name ASC
-            """,
+            self.GET_BACKPACK_SQL,
             interaction.user.id,
-            f"%{item_name}%",
+            item_name,
         )
+
+        # perform some checks to see if the user can use their items
         if item is None:
-            await interaction.send(embed=TextEmbed("The item does not exist.", colour=EmbedColour.WARNING))
+            await interaction.send(embed=TextEmbed("The item does not exist.", EmbedColour.WARNING))
             return
-        if func := getattr(use_item, f"use_item_{item['item_id']}", None):
-            if item["quantity"] < quantity:
-                await interaction.send(
-                    embed=TextEmbed(f"You don't have enough {item['emoji']} **{item['name']}**!", EmbedColour.WARNING)
+        if item["quantity"] is None:
+            await interaction.send(
+                embed=TextEmbed(
+                    f"You don't have any of the {item['emoji']} **{item['name']}** in your backpack, and therefore can't use it.",
+                    EmbedColour.WARNING,
                 )
+            )
+            return
+        if item["quantity"] < quantity:
+            await interaction.send(
+                embed=TextEmbed(f"You don't have enough {item['emoji']} **{item['name']}**!", EmbedColour.WARNING)
+            )
+            return
+
+        item = dict(item)  # convert the item from asyncpg.Record into a dict for the match-case statement
+        player = Player(db, interaction.user)
+
+        match item:
+            case {"type": constants.ItemType.FOOD.value}:
+                # the mininum and maximum hunger value that 1 unit of the food replenishes
+                food_min, food_max = await db.fetchrow(
+                    """
+                        SELECT food_value_min, food_value_max
+                        FROM utility.items
+                        WHERE item_id = $1
+                    """,
+                    item["item_id"],
+                )
+                food_value = random.randint(food_min, food_max)
+                old_hunger = await db.fetchval(
+                    """
+                        UPDATE players.players
+                        SET hunger = hunger + $1
+                        WHERE player_id = $2
+                        RETURNING 
+                            (SELECT hunger
+                            FROM players.players
+                            WHERE player_id = $2) AS old_hunger
+                    """,
+                    food_value,
+                    interaction.user.id,
+                )
+                if old_hunger >= 100:
+                    await interaction.send(
+                        embed=TextEmbed("Your hunger is already full, why are you even eating???", EmbedColour.WARNING)
+                    )
+                    return
+
+                # perform another query because we need to wait for the trigger function to occur
+                # the trigger function makes sure that the hunger is in range of [0, 100]
+                # note that we cannot simply perform `old_hunger + food_value` because it may be larger than 100, in which case it will be set to 100
+                # we would not want to check it here since other checks might be added in the future and we need to update both the database and the code here
+                new_hunger = await db.fetchval(
+                    """
+                        SELECT hunger
+                        FROM players.players
+                        WHERE player_id = $1
+                    """,
+                    interaction.user.id,
+                )
+                embed = TextEmbed(
+                    f"You ate {quantity} {item['emoji']} **{item['name']}**.\n"
+                    f"Your hunger is now {new_hunger}, increased by {new_hunger - old_hunger}.",
+                    EmbedColour.SUCCESS,
+                )
+
+            case {"type": constants.ItemType.ANIMAL.value}:
+                # convert the animal to "food" item
+                await player.add_item(55, quantity)
+                food_item = BossItem(55, quantity)
+                embed = TextEmbed(
+                    f"You roasted {quantity} {item['emoji']} **{item['name']}** over the fire and "
+                    f"got {quantity} {await food_item.get_emoji(db)} **{await food_item.get_name(db)}**!",
+                    EmbedColour.SUCCESS,
+                )
+
+            case {"item_id": 44}:  # Iron ore
+                await player.add_item(50, quantity)
+                await player.add_item(44, -quantity)
+                embed = TextEmbed(f"Converted {quantity} iron ore into ingots!", EmbedColour.SUCCESS)
+
+            case _:
+                await interaction.send(embed=TextEmbed("You can't use this item", colour=EmbedColour.WARNING))
                 return
-            res = await func(interaction, quantity)
-            if res == True:
-                player = Player(db, interaction.user)
-                await player.add_item(item["item_id"], -quantity)
-        else:
-            await interaction.send(embed=TextEmbed("You can't use this item", colour=EmbedColour.WARNING))
+        # do something universal of all items able to be used
+        new_quantity = await player.add_item(item["item_id"], -quantity)
+        view = View()
+        button = Button(
+            label=f"You have {new_quantity}x {item['name']} left",
+            emoji=item["emoji"],
+            style=ButtonStyle.grey,
+            disabled=True,
+        )
+        view.add_item(button)
+        await interaction.send(embed=embed, view=view)
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
@@ -619,7 +721,7 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         profile = await db.fetchrow(
             """
-            SELECT scrap_metal, copper, experience, hunger
+            SELECT scrap_metal, copper, experience, health, hunger, commands_run
             FROM players.players
             WHERE player_id = $1
             """,
@@ -629,9 +731,9 @@ class Resource(commands.Cog, name="Resource Repository"):
         embed = Embed()
         embed.colour = EmbedColour.DEFAULT
         embed.set_thumbnail(url=user.display_avatar.url)
-        embed.set_author(name=f"{user.name}'s Profile")
+        embed.set_author(name=f"{helpers.upper(user.name)}'s Profile")
 
-        experience = profile["experience"]
+        exp = profile["experience"]
 
         unique_items, total_items = await db.fetchrow(
             """
@@ -659,33 +761,32 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
         if item_worth is None:
             item_worth = 0
+        net_worth = item_worth + profile["scrap_metal"] + profile["copper"] * COPPER_SCRAP_RATE
 
-        embed.add_field(name="Scrap Metal", value=f"{SCRAP_METAL} `{numerize.numerize(profile['scrap_metal'])}`")
-        embed.add_field(name="Copper", value=f"{COPPER} `{numerize.numerize(profile['copper'])}`")
+        # Fields row 1
         embed.add_field(
-            name="Net worth",
-            value=f"{SCRAP_METAL} `{numerize.numerize(item_worth + profile['scrap_metal'])}`",
+            name="Health",
+            value=f"`{profile['health']}/100`\n {helpers.create_pb(profile['health'])}",
         )
-
-        experience_progress_bar_filled = round((experience % 100) / 10)
-        embed.add_field(
-            name="Experience",
-            value=f"Level: `{math.floor(experience / 100)}`\n"
-            f"`{experience % 100}/100` [`{'█' * experience_progress_bar_filled}{' ' * (10 - experience_progress_bar_filled)}`]",
-            inline=True,
-        )
-        hunger_progress_bar_filled = round((profile["hunger"] % 100) / 10)
         embed.add_field(
             name="Hunger",
-            value=f"`{profile['hunger']}/100` [`{'█' * hunger_progress_bar_filled}{' ' * (10 - hunger_progress_bar_filled)}`]",
-            inline=True,
+            value=f"`{profile['hunger']}/100`\n {helpers.create_pb(profile['hunger'])}",
         )
         embed.add_field(
-            name="Items",
-            value=f"Unique: `{unique_items}`\n"
-            f"Total: `{total_items}`\n"
-            f"Worth: {SCRAP_METAL} `{numerize.numerize(item_worth)}`\n",
-            inline=False,
+            name="Experience",
+            value=f"Level: `{math.floor(exp / 100)}` (`{exp % 100}/100`)\n {helpers.create_pb(exp % 100)}",
+        )
+        # Fields row 2
+        embed.add_field(
+            name="Currency",
+            value=f"{SCRAP_METAL} `{numerize.numerize(profile['scrap_metal'])}`\n"
+            f"{COPPER} `{numerize.numerize(profile['copper'])}`\n",
+        )
+        embed.add_field(name="Items", value=f"Unique: `{unique_items}`\nTotal: `{total_items}`\n")
+        embed.add_field(
+            name="Net",
+            value=f"Item worth: {SCRAP_METAL} `{numerize.numerize(item_worth)}`\n"
+            f"**Net**: {SCRAP_METAL} `{numerize.numerize(net_worth)}`",
         )
         await interaction.send(embed=embed)
 
@@ -725,7 +826,7 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         embed = Embed()
         embed.colour = random.choice(constants.EMBED_COLOURS)
-        embed.title = f"{user}'s Balance"
+        embed.title = f"{helpers.upper(user.name)}'s Balance"
 
         item_worth = await db.fetchval(
             """
@@ -775,7 +876,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * 25:,}"
         )
         embed.set_footer(
-            text=f"{'You are' if user == interaction.user else f'{user.name} is'} ahead of {round(rank * 100, 1)}% of users!\n"
+            text=f"{'You are' if user == interaction.user else f'{helpers.upper(user.name)} is'} ahead of {round(rank * 100, 1)}% of users!\n"
             f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals."
         )
 
@@ -808,7 +909,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         for i, (id, net_worth) in enumerate(lb):
             user = await self.bot.fetch_user(id)
             emoji = medal_emojis.get(i + 1, "🔹")
-            embed.description += f"{emoji} ` {net_worth:,} ` - {user}\n"
+            embed.description += f"{emoji} ` {net_worth:,} ` - {helpers.upper(user.name)}\n"
         await interaction.send(embed=embed)
 
     @nextcord.slash_command()
@@ -818,20 +919,18 @@ class Resource(commands.Cog, name="Resource Repository"):
         interaction: Interaction,
         user: nextcord.Member = SlashOption(
             name="user",
-            description="The user to check the backpack",
+            description="The user to check the backpack of",
             required=False,
             default=None,
         ),
+        page: int = SlashOption(description="The page to start in", required=False, min_value=1, default=1),
     ):
         """Check the backpack of your own or others."""
         if user == None:
             user = interaction.user
-        view = InventoryView(
-            interaction=interaction,
-            user=user,
-            inv_type=constants.InventoryType.BACKPACK.value,
+        await InventoryView.send(
+            interaction=interaction, user=user, inv_type=constants.InventoryType.BACKPACK, page=page
         )
-        await view.send()
 
     @nextcord.slash_command()
     @cooldowns.shared_cooldown("check_inv")
@@ -840,52 +939,52 @@ class Resource(commands.Cog, name="Resource Repository"):
         interaction: Interaction,
         user: nextcord.Member = SlashOption(
             name="user",
-            description="The user to check the chest",
+            description="The user to check the chest of",
             required=False,
             default=None,
         ),
+        page: int = SlashOption(description="The page to start in", required=False, min_value=1, default=1),
     ):
         """Check the chest of your own or others."""
         if user == None:
             user = interaction.user
-        view = InventoryView(
-            interaction=interaction,
-            user=user,
-            inv_type=constants.InventoryType.CHEST.value,
-        )
-        await view.send()
+        await InventoryView.send(interaction=interaction, user=user, inv_type=constants.InventoryType.CHEST, page=page)
 
     @nextcord.slash_command()
     @cooldowns.shared_cooldown("check_inv")
-    async def vault(self, interaction: Interaction):
+    async def vault(
+        self,
+        interaction: Interaction,
+        page: int = SlashOption(description="The page to start in", required=False, min_value=1, default=1),
+    ):
         """Check the vault of your own."""
-        user = interaction.user
-        view = InventoryView(
-            interaction=interaction,
-            user=user,
-            inv_type=constants.InventoryType.VAULT.value,
+        await InventoryView.send(
+            interaction=interaction, user=interaction.user, inv_type=constants.InventoryType.VAULT, page=page
         )
-        await view.send()
+
+    @vault.before_invoke
+    async def vault_before_invoke(interaction: Interaction):
+        await interaction.response.defer(ephemeral=True)
 
     async def choose_inv_autocomplete(self, interaction: Interaction, data: str):
         """Returns a list of autocompleted choices of a user's inventory"""
         db: Database = self.bot.db
         items = await db.fetch(
             """
-            SELECT items.name
-                FROM players.inventory as inv
-                INNER JOIN utility.items
-                ON inv.item_id = items.item_id
-            WHERE inv.player_id = $1
+            SELECT i.name
+            FROM utility.items AS i
+            INNER JOIN utility.SearchItem($2) AS s
+            ON i.item_id = s.item_id
+            INNER JOIN 
+                (SELECT DISTINCT item_id
+                FROM players.inventory
+                WHERE player_id = $1) AS inv
+            ON inv.item_id = i.item_id
             """,
             interaction.user.id,
+            data,
         )
-        if not data:
-            # return full list
-            return sorted(list({item[0] for item in items}))
-        # send a list of nearest matches from the list of item
-        near_items = sorted(list({item[0] for item in items if item[0].lower().startswith(data.lower())}))
-        return near_items
+        await interaction.response.send_autocomplete([item[0] for item in items][:25])
 
     async def _move_items(
         self,
@@ -919,6 +1018,8 @@ class Resource(commands.Cog, name="Resource Repository"):
                         item_from,
                         item_id,
                     )
+                    if quantity is None:
+                        raise MoveItemException("Not enough items to move!")
                     quantities_after["from"] = 0
                 else:  # moves specific number of the item out of from_place
                     quantities_after["from"] = await conn.fetchval(
@@ -933,7 +1034,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                         item_id,
                         quantity,
                     )
-                    if quantities_after["from"] is None or quantities_after["from"] < 0:
+                    if quantities_after["from"] < 0:
                         raise MoveItemException("Not enough items to move!")
 
                 # moves item to to_place
@@ -966,14 +1067,15 @@ class Resource(commands.Cog, name="Resource Repository"):
 
                 for inv_type, items in num_of_items_in_inv.items():
                     # transaction has not been committed, items are not updated
+                    # so we check for the old values
                     if (
-                        item_to == inv_type == constants.InventoryType.BACKPACK
+                        item_to == inv_type == constants.InventoryType.BACKPACK.value
                         and len(items) >= 32
                         and item_id not in items
                     ):
                         raise MoveItemException("Backpacks only have 32 slots!")
                     if (
-                        item_to == inv_type == constants.InventoryType.vault
+                        item_to == inv_type == constants.InventoryType.VAULT.value
                         and len(items) >= 5
                         and item_id not in items
                     ):
@@ -1018,15 +1120,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             return
 
         db: Database = self.bot.db
-        item = await db.fetchrow(
-            """
-            SELECT item_id, name, emoji_id
-            FROM utility.items
-            WHERE name ILIKE $1 or emoji_name ILIKE $1
-            ORDER BY name ASC
-            """,
-            f"%{item_name}%",
-        )
+        item = await db.fetchrow(self.GET_ITEM_SQL, item_name)
         if not item:
             await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
             return
@@ -1041,23 +1135,23 @@ class Resource(commands.Cog, name="Resource Repository"):
             )
 
         except MoveItemException as e:
-            await interaction.send(embed=Embed(description=e.text), ephemeral=True)
+            await interaction.send(embed=TextEmbed(e.text, EmbedColour.FAIL), ephemeral=True)
             return
 
-        # **inv_types**
-        # backpack: 0
-        # chest: 1
-        # vault: 2
+        embed = TextEmbed("Moving your items...", EmbedColour.DEFAULT)
+        msg = await interaction.send(embed=embed)
+        await asyncio.sleep(random.uniform(2, 5))
+
         embed = Embed(colour=EmbedColour.SUCCESS)
         embed.set_author(
-            name=f"Updated {interaction.user.name}'s inventory!",
+            name=f"Updated {helpers.upper(interaction.user.name)}'s inventory!",
             icon_url=interaction.user.display_avatar.url,
         )
         embed.description = f">>> Item: **{item['name']}**"
         embed.description += f"\nQuantity in {constants.InventoryType(item_from)}: `{quantities_after['from']}`"
         embed.description += f"\nQuantity in {constants.InventoryType(item_to)}: `{quantities_after['to']}`"
         embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
-        await interaction.send(embed=embed)
+        await msg.edit(embed=embed)
 
 
 def setup(bot: commands.Bot):

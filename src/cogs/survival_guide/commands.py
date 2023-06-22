@@ -222,6 +222,28 @@ class Utility(commands.Cog, name="Survival Guide"):
         view = GuideView(interaction)
         await view.send()
 
+    @nextcord.slash_command(description="Adjust user specific settings")
+    async def settings(
+        self,
+        interaction: Interaction,
+        setting: str = SlashOption(
+            description="The setting to change",
+            choices={"Sort the inventory by item worth": "inv_worth_sort", "Compact mode": "compact_mode"},
+        ),
+        value: bool = SlashOption(description="The value to change to"),
+    ):
+        db: Database = self.bot.db
+        await db.execute(
+            """
+                UPDATE players.settings
+                SET {column} = $1
+            """.format(
+                column=setting
+            ),
+            value,
+        )
+        await interaction.send(embed=TextEmbed("Updated your settings!"))
+
 
 def setup(bot: commands.Bot):
     bot.add_cog(Utility(bot))
