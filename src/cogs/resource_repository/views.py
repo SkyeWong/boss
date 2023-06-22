@@ -886,7 +886,7 @@ class InventoryView(BaseView):
         self.message: nextcord.Message = None
 
     def _get_types_options(self) -> list[SelectOption]:
-        """Gets a list of SelectOption objects for the item categories.
+        """Gets a list of SelectOption objects for the item categories. Should be run *after* get_inv_embed() is run
 
         Returns:
             A list of SelectOption objects.
@@ -911,6 +911,7 @@ class InventoryView(BaseView):
         """Respond to the interaction by sending a message."""
         view = cls(interaction, user, inv_type, page)
         await view.get_inv_content()
+        embed = await view.get_inv_embed()
 
         types_select_menu = [i for i in view.children if i.custom_id == "type_select"][0]
         # set the options of the cog select menu
@@ -920,7 +921,6 @@ class InventoryView(BaseView):
         # Set the old selected values to ["All"].
         view.old_selected_values = ["All"]
 
-        embed = await view.get_inv_embed()
         view.disable_buttons()
         view.message = await interaction.send(embed=embed, view=view)
 
@@ -941,7 +941,7 @@ class InventoryView(BaseView):
             self.inv_type,
         )
         if self.page * self.items_per_page > len(self.inv):
-            self.page = math.ceil(len(self.inv) / self.items_per_page)
+            self.page = math.ceil(len(self.inv) / self.items_per_page) or 1
         return self.inv
 
     async def get_inv_embed(self):
@@ -972,7 +972,7 @@ class InventoryView(BaseView):
             return embed
 
         compact = await self.interaction.client.db.fetchval(
-            "SELECT compact_mode FROM players.settings WHERE player_id = $1", self.user.id
+            "SELECT compact_mode FROM players.settings WHERE player_id = $1", self.interaction.user.id
         )
 
         for item in self.items[self.get_page_start_index() : self.get_page_end_index() + 1]:
@@ -1072,7 +1072,7 @@ class InventoryView(BaseView):
         embed = await self.get_inv_embed()
         await self.message.edit(embed=embed, view=self)
 
-    @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back")
+    @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, custom_id="back", disabled=True)
     async def back(self, button: Button, interaction: Interaction):
         await interaction.response.defer()
         self.page -= 1

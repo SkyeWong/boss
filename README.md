@@ -43,7 +43,7 @@ And more!
 
 To get started with BOSS, simply [invite](https://discord.com/api/oauth2/authorize?client_id=906505022441918485&permissions=139586751552&scope=bot) the bot to your Discord server and grant it the necessary permissions. You can then use the `/help` command to view a list of available commands and start earning currency in the post-apocalyptic wasteland. For more information, check the `/guide`.
 
-You can also join the official BOSS Discord server.
+You can also join the official [BOSS Discord server](https://discord.gg/pWBntSX3bh).
 
 ## Credits
 
