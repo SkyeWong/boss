@@ -114,7 +114,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         except (nextcord.NotFound, nextcord.HTTPException):
             await interaction.send(
                 embed=TextEmbed("The user id is invalid"),
-                ephemeral=True,
             )
             return
 
@@ -127,13 +126,11 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                     title="Can't set the `scrap metal` to that, try again",
                     description=f"Error:\n{e.args[0]}",
                 ),
-                ephemeral=True,
             )
         else:
             if not await player.is_present():
                 await interaction.send(
                     embed=TextEmbed(description="The user doesn't play BOSS! what a boomer."),
-                    ephemeral=True,
                 )
                 return
 
@@ -173,7 +170,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         except (nextcord.NotFound, nextcord.HTTPException):
             await interaction.send(
                 embed=TextEmbed("The user id is invalid"),
-                ephemeral=True,
             )
             return
 
@@ -186,13 +182,11 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                     title="Can't set the `copper` to that, try again",
                     description=f"Error:\n{e.args[0]}",
                 ),
-                ephemeral=True,
             )
         else:
             if not await player.is_present():
                 await interaction.send(
                     embed=TextEmbed(description="The user doesn't play BOSS! what a boomer."),
-                    ephemeral=True,
                 )
                 return
 
@@ -226,7 +220,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         except (nextcord.NotFound, nextcord.HTTPException):
             await interaction.send(
                 embed=TextEmbed("The user id is invalid"),
-                ephemeral=True,
             )
             return
 
@@ -234,7 +227,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         if not await player.is_present():
             await interaction.send(
                 embed=TextEmbed("The user doesn't play BOSS! what a boomer."),
-                ephemeral=True,
             )
             return
         db: Database = self.bot.db
@@ -248,6 +240,94 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             user_id,
         )
         embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s experience to `{experience}`!")
+        await interaction.send(embed=embed)
+
+        channel = await self.bot.fetch_channel(988046548309016586)
+        await channel.send(embed=embed)
+
+    @modify_user.subcommand(name="hunger", description="Set a user's hunger")
+    async def modify_hunger(
+        self,
+        interaction: Interaction,
+        hunger: int = SlashOption(
+            description="Hunger to set to. min - 0, max - 100", required=True, min_value=0, max_value=100
+        ),
+        user_id: str = SlashOption(name="user-id", required=False, default=None),
+    ):
+        if user_id is None:
+            user_id = interaction.user.id
+        else:
+            user_id = int(user_id)
+
+        try:
+            user = await self.bot.fetch_user(user_id)
+        except (nextcord.NotFound, nextcord.HTTPException):
+            await interaction.send(
+                embed=TextEmbed("The user id is invalid"),
+            )
+            return
+
+        player = Player(self.bot.db, user)
+        if not await player.is_present():
+            await interaction.send(
+                embed=TextEmbed("The user doesn't play BOSS!"),
+            )
+            return
+        db: Database = self.bot.db
+        await db.fetchval(
+            """
+            UPDATE players.players
+            SET hunger = $1
+            WHERE player_id = $2
+            """,
+            hunger,
+            user_id,
+        )
+        embed = TextEmbed(f"{interaction.user.mention} set `{helpers.upper(user.name)}`'s hunger to `{hunger}`!")
+        await interaction.send(embed=embed)
+
+        channel = await self.bot.fetch_channel(988046548309016586)
+        await channel.send(embed=embed)
+
+    @modify_user.subcommand(name="health", description="Set a user's health")
+    async def modify_health(
+        self,
+        interaction: Interaction,
+        health: int = SlashOption(
+            description="Health to set to. min - 0, max - 100", required=True, min_value=0, max_value=100
+        ),
+        user_id: str = SlashOption(name="user-id", required=False, default=None),
+    ):
+        if user_id is None:
+            user_id = interaction.user.id
+        else:
+            user_id = int(user_id)
+
+        try:
+            user = await self.bot.fetch_user(user_id)
+        except (nextcord.NotFound, nextcord.HTTPException):
+            await interaction.send(
+                embed=TextEmbed("The user id is invalid"),
+            )
+            return
+
+        player = Player(self.bot.db, user)
+        if not await player.is_present():
+            await interaction.send(
+                embed=TextEmbed("The user doesn't play BOSS!"),
+            )
+            return
+        db: Database = self.bot.db
+        await db.fetchval(
+            """
+            UPDATE players.players
+            SET health = $1
+            WHERE player_id = $2
+            """,
+            health,
+            user_id,
+        )
+        embed = TextEmbed(f"{interaction.user.mention} set `{helpers.upper(user.name)}`'s health to `{health}`!")
         await interaction.send(embed=embed)
 
         channel = await self.bot.fetch_channel(988046548309016586)
@@ -293,7 +373,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         except (nextcord.NotFound, nextcord.HTTPException, ValueError):
             await interaction.send(
                 embed=TextEmbed("The user id is invalid"),
-                ephemeral=True,
             )
             return
         db: Database = self.bot.db
@@ -437,7 +516,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         if res:
             await interaction.send(
                 embed=TextEmbed("An item with the same name exists. Rename the item."),
-                ephemeral=True,
             )
             return
 
@@ -604,12 +682,10 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 if isinstance(e, nextcord.NotFound):
                     await interaction.send(
                         f"The message is not found, or it is not in this channel: {interaction.channel.mention}",
-                        ephemeral=True,
                     )
                 elif isinstance(e, nextcord.Forbidden):
                     await interaction.send(
                         "I do not have the correct permissions to get the message!",
-                        ephemeral=True,
                     )
                 elif isinstance(e, nextcord.HTTPException):
                     embed, view = helpers.get_error_message()
@@ -658,7 +734,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             elif isinstance(e, nextcord.Forbidden):
                 await interaction.send(
                     "I do not have the correct permissions to get the message!",
-                    ephemeral=True,
                 )
             elif isinstance(e, nextcord.HTTPException):
                 embed, view = helpers.get_error_message()
@@ -704,7 +779,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             elif isinstance(e, nextcord.Forbidden):
                 await interaction.send(
                     "I do not have the correct permissions to get the message!",
-                    ephemeral=True,
                 )
             elif isinstance(e, nextcord.HTTPException):
                 embed, view = helpers.get_error_message()

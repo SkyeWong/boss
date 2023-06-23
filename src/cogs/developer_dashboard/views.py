@@ -264,6 +264,7 @@ class EditItemModal(Modal):
 
         except Exception as e:
             await interaction.send(embed=TextEmbed(f"{e.__class__.__name__}: {e}", EmbedColour.WARNING), ephemeral=True)
+            return
 
         view = EditItemView(interaction, new_item)
         embed = view.get_item_embed()

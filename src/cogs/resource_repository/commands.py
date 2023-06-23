@@ -527,6 +527,12 @@ class Resource(commands.Cog, name="Resource Repository"):
         await interaction.send(embed=embed)
 
     @exchange_currency_cmd.subcommand(name="to-copper")
+    @command_info(
+        notes=[
+            "⚠️ You will lose some value of your cash when exchanging.",
+            "For example, if you converted 5m scrap metals to copper and back again, you will get less than 5m.",
+        ]
+    )
     async def exchange_to_copper(
         self,
         interaction: Interaction,
@@ -542,6 +548,12 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
 
     @exchange_currency_cmd.subcommand(name="to-scrap")
+    @command_info(
+        notes=[
+            "⚠️ You will lose some value of your cash when exchanging.",
+            "For example, if you converted 50 copper to scrap metals and back again, you will get less than 50.",
+        ]
+    )
     async def exchange_to_scrap(
         self,
         interaction: Interaction,
@@ -579,6 +591,9 @@ class Resource(commands.Cog, name="Resource Repository"):
         await interaction.response.send_autocomplete([i["name"] for i in items][:25])
 
     @nextcord.slash_command(name="use", description="Use an item to activiate its unique ability!")
+    @command_info(
+        notes="For information on what's the effect of an item, use </item:1006811041025507379> and search for the selected item."
+    )
     @helpers.work_in_progress(dev_guild_only=True)
     @cooldowns.cooldown(1, 12, SlashBucket.author, check=check_if_not_dev_guild)
     async def use(
@@ -715,6 +730,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                         "### Do you want to continue?"
                     ),
                     confirmed_title="",
+                    cancelled_title="",
                 )
                 await interaction.send(embed=view.embed, view=view)
                 return
@@ -734,7 +750,8 @@ class Resource(commands.Cog, name="Resource Repository"):
         view.add_item(button)
         await interaction.send(embed=embed, view=view)
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(name="profile", description="Check the profile of your own or others.")
+    @command_info(notes="If you leave the `user` parameter empty, you can view your own profile.")
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
     async def profile(
         self,
@@ -746,7 +763,6 @@ class Resource(commands.Cog, name="Resource Repository"):
             default=None,
         ),
     ):
-        """Check the profile of your own or others."""
         if user is None:
             user = interaction.user
         db: Database = self.bot.db
@@ -830,7 +846,9 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(
+        name="balance", description="Check your or other user's balance. Cash, item worth, and net."
+    )
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
     async def balance(
         self,
@@ -842,7 +860,6 @@ class Resource(commands.Cog, name="Resource Repository"):
             default=None,
         ),
     ):
-        """Check your or other user's balance."""
         if user is None:
             user = interaction.user
         db: Database = self.bot.db
@@ -922,10 +939,10 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(description="See the richest men in the (BOSS) world, who is probably not Elon Musk.")
+    @command_info(notes="This command is global. We will add a server-specific scope soon.")
     @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
     async def leaderboard(self, interaction: Interaction):
-        """See the richest men in the (BOSS) world, who is probably not Elon Musk."""
         lb = await self.bot.db.fetch(
             """
             SELECT players.player_id, COALESCE(SUM(items.trade_price * inv.quantity)::bigint, 0) + players.scrap_metal + players.copper * $1 As net_worth

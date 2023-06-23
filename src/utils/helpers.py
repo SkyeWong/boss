@@ -106,7 +106,7 @@ def sec_to_txt(seconds: int) -> str:
 
 def command_info(
     long_help: Optional[str] = None,
-    notes: Optional[list[str]] = None,
+    notes: Optional[list[str] | str] = None,
     examples: Optional[dict[str, str]] = None,
     **kwargs,
 ):
@@ -115,7 +115,7 @@ def command_info(
     class AddCommandInfo(CallbackWrapper):
         def modify(self, app_cmd: BaseApplicationCommand) -> None:
             app_cmd.long_help = long_help
-            app_cmd.notes = notes
+            app_cmd.notes = notes if isinstance(notes, list) else [notes]
             app_cmd.examples = examples
             for k, v in kwargs.items():
                 setattr(app_cmd, k, v)
@@ -239,10 +239,16 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
             prices_txt += f"`{k.capitalize()}`: {SCRAP_METAL} {int(price):,}\n"
     embed.add_field(name="Prices", value=prices_txt, inline=False)
 
+    info = ""
     if (food_min := item.get("food_value_min")) and (food_max := item.get("food_value_max")):
+        info += f"- </use:1107319705070477462>: restore {food_min} - {food_max} points of hunger"
+    if additional_info := item.get("additional_info"):
+        info += f"- {additional_info}"
+
+    if info:
         embed.add_field(
             name="Additional info",
-            value=f"- </use:1107319705070477462>: restore {food_min} - {food_max} points of hunger",
+            value=info,
             inline=False,
         )
 
