@@ -594,7 +594,6 @@ class Resource(commands.Cog, name="Resource Repository"):
     @command_info(
         notes="For information on what's the effect of an item, use </item:1006811041025507379> and search for the selected item."
     )
-    @helpers.work_in_progress(dev_guild_only=True)
     @cooldowns.cooldown(1, 12, SlashBucket.author, check=check_if_not_dev_guild)
     async def use(
         self,
