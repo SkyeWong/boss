@@ -177,6 +177,31 @@ class Armourer(Villager):
         # fmt: on
 
 
+class Cartographer(Villager):
+    def __init__(self, name: str, db: Database) -> None:
+        rand = random.uniform(0.8, 1)
+        # fmt: off
+        trades = [  # price is `random * quantity * unit price[min AND max]`
+            {
+                "demand": [
+                    BossPrice.from_range("5k", "9k", "copper"),
+                ],
+                "supply": [BossItem(57, 1)]  # jungle explorer map
+            },
+        ]
+        trade = random.choice(trades)
+        super().__init__(
+            name=name,
+            job_title=__class__.__name__,
+            demand=trade["demand"],
+            supply=trade["supply"],
+            num_trades=trade.get("trades", 1),
+            villager_id=None,
+            db=db,
+        )
+        # fmt: on
+
+
 class Archaeologist(Villager):
     def __init__(self, name: str, db: Database) -> None:
         rand = random.uniform(0.8, 1)

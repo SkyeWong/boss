@@ -17,7 +17,7 @@ import asyncpg
 # my modules and constants
 from utils import constants, helpers
 from utils.constants import SCRAP_METAL, COPPER, COPPER_SCRAP_RATE, EmbedColour
-from utils.helpers import MoveItemException, TextEmbed, check_if_not_dev_guild, command_info
+from utils.helpers import MoveItemException, TextEmbed, check_if_not_dev_guild, command_info, BossItem, BossPrice
 from utils.player import Player
 
 # command views
@@ -26,8 +26,10 @@ from .views import FarmView, InventoryView
 
 # trade
 from modules.village.village import TradeView
-from utils.helpers import BossItem
 from modules.village.villagers import Villager
+
+# maze
+from modules.maze.maze import Maze
 
 from numerize import numerize
 
@@ -59,7 +61,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
 
     GET_ITEM_SQL = """
-        SELECT * 
+        SELECT i.* 
         FROM utility.items AS i
         INNER JOIN utility.SearchItem($1) AS s
         ON i.item_id = s.item_id
@@ -83,7 +85,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         db: Database = self.bot.db
         item = await db.fetchrow(self.GET_ITEM_SQL, itemname)
         if not item:
-            await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
+            await interaction.send(embed=TextEmbed("The item is not found!"))
         else:
             res = await db.fetch(
                 """
@@ -363,7 +365,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             exclude_items,
         )
         if not sellable_items:
-            await interaction.send(embed=Embed(description="You sold nothing! What a shame..."))
+            await interaction.send(embed=TextEmbed("You sold nothing! What a shame..."))
             return
 
         # calculate the total price of the sold items
@@ -679,6 +681,44 @@ class Resource(commands.Cog, name="Resource Repository"):
                 await player.add_item(44, -quantity)
                 embed = TextEmbed(f"Converted {quantity} iron ore into ingots!", EmbedColour.SUCCESS)
 
+            case {"item_id": 57}:  # jungle explorer map
+                if quantity > 1:
+                    await interaction.send(
+                        embed=TextEmbed(
+                            f"{item['emoji']} **{item['name']}** could not be used for multiple times at once.",
+                            EmbedColour.WARNING,
+                        )
+                    )
+
+                async def confirm_func(button, btn_interaction: Interaction):
+                    maze_size = (random.randint(25, 30), random.randint(25, 30))
+                    view = Maze(
+                        btn_interaction,
+                        maze_size,
+                        rewards=[
+                            BossPrice.from_range("5m", "6m"),
+                            BossItem(15),  # hoho
+                            BossItem(16),  # keith
+                            BossItem(17),  # karson
+                        ],
+                    )
+                    await player.add_item(57, -quantity)
+                    await view.send()
+
+                view = ConfirmView(
+                    slash_interaction=interaction,
+                    confirm_func=confirm_func,
+                    embed=TextEmbed(
+                        "The map leads you to a pyramid, in which a maze is placed. "
+                        "The maze has tons of dangerous obstacles preventing people from getting into its secret room, "
+                        "which has valuable treasure that makes everyone rich beyond their wildest dreams.\n"
+                        "### Do you want to continue?"
+                    ),
+                    confirmed_title="",
+                )
+                await interaction.send(embed=view.embed, view=view)
+                return
+
             case _:
                 await interaction.send(embed=TextEmbed("You can't use this item", colour=EmbedColour.WARNING))
                 return
@@ -714,7 +754,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         player = Player(db, user)
         if not await player.is_present():
             await interaction.send(
-                embed=Embed(description="The user hasn't started playing BOSS yet! Maybe invite them over?"),
+                embed=TextEmbed("The user hasn't started playing BOSS yet! Maybe invite them over?"),
                 ephemeral=True,
             )
             return
@@ -810,7 +850,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         player = Player(db, user)
         if not await player.is_present():
             await interaction.send(
-                embed=Embed(description="The user hasn't started playing BOSS yet! Maybe invite them over?"),
+                embed=TextEmbed("The user hasn't started playing BOSS yet! Maybe invite them over?"),
                 ephemeral=True,
             )
             return
@@ -1122,7 +1162,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         db: Database = self.bot.db
         item = await db.fetchrow(self.GET_ITEM_SQL, item_name)
         if not item:
-            await interaction.send(embed=Embed(description="The item is not found!"), ephemeral=True)
+            await interaction.send(embed=TextEmbed("The item is not found!"))
             return
 
         try:
