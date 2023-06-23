@@ -70,9 +70,9 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         await interaction.send(embed=embed)
 
     GET_ITEM_SQL = """
-        SELECT * 
+        SELECT i.* 
         FROM utility.items AS i
-        INNER JOIN utility.SearchItem('diamond') AS s
+        INNER JOIN utility.SearchItem($1) AS s
         ON i.item_id = s.item_id
     """
 
@@ -113,7 +113,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             user = await self.bot.fetch_user(user_id)
         except (nextcord.NotFound, nextcord.HTTPException):
             await interaction.send(
-                embed=Embed(description="Either an internal error occured or you entered an incorrect user_id."),
+                embed=TextEmbed("The user id is invalid"),
                 ephemeral=True,
             )
             return
@@ -172,7 +172,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             user = await self.bot.fetch_user(user_id)
         except (nextcord.NotFound, nextcord.HTTPException):
             await interaction.send(
-                embed=Embed(description="Either an internal error occured or you entered an incorrect user_id."),
+                embed=TextEmbed("The user id is invalid"),
                 ephemeral=True,
             )
             return
@@ -225,7 +225,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             user = await self.bot.fetch_user(user_id)
         except (nextcord.NotFound, nextcord.HTTPException):
             await interaction.send(
-                embed=Embed(description="Either an internal error occured or you entered an incorrect user_id."),
+                embed=TextEmbed("The user id is invalid"),
                 ephemeral=True,
             )
             return
@@ -233,7 +233,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         player = Player(self.bot.db, user)
         if not await player.is_present():
             await interaction.send(
-                embed=Embed(description="The user doesn't play BOSS! what a boomer."),
+                embed=TextEmbed("The user doesn't play BOSS! what a boomer."),
                 ephemeral=True,
             )
             return
@@ -292,7 +292,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             player: nextcord.User = await interaction.client.fetch_user(player_id)
         except (nextcord.NotFound, nextcord.HTTPException, ValueError):
             await interaction.send(
-                embed=Embed(description="Either an internal error occured or you entered an incorrect user_id."),
+                embed=TextEmbed("The user id is invalid"),
                 ephemeral=True,
             )
             return
@@ -307,7 +307,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             f"%{item_name}%",
         )
         if item is None:
-            await interaction.send(embed=Embed(description="The item is not found"), ephemeral=True)
+            await interaction.send(embed=TextEmbed("The item is not found"), ephemeral=True)
             return
 
         try:
@@ -412,12 +412,15 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             emoji_id = int(emoji_id)
 
         # load the other attributes json text into dict
-        try:
-            other_attributes = json.loads(other_attributes)
-        except json.JSONDecodeError:
-            errors.append("The format of other attributes are invalid")
-        if not isinstance(other_attributes, dict):
-            errors.append("The other attributes should be in a dictionary format.")
+        if other_attributes:
+            try:
+                other_attributes = json.loads(other_attributes)
+            except json.JSONDecodeError:
+                errors.append("The format of `other attributes` are invalid.")
+            if not isinstance(other_attributes, dict):
+                errors.append("`Other attributes should be in a dictionary format.")
+        else:
+            other_attributes = {}
 
         # if an error occured send a message and return the function
         if len(errors) > 0:
@@ -430,27 +433,22 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             return
 
         db: Database = self.bot.db
-        res = await db.fetch(
-            """
-            SELECT name
-            FROM utility.items
-            WHERE LOWER(name) ILIKE $1 OR LOWER(emoji_name) ILIKE $1
-            """,
-            f"%{name.lower()}%",
-        )
-        if len(res) > 0:
+        res = await db.fetchrow(self.GET_ITEM_SQL, name)
+        if res:
             await interaction.send(
-                embed=Embed(description="An item with the same name exists. Rename the item."),
+                embed=TextEmbed("An item with the same name exists. Rename the item."),
                 ephemeral=True,
             )
             return
 
         try:
             sql = (
-                "INSERT INTO utility.items (name, description, emoji_name, emoji_id, buy_price, sell_price, trade_price, rarity, type, "
+                "INSERT INTO utility.items (name, description, emoji_name, emoji_id, buy_price, sell_price, trade_price, rarity, type"
+                + (", " if other_attributes else "")
                 + ", ".join(other_attributes.keys())
                 + ") "
-                + "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, "
+                + "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9"
+                + (", " if other_attributes else "")
                 + ", ".join([f"${i + 10}" for i, column in enumerate(other_attributes)])
                 + ") "
                 + "RETURNING *"
@@ -468,7 +466,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 item_type,
                 *other_attributes.values(),
             )
-            "INSERT INTO utility.items (name, description, emoji_name, emoji_id, buy_price, sell_price, trade_price, rarity, type, food_value_min, food_value_max)VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)RETURNING *"
         except Exception as e:
             await interaction.send(embed=TextEmbed(f"{e.__class__.__name__}: {e}", EmbedColour.WARNING))
             return
@@ -482,7 +479,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             cmds = client.get_all_application_commands()
             modify_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "modify"][0]
             edit_item_cmd = modify_cmd.children["item"].children["edit"]
-            await edit_item_cmd.invoke_callback(interaction, item=item["name"])
+            await edit_item_cmd.invoke_callback(interaction, itemname=item["name"])
 
         edit_btn = Button(label="Edit", style=ButtonStyle.blurple)
         edit_btn.callback = send_edit_item
@@ -509,10 +506,10 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         db: Database = self.bot.db
         item = await db.fetchrow(self.GET_ITEM_SQL, itemname)
         if not item:
-            await interaction.send(TextEmbed("The item is not found!", EmbedColour.WARNING))
+            await interaction.send(embed=TextEmbed("The item is not found!", EmbedColour.WARNING))
         else:
             item = dict(item)
-            item.pop("sml")
+            item.pop("sml", None)
             view = EditItemView(interaction, item)
             embed = view.get_item_embed()
             await interaction.send(embed=embed, view=view)

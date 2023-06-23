@@ -270,7 +270,6 @@ class FarmView(BaseView):
                 ready_at: datetime = planted_at + crop_type["growth_period"]
 
                 # update the embed description to show the crop's progress (i.e. when it will be ready)
-                # TODO: add a view to let users see all crops in a state (not fully grown, ready)
                 if now < ready_at:
                     # crop has not fully grown
                     unready_msg += f"` {index + 1: >{max_tile_length}} ` {crop_type['emoji']} **{crop_type['name'].capitalize()}** ready <t:{int(ready_at.timestamp())}:R>\n"
@@ -294,6 +293,7 @@ class FarmView(BaseView):
     @button(label="Upgrade")
     async def upgrade_farm_btn(self, button: Button, interaction: Interaction):
         """Increase the user's farm size."""
+        # TODO: make upgrade requirements
 
         if self.farm_width * self.farm_height == 12:
             await interaction.send(embed=TextEmbed("Max size reached!"), ephemeral=True)

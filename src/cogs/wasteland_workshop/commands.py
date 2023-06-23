@@ -279,10 +279,10 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
         if not data:
             # return full list
-            return sorted([emoji.name for emoji in emojis])[:25]
+            await interaction.response.send_autocomplete(sorted([emoji.name for emoji in emojis])[:25])
         # send a list of nearest matches from the list of item
         near_emojis = sorted([emoji.name for emoji in emojis if emoji.name.lower().startswith(data.lower())])
-        return near_emojis[:25]
+        await interaction.response.send_autocomplete(near_emojis[:25])
 
     @nextcord.slash_command(name="emoji", description="Search for emojis in the server!")
     @command_info(
@@ -316,12 +316,12 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                     view=view,
                 )
             else:
-                await interaction.send(embed=Embed(description="This server has no emojis!"))
+                await interaction.send(embed=TextEmbed("This server has no emojis!"))
 
             return
 
         if len(emoji_name) < 2:
-            await interaction.send(embed=Embed(description="The search term must be longer than 2 characters."))
+            await interaction.send(embed=TextEmbed("The search term must be longer than 2 characters."))
         else:  # perform a search on emojis
             emojis_found = [
                 emoji
@@ -342,7 +342,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                     view=view,
                 )
             else:
-                await interaction.send(embed=Embed(description=f"No emojis are found for `{emoji_name}`."))
+                await interaction.send(embed=TextEmbed(f"No emojis are found for `{emoji_name}`."))
 
     @nextcord.slash_command(name="encrypt", description="Send (truly) private messages with your friend using AES!")
     @command_info(

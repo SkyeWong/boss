@@ -220,7 +220,8 @@ class EditItemModal(Modal):
                             "The type must be one of these:\n" + ", ".join([str(i) for i in constants.ItemType])
                         )
 
-            if column == "other_attributes":
+            other_attributes = {}
+            if column == "other_attributes" and inputted_value != "":
                 try:
                     other_attributes = json.loads(inputted_value)
                 except json.JSONDecodeError:

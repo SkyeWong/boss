@@ -22,6 +22,7 @@ from .views import (
 
 # maze
 from modules.maze.maze import Maze
+
 import aiohttp
 
 # default modules
@@ -61,7 +62,7 @@ class Fun(commands.Cog, name="Survivor's Playground"):
         elif second < first:
             first, second = second, first
         elif second == first:
-            await interaction.send(embed=Embed(description="BOTH numbers are the same! What do you expect me to do?"))
+            await interaction.send(embed=TextEmbed("BOTH numbers are the same! What do you expect me to do?"))
             return
 
         number = random.randint(first, second)
@@ -261,7 +262,8 @@ class Fun(commands.Cog, name="Survivor's Playground"):
         description="Wander in a (very) hard maze! You'll probably get stuck there tho...",
     )
     @command_info(
-        "A minigame in which you attempt to solve a maze, with loads of features such as zombies, items and much more! Good luck, because you probably can't get out of the maze."
+        long_help="A minigame in which you attempt to solve a maze, with loads of features such as zombies, items and much more! Good luck, because you probably can't get out of the maze.",
+        notes="⚠️ This command only helps you *practice* the maze minigame, and does not include any rewards.",
     )
     async def maze(
         self,

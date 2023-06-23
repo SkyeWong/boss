@@ -390,6 +390,7 @@ class BossPrice:
 
         if isinstance(price, str):
             self.price = text_to_num(price)
+            # this is assumed to be enter by devs and therefore no error-catching is performed
         else:
             self.price = price
 
