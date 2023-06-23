@@ -271,8 +271,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
     async def adventure_pyramid(self, button, interaction: Interaction):
         maze_size = (random.randint(15, 20), random.randint(15, 20))
         view = Maze(interaction, maze_size)
-        embed = view.get_embed()
-        view.message = await interaction.send(embed=embed, view=view)
+        await view.send()
 
     async def adventure_scrap_metal(self, button, interaction: Interaction):
         player = Player(self.bot.db, interaction.user)

@@ -102,15 +102,17 @@ class MazeEnemy:
         cam, x_start_index, y_start_index = view.get_camera(12)
         if self.x > x_start_index and self.x < x_start_index + 15:
             if self.y > y_start_index and self.y < y_start_index + 15:
-                # find the target cell and move there
+                player = view.player
+                # find the target cell and move there, if the new distance with player is larger than 0
                 target_cell: Cell = self.get_target_cell()
-                self.x = target_cell.x
-                self.y = target_cell.y
+                if target_cell.x != view.player and target_cell.y != view.player:
+                    self.x = target_cell.x
+                    self.y = target_cell.y
 
                 # if player is within 1 block of distance, deal 12 points of damage
-                player = view.player
-                distance_with_player = math.sqrt((player.x - self.x) ** 2 + (player.y - self.y) ** 2)
-                if distance_with_player == 0:
+                if (self.x == player.x and abs(self.y - player.y) == 1) or (
+                    self.y == player.y and abs(self.x - player.x) == 1
+                ):
                     player.hp -= random.randint(7, 12)
 
                 view = self.view

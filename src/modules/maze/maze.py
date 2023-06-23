@@ -12,6 +12,8 @@ import asyncio
 # my modules and constants
 from utils.template_views import BaseView
 from utils import constants
+from utils.player import Player as BossPlayer
+from utils.helpers import BossItem, BossPrice, TextEmbed
 from .maze_player import MazePlayer
 from .maze_enemies import MazeEnemy
 from .maze_utils import ITEMS, MazeItem
@@ -96,7 +98,7 @@ class MazeButton(Button["Maze"]):
                 return
             if player.hunger < 30:  # stop running if hunger is too low
                 await interaction.send(
-                    embed=Embed(description="I'm too tired to run! Find some food before sprinting again."),
+                    embed=TextEmbed("I'm too tired to run! Find some food before sprinting again."),
                     ephemeral=True,
                 )
                 return
@@ -114,7 +116,7 @@ class MazeButton(Button["Maze"]):
                 while player.walking == True:  # if player walked, continue to do so
                     if player.hunger < 30:  # stop running if hunger is too low
                         await interaction.send(
-                            embed=Embed(description="I'm too tired to run! Find some food before sprinting again."),
+                            embed=TextEmbed("I'm too tired to run! Find some food before sprinting again."),
                             ephemeral=True,
                         )
                         break
@@ -146,7 +148,7 @@ class MazeButton(Button["Maze"]):
         elif "punch" in self.custom_id:
             if await self.check_in_cooldown(interaction, "punch", "punching"):
                 return
-            punch_distance = 1
+            punch_distance = 2
             cam, x_start_index, y_start_index = view.get_camera()
 
             for i in range(punch_distance + 1):
@@ -172,7 +174,7 @@ class MazeButton(Button["Maze"]):
             await self.start_cooldown(interaction, "punch")
         elif "inventory" in self.custom_id:
             if not player.inventory:
-                await interaction.send(embed=Embed(description="Empty"), ephemeral=True)
+                await interaction.send(embed=TextEmbed("Empty"), ephemeral=True)
                 return
 
             embed = Embed()
@@ -224,7 +226,7 @@ class MazeButton(Button["Maze"]):
 class Maze(BaseView):
     """Shows buttons to control a player in Maze."""
 
-    def __init__(self, slash_interaction, size: tuple[int] = (25, 25)):
+    def __init__(self, interaction, size: tuple[int] = (12, 12), rewards: list[BossItem | BossPrice] = None):
         """
         `1.` Initalise the player, enemies and the view.
 
@@ -235,7 +237,7 @@ class Maze(BaseView):
         `4.` Controls the logic for the maze, includes functions to decide whether the player wins the game.
         """
 
-        super().__init__(interaction=slash_interaction, timeout=90)
+        super().__init__(interaction=interaction, timeout=90)
 
         # set up the map
         # **MAPS**
@@ -295,6 +297,12 @@ class Maze(BaseView):
                 self.add_item(MazeButton(self.player, btn_func, x, y))
 
         self.update_compass()
+
+        self.rewards = rewards
+
+    async def send(self):
+        embed = self.get_embed()
+        self.message = await self.interaction.send(embed=embed, view=self)
 
     def spawn_enemy(self):
         enemy = MazeEnemy(self, 0, 0)
@@ -369,18 +377,37 @@ class Maze(BaseView):
         if player.hp <= 0:  # die
             player.emoji = "💀"
             self.end_maze()
-            await interaction.send(embed=Embed(description="You died!"), ephemeral=True)
+            await interaction.send(embed=TextEmbed("You died!"), ephemeral=True)
 
         if self.maze_map[player.y][player.x] == 2:  # win
             player.emoji = "🤴🏻"
             self.end_maze()
-            await interaction.send(embed=Embed(description="Congrats, you won! 🎉🎉🎉"), ephemeral=True)
+            db = self.interaction.client.db
+            # add the list of rewards to the player's inventory, if any
+            reward_msg = ""
+            if self.rewards:
+                for i in self.rewards:
+                    boss_player = BossPlayer(db, self.interaction.user)
+                    if isinstance(i, BossItem):
+                        await boss_player.add_item(i.item_id, i.quantity)
+                        reward_msg += f"\n- ` {i.quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"
+                    else:
+                        await boss_player.modify_currency(i.currency_type, i.price)
+                        reward_msg += f"\n- {constants.CURRENCY_EMOJIS[i.currency_type]} {i.price:,}"
+
+            await interaction.send(
+                embed=TextEmbed("### Congrats, you won! 🎉🎉🎉" + f"\nYou also got:{reward_msg}" if reward_msg else ""),
+                ephemeral=True,
+            )
 
         if item := [item for item in self.items if player.x == item.x and player.y == item.y]:  # picked up item
             item: MazeItem = item[0]
             self.items.remove(item)
 
-            self.player.inventory[item.name].append(item)
+            if not self.player.inventory.get(item.name):
+                self.player.inventory[item.name] = [item]
+            else:
+                self.player.inventory[item.name].append(item)
 
             inv_btn = [i for i in self.children if i.custom_id == "inventory"][0]
             inv_btn.style = ButtonStyle.green
@@ -584,17 +611,19 @@ class InvView(View):
         items = self.inventory[self.item.name]
         if len(items) < 1:
             await interaction.send(
-                embed=Embed(description=f"You don't have enough {self.item.emoji} {self.item.name}!"),
+                embed=TextEmbed(f"You don't have enough {self.item.emoji} {self.item.name}!"),
                 ephemeral=True,
             )
             return
 
-        if len(items) == 1:
-            self.inventory.pop(self.item.name)
-        else:
-            self.inventory[self.item.name] = items[:-1]
+        res = await self.item.use(view=self.maze, interaction=interaction)
+        # item.use() will return `True` if the item should be consumed and `False` if not
+        if res:
+            if len(items) == 1:
+                self.inventory.pop(self.item.name)
+            else:
+                self.inventory[self.item.name] = items[:-1]
 
-        await self.item.use(view=self.maze, interaction=interaction)
         await self.msg.delete()
 
     @button(label="Use max", style=ButtonStyle.blurple, disabled=True, custom_id="use_max")
@@ -602,7 +631,7 @@ class InvView(View):
         items = self.inventory[self.item.name]
         if len(items) < self.max_quantity:
             await interaction.send(
-                embed=Embed(description=f"You don't have enough {self.item.emoji} {self.item.name}!"),
+                embed=TextEmbed(f"You don't have enough {self.item.emoji} {self.item.name}!"),
                 ephemeral=True,
             )
             return

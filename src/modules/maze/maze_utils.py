@@ -63,6 +63,7 @@ class Food(MazeItem):
         player.hunger = 100 if player.hunger > 100 else player.hunger
         embed = view.get_embed()
         await view.update_msg(embed=embed)
+        return True
 
 
 class Pill(MazeItem):
@@ -86,6 +87,7 @@ class Pill(MazeItem):
         player.hp = 100 if player.hp > 100 else player.hp
         embed = view.get_embed()
         await view.update_msg(embed=embed)
+        return True
 
 
 class Drill(MazeItem):
@@ -112,7 +114,7 @@ class Drill(MazeItem):
                 ephemeral=True,
                 delete_after=3,
             )
-            return
+            return False
 
         if view.maze_map[y][x] == 1:
             view.maze_map[y][x] = 0
@@ -120,6 +122,7 @@ class Drill(MazeItem):
 
         embed = view.get_embed()
         await view.update_msg(embed=embed)
+        return True
 
 
 ITEMS = {item.name: item for item in MazeItem.__subclasses__()}

@@ -7,17 +7,17 @@ class MazePlayer:
     """Represents a player in the maze."""
 
     PLAYER_EMOJIS = [
-        "<a:WarriorBack:1091668156659007541>",
-        "<a:WarriorLeft:1091668152573767750>",
-        "<a:WarriorFront:1091668160253546538>",
-        "<a:WarriorRight:1091668155400728616>",
+        "<:WarriorBack:1121746585747988521>",
+        "<:WarriorLeft:1121746591712284704>",
+        "<:WarriorFront:1121746589195702292>",
+        "<:WarriorRight:1121746580756779141>",
     ]
 
     def __init__(self, view, x, y):
         self._hp = 100
         self.old_hp = self._hp
         self.hunger = 100
-        INITIAL_INVENTORY = {"food": 8, "pill": 10, "drill": 1}
+        INITIAL_INVENTORY = {"food": 15, "pill": 15, "drill": 1}
 
         self.inventory = {"food": [], "pill": [], "drill": []}
 
