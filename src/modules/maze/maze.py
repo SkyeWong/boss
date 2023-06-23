@@ -13,7 +13,7 @@ import asyncio
 from utils.template_views import BaseView
 from utils import constants
 from utils.player import Player as BossPlayer
-from utils.helpers import BossItem, BossPrice, TextEmbed
+from utils.helpers import BossItem, BossCurrency, TextEmbed
 from .maze_player import MazePlayer
 from .maze_enemies import MazeEnemy
 from .maze_utils import ITEMS, MazeItem
@@ -226,7 +226,7 @@ class MazeButton(Button["Maze"]):
 class Maze(BaseView):
     """Shows buttons to control a player in Maze."""
 
-    def __init__(self, interaction, size: tuple[int] = (12, 12), rewards: list[BossItem | BossPrice] = None):
+    def __init__(self, interaction, size: tuple[int] = (12, 12), rewards: list[BossItem | BossCurrency] = None):
         """
         `1.` Initalise the player, enemies and the view.
 

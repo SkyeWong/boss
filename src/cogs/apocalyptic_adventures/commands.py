@@ -13,7 +13,7 @@ from utils.postgres_db import Database
 # my modules and constants
 from utils import constants, helpers
 from utils.constants import CURRENCY_EMOJIS, EmbedColour
-from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, BossPrice
+from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, BossCurrency
 from utils.player import Player
 from utils.template_views import ConfirmView
 
@@ -219,21 +219,21 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             25,
             (
                 # --common--
-                BossPrice.from_range(500, 1000),  # 500 - 1000 scrap metal
+                BossCurrency.from_range(500, 1000),  # 500 - 1000 scrap metal
             ),
         ],
         [
             13.5,
             (
                 # --rare--
-                BossPrice.from_range(1500, 5000),  # 1500 - 5000 scrap metal
+                BossCurrency.from_range(1500, 5000),  # 1500 - 5000 scrap metal
             ),
         ],
         [
             1.5,
             (
                 # --epic--
-                BossPrice(1, "copper"),  # 1 copper
+                BossCurrency(1, "copper"),  # 1 copper
                 BossItem(46, random.randint(1, 3)),  # 1 - 3 banknote
             ),
         ],
@@ -260,7 +260,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             return
 
         msg = "You searched absolutely everywhere and finally got {reward}"
-        if isinstance(reward, BossPrice):
+        if isinstance(reward, BossCurrency):
             await player.modify_currency(reward.currency_type, reward.price)
             msg = msg.format(reward=f"**{CURRENCY_EMOJIS[reward.currency_type]} {reward.price}**")
         elif isinstance(reward, BossItem):

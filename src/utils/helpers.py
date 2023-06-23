@@ -378,30 +378,30 @@ class BossItem:
         return f"BossItem(item_id={self.item_id}, quantity={self.quantity}, name={self._name!r}, emoji={self._emoji!r})"
 
 
-class BossPrice:
+class BossCurrency:
     def __init__(
         self,
-        price: Union[int, str],
+        value: Union[int, str],
         currency_type: Literal["scrap_metal", "copper"] = "scrap_metal",
     ) -> None:
         if currency_type not in ("scrap_metal", "copper"):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
         self.currency_type = currency_type
 
-        if isinstance(price, str):
-            self.price = text_to_num(price)
+        if isinstance(value, str):
+            self.price = text_to_num(value)
             # this is assumed to be enter by devs and therefore no error-catching is performed
         else:
-            self.price = price
+            self.price = value
 
     @classmethod
     def from_range(
         cls,
-        min_price: Union[int, str],
-        max_price: Union[int, str],
+        min_value: Union[int, str],
+        max_value: Union[int, str],
         currency_type: Literal["scrap_metal", "copper"] = "scrap_metal",
-    ) -> "BossPrice":
-        """Creates a new BossPrice instance with a random price value within a range.
+    ) -> "BossCurrency":
+        """Creates a new BossCurrency instance with a random price value within a range.
 
         Args:
             min_price (int or str): The minimum price value, either as an integer or a string.
@@ -413,31 +413,31 @@ class BossPrice:
             ValueError: If the maximum price is smaller than the minimum price
 
         Returns:
-            BossPrice: A new BossPrice instance with a price value randomly chosen within the specified range.
+            BossCurrency: A new BossCurrency instance with a price value randomly chosen within the specified range.
         """
         if currency_type not in ("scrap_metal", "copper"):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
 
-        if isinstance(min_price, str):
-            min_price = text_to_num(min_price)
-        if isinstance(max_price, str):
-            max_price = text_to_num(max_price)
+        if isinstance(min_value, str):
+            min_value = text_to_num(min_value)
+        if isinstance(max_value, str):
+            max_value = text_to_num(max_value)
 
-        if max_price < min_price:
+        if max_value < min_value:
             raise ValueError("The max price should be larger than min price.")
 
-        return cls(random.randint(min_price, max_price), currency_type)
+        return cls(random.randint(min_value, max_value), currency_type)
 
     @classmethod
-    def from_unit_price(
+    def from_unit_value(
         cls,
-        unit_price: int,
+        unit_value: int,
         quantity: int,
         rand_factor: float,
         currency_type: Literal["scrap_metal", "copper"] = "scrap_metal",
-    ) -> "BossPrice":
+    ) -> "BossCurrency":
         """
-        Create a new BossPrice instance based on a unit price, quantity, and random factor.
+        Create a new BossCurrency instance based on a unit price, quantity, and random factor.
 
         Args:
             unit_price (int): The unit price of the item.
@@ -445,29 +445,29 @@ class BossPrice:
             rand_factor (float): A random factor between 0.8 and 1.2 to adjust the price.
 
         Returns:
-            BossPrice: A new BossPrice instance with a price range based on the unit price,
+            BossCurrency: A new BossCurrency instance with a price range based on the unit price,
             quantity, and random factor.
         """
         if currency_type not in ("scrap_metal", "copper"):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
-        rand_price = round(rand_factor * quantity * unit_price)
+        rand_price = round(rand_factor * quantity * unit_value)
         price_min = round(rand_price * 0.8)
         price_max = round(rand_price * 1.2)
         return cls.from_range(price_min, price_max, currency_type)
 
     def __mul__(self, other):
-        """Multiplies the price of this BossPrice by a scalar value.
+        """Multiplies the price of this BossCurrency by a scalar value.
 
         Args:
             other (int or float): The scalar value to multiply the price by.
 
         Returns:
-            BossPrice: A new BossPrice instance with a price value equal to the current price multiplied by the scalar value.
+            BossCurrency: A new BossCurrency instance with a price value equal to the current price multiplied by the scalar value.
         """
         return self.__class__(self.price * other, self.currency_type)
 
     def __repr__(self):
-        return f"BossPrice(price={self.price}, type='{self.currency_type}')"
+        return f"BossCurrency(price={self.price}, type='{self.currency_type}')"
 
 
 class BossException(Exception):

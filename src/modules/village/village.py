@@ -8,7 +8,7 @@ from utils.postgres_db import Database
 
 # village utils
 from .villagers import Villager
-from utils.helpers import BossPrice, BossItem
+from utils.helpers import BossCurrency, BossItem
 
 # my modules and constants
 from utils.template_views import BaseView, BaseModal
@@ -65,11 +65,15 @@ class TradeView(BaseView):
                     i["name"],
                     i["job_title"],
                     [
-                        BossItem(j["item_id"], j["quantity"]) if j.get("item_id") else BossPrice(j["price"], j["type"])
+                        BossItem(j["item_id"], j["quantity"])
+                        if j.get("item_id")
+                        else BossCurrency(j["price"], j["type"])
                         for j in i["demands"]
                     ],
                     [
-                        BossItem(j["item_id"], j["quantity"]) if j.get("item_id") else BossPrice(j["price"], j["type"])
+                        BossItem(j["item_id"], j["quantity"])
+                        if j.get("item_id")
+                        else BossCurrency(j["price"], j["type"])
                         for j in i["supplies"]
                     ],
                     i["remaining_trades"],
@@ -97,7 +101,7 @@ class TradeView(BaseView):
 
         return embed
 
-    async def _get_items_str(self, items: list[BossItem | BossPrice]):
+    async def _get_items_str(self, items: list[BossItem | BossCurrency]):
         db = self.interaction.client.db
         item_strings = [
             f"{i.quantity} {await i.get_name(db)}"
@@ -198,7 +202,7 @@ class TradeView(BaseView):
             if isinstance(item, BossItem):
                 owned_quantity = next((i["quantity"] for i in inventory if i["item_id"] == item.item_id), 0)
                 num_trades.append(owned_quantity // item.quantity)
-            elif isinstance(item, BossPrice):
+            elif isinstance(item, BossCurrency):
                 num_trades.append(currencies[item.currency_type] // item.price)
         # the user can trade for `max_num_trades` at most
         # note that if we use max() then users may not have enough of all items, so we need to use min()
@@ -255,7 +259,7 @@ class TradeView(BaseView):
                 }.items():
                     multiplier = -1 if trade_type == "demand" else 1
                     for item in trade_items:
-                        if isinstance(item, BossPrice):
+                        if isinstance(item, BossCurrency):
                             try:
                                 # Deduct the required amount of currency from the player's account
                                 required_price = multiplier * item.price * trade_quantity
@@ -317,7 +321,7 @@ class TradeView(BaseView):
         # Send a message to the player indicating what they received from the trade
         supply_msg = ""
         for i in current_villager.supply:
-            if isinstance(i, BossPrice):
+            if isinstance(i, BossCurrency):
                 supply_msg += f"\n- {constants.CURRENCY_EMOJIS[i.currency_type]} ` {i.price * trade_quantity:,} `"
             elif isinstance(i, BossItem):
                 supply_msg += f"\n- ` {i.quantity * trade_quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"  # fmt: skip

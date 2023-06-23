@@ -17,7 +17,7 @@ import asyncpg
 # my modules and constants
 from utils import constants, helpers
 from utils.constants import SCRAP_METAL, COPPER, COPPER_SCRAP_RATE, EmbedColour
-from utils.helpers import MoveItemException, TextEmbed, check_if_not_dev_guild, command_info, BossItem, BossPrice
+from utils.helpers import MoveItemException, TextEmbed, check_if_not_dev_guild, command_info, BossItem, BossCurrency
 from utils.player import Player
 
 # command views
@@ -696,7 +696,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                         btn_interaction,
                         maze_size,
                         rewards=[
-                            BossPrice.from_range("5m", "6m"),
+                            BossCurrency.from_range("5m", "6m"),
                             BossItem(15),  # hoho
                             BossItem(16),  # keith
                             BossItem(17),  # karson
