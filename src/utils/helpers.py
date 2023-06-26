@@ -285,7 +285,7 @@ PB_EMOJIS = {
 
 
 def create_pb(percentage: int):
-    """Creates a progress bar with the width of 6 and with `filled` emojis set to the filled variants."""
+    """Creates a progress bar with the width of 5 and with `filled` emojis set to the filled variants."""
     filled = round(percentage / 100 * 5)
     pb = ""
     # if even 1 block needs to be filled set the first block to filled, otherwise leave it empty
