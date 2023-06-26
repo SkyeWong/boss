@@ -137,10 +137,6 @@ class EditItemModal(Modal):
                 "trade_price",
             ):
                 item.pop(i, None)  # ignore if key does not exists
-            # remove columns with `NULL` value
-            for k, v in item.copy().items():
-                if v is None:
-                    item.pop(k)
 
             input = TextInput(
                 label="Other attributes",
