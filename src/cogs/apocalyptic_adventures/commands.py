@@ -23,6 +23,7 @@ from modules.maze.maze import Maze
 # default modules
 import random
 import asyncio
+import json
 
 
 class Survival(commands.Cog, name="Apocalyptic Adventures"):
@@ -32,6 +33,74 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.HUNT_LOOT = {
+            "fail": {"chance": 20},
+            "common": {
+                "chance": 40,
+                "rewards": [
+                    {"type": "item", "id": 23, "min": 1, "max": 3},  # duck
+                    {"type": "item", "id": 24, "min": 1, "max": 3},  # rabbit
+                    {"type": "item", "id": 26, "min": 1, "max": 3},  # skunk
+                ],
+            },
+            "uncommon": {
+                "chance": 30,
+                "rewards": [
+                    {"type": "item", "id": 18, "min": 1, "max": 3},  # deer
+                    {"type": "item", "id": 22, "min": 1, "max": 3},  # cow
+                    {"type": "item", "id": 25, "min": 1, "max": 3},  # sheep
+                ],
+            },
+            "rare": {"chance": 8, "rewards": [{"type": "item", "id": 21, "min": 1, "max": 1}]},  # boar
+            "epic": {"chance": 2, "rewards": [{"type": "item", "id": 20, "min": 1, "max": 1}]},  # dragon
+        }
+        self.DIG_LOOT = {
+            "fail": {"chance": 40},
+            "common": {
+                "chance": 45,
+                "rewards": [
+                    {"type": "item", "id": 31, "min": 1, "max": 5},  # dirt
+                ],
+            },
+            "uncommon": {
+                "chance": 10,
+                "rewards": [
+                    {"type": "item", "id": 27, "min": 1, "max": 1},  # ancient coin
+                    {"type": "item", "id": 46, "min": 1, "max": 5},  # banknote
+                ],
+            },
+            "rare": {
+                "chance": 5,
+                "rewards": [
+                    {"chance": 95, "type": "scrap_metal", "min": 5_000, "max": 8_000},
+                    {"chance": 5, "type": "copper", "min": 1, "max": 3},
+                ],
+            },
+        }
+        self.MINE_LOOT = {
+            "fail": {"chance": 40},
+            "common": {"chance": 35, "rewards": [{"type": "item", "id": 33, "min": 1, "max": 10}]},  # stone
+            "uncommon": {
+                "chance": 20,
+                "rewards": [
+                    {"type": "item", "id": 45, "min": 1, "max": 3},  # emerald ore
+                    {"type": "item", "id": 44, "min": 1, "max": 5},  # iron ore
+                ],
+            },
+            "rare": {"chance": 5, "rewards": [{"type": "item", "id": 34, "min": 1, "max": 1}]},  # diamond ore
+        }
+        self.SCAVENGE_LOOT = {
+            "fail": {"chance": 60},
+            "common": {"chance": 25, "rewards": [{"type": "scrap_metal", "min": 500, "max": 1000}]},
+            "uncommon": {"chance": 12, "rewards": [{"type": "scrap_metal", "min": 1500, "max": 5000}]},
+            "rare": {
+                "chance": 3,
+                "rewards": [
+                    {"type": "copper", "min": 1, "max": 2},
+                    {"type": "item", "id": 46, "min": 1, "max": 3},  # banknotes
+                ],
+            },
+        }
 
     async def cog_application_command_before_invoke(self, interaction: Interaction) -> None:
         await super().cog_application_command_before_invoke(interaction)
@@ -77,114 +146,90 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 )
             )
 
-    # `% getting one of them`: `list of animals`
-    HUNT_LOOT = [
-        [20, [None]],  # --fail--
-        [
-            40,
-            (
-                # --common--
-                BossItem(23),  # duck
-                BossItem(24),  # rabbit
-                BossItem(26),  # skunk
-            ),
-        ],
-        [
-            30,
-            (
-                # --uncommon--
-                BossItem(18),  # deer
-                BossItem(22),  # cow
-                BossItem(25),  # sheep
-            ),
-        ],
-        [7, (BossItem(21),)],  # --rare--  # boar
-        [3, (BossItem(20),)],  # --downright impossible--  # dragon
-    ]
+    async def _handle_grind_cmd(
+        self, interaction: Interaction, loot_table: dict, fail_messages: list[str], success_message: str
+    ):
+        """Handles a grind command, which accepts no parameters and choose a random reward for the user.
+
+        Args:
+            interaction (Interaction): The interaction of the slash command
+            loot_table (dict): The loot table, which should be initalised in `Survival.__init__()`
+            fail_messages (list[str]): A list of messages to show the user when they get nothing, then a random one will be chosen to shown
+            success_message (str): The message to show when they succeed. It must include "{reward}", which will be used to format
+        """
+        db: Database = self.bot.db
+        reward_category = random.choices(list(loot_table.keys()), [i["chance"] for i in loot_table.values()])[0]
+
+        if reward_category == "fail":
+            await interaction.send(embed=TextEmbed(random.choice(fail_messages)))
+            return
+
+        player = Player(db, interaction.user)
+        rewards = loot_table[reward_category]["rewards"]
+        reward = random.choices(
+            rewards,
+            [
+                i["chance"] if i.get("chance") else 1 / len(rewards) for i in rewards
+            ],  # select the chance of the reward if it exists, or make the chance same for all of them
+        )[0]
+        if reward["type"] == "item":
+            quantity = random.randint(reward["min"], reward["max"])
+            await player.add_item(reward["id"], quantity)
+            item = BossItem(reward["id"], quantity)
+            embed = TextEmbed(
+                success_message.format(reward=f"{quantity} **{await item.get_name(db)}** {await item.get_emoji(db)}")
+            )
+        else:
+            # reward["type"] will be "scrap_metal" or "copper"
+            value = random.randint(reward["min"], reward["max"])
+            await player.modify_currency(reward["type"], value)
+            embed = TextEmbed(success_message.format(reward=f"{CURRENCY_EMOJIS[reward['type']]} **{value}**"))
+        await interaction.send(embed=embed)
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def hunt(self, interaction: Interaction):
         """Go hunting and bring back some animals if you are lucky!"""
-        db: Database = self.bot.db
-        player = Player(db, interaction.user)
-        animal_category = random.choices([i[1] for i in self.HUNT_LOOT], [i[0] for i in self.HUNT_LOOT])[0]
-        item = random.choice(animal_category)
-
-        if item is None:
-            await interaction.send(embed=TextEmbed("You went hunting but found nothing... No dinner tonight ig"))
-            return
-
-        item: BossItem
-        await player.add_item(item.item_id)
-        embed = TextEmbed(f"You went hunting and found a **{await item.get_name(db)}** {await item.get_emoji(db)}!")
-        await interaction.send(embed=embed)
-
-    # `% getting one of them`: `list of rewards`
-    DIG_LOOT = [
-        [
-            90,
-            (
-                # --fail--
-                None,  # nothing
-                BossItem(31, random.randint(1, 5)),  # dirt
-            ),
-        ],
-        [
-            10,
-            (
-                # --common--
-                BossItem(27),  # Anicient Coin
-            ),
-        ],
-    ]
+        await self._handle_grind_cmd(
+            interaction,
+            self.HUNT_LOOT,
+            fail_messages=[
+                "You went hunting but found nothing... No dinner tonight ig",
+                "Looks like you didn't catch anything this time. Maybe next time you should aim for something smaller than a mountain?",
+                "Sorry, looks like you missed the memo about animals being able to smell fear.",
+                "Looks like the only thing you managed to hunt was disappointment.",
+                "I hate to break it to you, but I think the only thing you caught was a cold.",
+                "Sorry, looks like the animals decided to take a break from playing hide-and-seek with you.",
+                "Well, that was disappointing. Maybe you should stick to playing Minecraft.",
+                "Don't worry, there's always next time. Maybe try using a bigger gun?",
+            ],
+            success_message="You went hunting and found a {reward}!",
+        )
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def dig(self, interaction: Interaction):
         """Dig in the ground and find some buried treasure."""
-        db: Database = self.bot.db
-        player = Player(db, interaction.user)
-        item_category = random.choices([i[1] for i in self.DIG_LOOT], [i[0] for i in self.DIG_LOOT])[0]
-        item = random.choice(item_category)
-
-        if item is None:
-            fail_msgs = [
+        await self._handle_grind_cmd(
+            interaction,
+            self.DIG_LOOT,
+            fail_messages=[
                 "With that little stick of yours, you shouldn't really expect to find anything.",
                 "You found nothing! What a waste of time.",
                 "After you saw a spider climbing in the dirt, you gave it up as a bad job.",
                 "Wait... what's that? Aww, it's just another worm.",
-            ]
-            await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
-            return
-
-        item: BossItem
-        await player.add_item(item.item_id, item.quantity)
-        await interaction.send(
-            embed=TextEmbed(
-                f"You dug in the ground and unearthed **{item.quantity} {await item.get_name(db)}** {await item.get_emoji(db)}!"
-            )
+            ],
+            success_message="You dug in the ground and unearthed {reward}!",
         )
-
-    # `% getting one of them`: `list of rewards`
-    MINE_LOOT = [
-        [50, [None]],  # --fail--
-        [25, (BossItem(44),)],  # --common--  # Iron ore
-        [20, (BossItem(45),)],  # --rare--  # Emerald ore
-        [5, (BossItem(34),)],  # --epic--  # Diamond ore
-    ]
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def mine(self, interaction: Interaction):
         """Go mining in the caves!"""
-        db: Database = self.bot.db
-        player = Player(db, interaction.user)
-        item_category = random.choices([i[1] for i in self.MINE_LOOT], [i[0] for i in self.MINE_LOOT])[0]
-        item = random.choice(item_category)
-
-        if item is None:
-            fail_msgs = [
+        await self._handle_grind_cmd(
+            interaction,
+            self.MINE_LOOT,
+            fail_messages=[
                 "The cave was too dark. You ran away in a hurry.",
                 "Well, you certainly know how to find the empty spots in a cave.",
                 "What were you doing in your garage for the past 5 hours? You didn't mistake it as a cave... did you?",
@@ -192,81 +237,26 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 "You mine and you mine, but all you find are rocks.",
                 "Looks like you struck out. Maybe next time you'll get lucky and find a diamond... or not.",
                 "Breaking rocks all day, yet nothing to show for it. You're a real master at mining for disappointment.",
-            ]
-            await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
-            return
-
-        item: BossItem
-        item.quantity = random.randint(1, 3)
-        await player.add_item(item.item_id, item.quantity)
-        if item == 33:  # only stone
-            await interaction.send(
-                embed=TextEmbed(
-                    f"Looks like you found a... **{await item.get_name(db)}** {await item.get_emoji(db)}. How exciting. Maybe try a little deeper next time?"
-                )
-            )
-            return
-
-        embed = TextEmbed(
-            f"You went to the quarries and mined out **{await item.get_name(db)}** {await item.get_emoji(db)}"
+            ],
+            success_message="You went to the quarries and mined out {reward}!",
         )
-        await interaction.send(embed=embed)
-
-    # `% getting one of them`: `list of rewards`
-    SCAVENGE_LOOT = [
-        [60, [None]],  # --fail--
-        [
-            25,
-            (
-                # --common--
-                BossCurrency.from_range(500, 1000),  # 500 - 1000 scrap metal
-            ),
-        ],
-        [
-            13.5,
-            (
-                # --rare--
-                BossCurrency.from_range(1500, 5000),  # 1500 - 5000 scrap metal
-            ),
-        ],
-        [
-            1.5,
-            (
-                # --epic--
-                BossCurrency(1, "copper"),  # 1 copper
-                BossItem(46, random.randint(1, 3)),  # 1 - 3 banknote
-            ),
-        ],
-    ]
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def scavenge(self, interaction: Interaction):
         """Scavenge for resources in post-apocalyptic world, maybe you'll actually found something!"""
-        db: Database = self.bot.db
-        player = Player(db, interaction.user)
-        reward_category = random.choices([i[1] for i in self.SCAVENGE_LOOT], [i[0] for i in self.SCAVENGE_LOOT])[0]
-        reward = random.choice(reward_category)
-
-        if reward is None:
-            fail_msgs = [
+        await self._handle_grind_cmd(
+            interaction,
+            self.SCAVENGE_LOOT,
+            fail_messages=[
                 "Looks like you didn't find anything. Better luck next time, champ.",
                 "You searched high and low, but came up empty-handed. Maybe try wearing your glasses next time?",
                 "Unfortunately, you didn't find anything useful. At least you got some exercise, right?",
                 "Welp, that was a waste of time. Maybe try looking for items that aren't invisible next time.",
                 "Sorry, no luck this time. Maybe try scaring the items out of hiding with a louder noise next time?",
-            ]
-            await interaction.send(embed=TextEmbed(random.choice(fail_msgs)))
-            return
-
-        msg = "You searched absolutely everywhere and finally got {reward}"
-        if isinstance(reward, BossCurrency):
-            await player.modify_currency(reward.currency_type, reward.price)
-            msg = msg.format(reward=f"**{CURRENCY_EMOJIS[reward.currency_type]} {reward.price}**")
-        elif isinstance(reward, BossItem):
-            await player.add_item(reward.item_id, reward.quantity)
-            msg = msg.format(reward=f"**{reward.quantity} {await reward.get_name(db)}** {await reward.get_emoji(db)}")
-        await interaction.send(embed=TextEmbed(msg))
+            ],
+            success_message="You searched absolutely everywhere and finally got {reward}!",
+        )
 
     async def adventure_pyramid(self, button, interaction: Interaction):
         maze_size = (random.randint(15, 20), random.randint(15, 20))

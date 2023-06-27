@@ -692,7 +692,6 @@ class Resource(commands.Cog, name="Resource Repository"):
 
             case {"item_id": 44}:  # Iron ore
                 await player.add_item(50, quantity)
-                await player.add_item(44, -quantity)
                 embed = TextEmbed(f"Converted {quantity} iron ore into ingots!", EmbedColour.SUCCESS)
 
             case {"item_id": 57}:  # jungle explorer map
@@ -703,6 +702,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                             EmbedColour.WARNING,
                         )
                     )
+                    return
 
                 async def confirm_func(button, btn_interaction: Interaction):
                     maze_size = (random.randint(25, 30), random.randint(25, 30))
