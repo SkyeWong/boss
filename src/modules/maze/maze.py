@@ -1,7 +1,7 @@
 # nextcord
 import nextcord
 from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import View, Button, button, Select, select, Modal
+from nextcord.ui import View, Button, button, Select, select
 
 # default modules
 import random
@@ -13,7 +13,9 @@ import asyncio
 from utils.template_views import BaseView
 from utils import constants
 from utils.player import Player as BossPlayer
-from utils.helpers import BossItem, BossCurrency, TextEmbed
+from utils.helpers import BossItem, BossCurrency, TextEmbed, EmbedColour
+
+# maze
 from .maze_player import MazePlayer
 from .maze_enemies import MazeEnemy
 from .maze_utils import ITEMS, MazeItem
@@ -396,7 +398,7 @@ class Maze(BaseView):
                         reward_msg += f"\n- {constants.CURRENCY_EMOJIS[i.currency_type]} {i.price:,}"
 
             await interaction.send(
-                embed=TextEmbed("### Congrats, you won! 🎉🎉🎉" + f"\nYou also got:{reward_msg}" if reward_msg else ""),
+                embed=TextEmbed("### Congrats, you won! 🎉🎉🎉" + (f"\nYou also got:{reward_msg}" if reward_msg else "")),
                 ephemeral=True,
             )
 
@@ -492,7 +494,7 @@ class Maze(BaseView):
         return camera_str
 
     def get_embed(self, set_cam: tuple = None):  # cam: (cam, x_start_index, y_start_index)
-        embed = Embed()
+        embed = Embed(colour=EmbedColour.DEFAULT)
 
         if set_cam is not None:
             cam, x_start_index, y_start_index = set_cam

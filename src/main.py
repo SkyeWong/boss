@@ -157,7 +157,6 @@ class BossBot(commands.Bot):
             embed.set_footer(text="Running on render.com")
         error_log = self.get_channel(1071712392020500530)
         await error_log.send(embed=embed)
-        raise exc[1]
 
 
 bot = BossBot()

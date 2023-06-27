@@ -27,6 +27,7 @@ import aiohttp
 
 # default modules
 import random
+import dataclasses
 
 
 class Fun(commands.Cog, name="Survivor's Playground"):
@@ -246,9 +247,12 @@ class Fun(commands.Cog, name="Survivor's Playground"):
 
                     question_res = question_res["results"][0]
 
-            kwargs = {k: v for k, v in question_res.items() if k in TriviaQuestion.__slots__}
+            fields = [i.name for i in dataclasses.fields(TriviaQuestion)]
+            for i in question_res.copy():
+                if not i in fields:
+                    question_res.pop(i)
             try:
-                question = TriviaQuestion(**kwargs)
+                question = TriviaQuestion(**question_res)
             except helpers.ComponentLabelTooLong:
                 continue
             else:

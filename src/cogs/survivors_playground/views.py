@@ -11,6 +11,7 @@ from utils.template_views import BaseView
 # default modules
 import html
 import random
+from dataclasses import dataclass
 
 
 class FightPlayer:
@@ -71,14 +72,15 @@ class FightView(BaseView):
             return False
 
 
+@dataclass
 class TriviaQuestion:
-    __slots__ = (
-        "question",
-        "correct_answer",
-        "incorrect_answers",
-        "category",
-        "difficulty",
-    )
+    """Class for representing a question returned by the Open Trivia Database API."""
+
+    question: str
+    correct_answer: str
+    incorrect_answers: list[str]
+    category: str
+    difficulty: str
 
     def __init__(
         self,
