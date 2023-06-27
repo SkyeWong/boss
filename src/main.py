@@ -29,10 +29,31 @@ import os
 import random
 import sys
 import traceback
+import logging
 from datetime import datetime, timezone
 
 
 nest_asyncio.apply()
+
+werkzeug_logger = logging.getLogger("werkzeug")
+werkzeug_logger.setLevel(logging.ERROR)
+
+root = logging.getLogger()
+root.setLevel(logging.INFO)
+
+nextcord_logger = logging.getLogger("nextcord")
+nextcord_logger.setLevel(logging.ERROR)
+
+
+handler = logging.StreamHandler(sys.stderr)
+handler.setLevel(logging.INFO)
+handler.setFormatter(
+    logging.Formatter(
+        "\033[1;30m{asctime} ({name}, {levelname}) - \033[0m{message}", datefmt="%d %B %Y %H:%M", style="{"
+    )
+)
+nextcord_logger.addHandler(handler)
+root.addHandler(handler)
 
 
 class BossBot(commands.Bot):
@@ -76,17 +97,17 @@ class BossBot(commands.Bot):
         if not self.db.connected:
             self.pool = await self.db.connect()
 
-        print(
-            f"\033[1;30m{helpers.get_formatted_time()} \033[1;36m{self.user.name} (ID: {self.user.id})\033[0m has connected to discord \033[0;34min {len(self.guilds)} servers!\033[0m"
+        logging.info(
+            f"\033[1;36m{self.user.name} (ID: {self.user.id})\033[0m has connected to discord \033[0;34min {len(self.guilds)} servers!\033[0m"
         )
 
     async def on_disconnect(self):
         await self.db.disconnect()
-        print(f"\033[1;30m{helpers.get_formatted_time()} Bot disconnected.\033[0m")
+        logging.info("Bot disconnected.")
 
     async def on_close(self):
         await self.db.disconnect()
-        print(f"\033[1;30m{helpers.get_formatted_time()} Bot closed.\033[0m")
+        logging.info("Bot closed, event loop closing...")
 
     async def on_application_command_error(self, interaction: Interaction, error: Exception):
         error = getattr(error, "original", error)
@@ -108,11 +129,11 @@ class BossBot(commands.Bot):
             return
 
         embed, view = helpers.get_error_message()
-        embed.set_image("https://i.imgur.com/PX67hRV.png")
         if not self.LIVE:
             embed.add_field(name="Error", value=f"```py\n{str(error)[:1000]}\n```")
         await interaction.send(embed=embed, view=view)
 
+        embed.set_image("https://i.imgur.com/PX67hRV.png")
         error_log = self.get_channel(1071712392020500530)
         cmd_name = interaction.application_command.qualified_name
         embed.title = f"{embed.title[:17]} while running `/{cmd_name}`"
@@ -120,24 +141,23 @@ class BossBot(commands.Bot):
         await error_log.send(embed=embed)
         raise error
 
-    async def on_error(self, event_method: str, *args, **kwargs) -> None:
+    async def on_error(self, event: str, *args, **kwargs) -> None:
         embed = Embed(title="An error occured while running!")
         embed.description = "**Error**"
         exc = sys.exc_info()
 
         exc_formatted = traceback.format_exc()
-        print(exc_formatted)
+        logging.error("An error occured", exc_info=exc)
 
         embed.description += f"```py\n{exc_formatted[:4060]}\n```"
         embed.set_image("https://i.imgur.com/LjH76fq.png")
-        msg = "Running on {}"
         if exc_formatted.find(r"C:\Users\emo") != -1:
-            msg = msg.format("my computer")
+            embed.set_footer(text="Running on my computer")
         else:
-            msg = msg.format("render.com")
-        embed.set_footer(text=msg)
+            embed.set_footer(text="Running on render.com")
         error_log = self.get_channel(1071712392020500530)
         await error_log.send(embed=embed)
+        raise exc[1]
 
 
 bot = BossBot()

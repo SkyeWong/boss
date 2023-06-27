@@ -5,7 +5,7 @@ from utils import helpers
 
 import asyncio
 import os
-from datetime import datetime
+import logging
 
 POSTGRES_PW = os.getenv("POSTGRES_PW")
 
@@ -43,7 +43,7 @@ class Database:
     async def connect(self) -> Pool:
         """Connect to the database and return the connection."""
         if not self.reconnecting and not self.connected:
-            print(f"\033[1;30m{helpers.get_formatted_time()} \033[1;34mConnecting to the database...\033[0m")
+            logging.info("\033[1;34mConnecting to the database...\033[0m")
             self.reconnecting = True
             try:
                 self.pool = await asyncpg.create_pool(DSN_DB.format(**self.params))
@@ -52,8 +52,8 @@ class Database:
                 await self.connect()
             finally:
                 self.reconnecting = False
-            print(
-                f"\033[1;30m{helpers.get_formatted_time()} \033[1;36m{self.params['user']}\033[0m has connected to the \033[0;34mneon.db database!\033[0m"
+            logging.info(
+                f"\033[1;36m{self.params['user']}\033[0m has connected to the \033[0;34mneon.db database!\033[0m"
             )
         return self.pool
 

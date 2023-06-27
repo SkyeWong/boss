@@ -90,11 +90,11 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             "rare": {"chance": 5, "rewards": [{"type": "item", "id": 34, "min": 1, "max": 1}]},  # diamond ore
         }
         self.SCAVENGE_LOOT = {
-            "fail": {"chance": 60},
-            "common": {"chance": 25, "rewards": [{"type": "scrap_metal", "min": 500, "max": 1000}]},
-            "uncommon": {"chance": 12, "rewards": [{"type": "scrap_metal", "min": 1500, "max": 5000}]},
+            "fail": {"chance": 30},
+            "common": {"chance": 50, "rewards": [{"type": "scrap_metal", "min": 500, "max": 1000}]},
+            "uncommon": {"chance": 18, "rewards": [{"type": "scrap_metal", "min": 1500, "max": 5000}]},
             "rare": {
-                "chance": 3,
+                "chance": 2,
                 "rewards": [
                     {"type": "copper", "min": 1, "max": 2},
                     {"type": "item", "id": 46, "min": 1, "max": 3},  # banknotes
