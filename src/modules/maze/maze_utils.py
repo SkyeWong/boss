@@ -49,9 +49,9 @@ class Food(MazeItem):
     """
 
     name = "food"
-    description = "Restores 25 points of hunger."
+    description = "Restores 30 points of hunger."
     emoji = "🍗"
-    max_use = 3
+    max_use = 2
     spawn_chance = 70
 
     def __init__(self, view, x, y) -> None:
@@ -59,7 +59,7 @@ class Food(MazeItem):
 
     async def use(self, *, view, interaction: Interaction, quantity: int = 1):
         player = view.player
-        player.hunger += 25 * quantity
+        player.hunger += 30 * quantity
         player.hunger = 100 if player.hunger > 100 else player.hunger
         embed = view.get_embed()
         await view.update_msg(embed=embed)
@@ -119,6 +119,9 @@ class Drill(MazeItem):
         if view.maze_map[y][x] == 1:
             view.maze_map[y][x] = 0
             player.hp -= 50
+        else:
+            await interaction.send(embed=Embed(description="That's not a wall bruh."), ephemeral=True, delete_after=3)
+            return False
 
         embed = view.get_embed()
         await view.update_msg(embed=embed)

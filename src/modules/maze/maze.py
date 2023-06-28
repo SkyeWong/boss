@@ -1,16 +1,11 @@
 # nextcord
 import nextcord
 from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import View, Button, button, Select, select
+from nextcord.ui import View, Button, button, Select, select, TextInput
 
-# default modules
-import random
-import math
-from datetime import datetime
-import asyncio
 
 # my modules and constants
-from utils.template_views import BaseView
+from utils.template_views import BaseView, BaseModal
 from utils import constants
 from utils.player import Player as BossPlayer
 from utils.helpers import BossItem, BossCurrency, TextEmbed, EmbedColour
@@ -23,6 +18,13 @@ from .maze_utils import ITEMS, MazeItem
 # mazelib
 from mazelib import Maze as Mazelib
 from mazelib.generate.Prims import Prims
+
+# default modules
+import random
+import math
+from datetime import datetime
+import asyncio
+import re
 
 
 class MazeButton(Button["Maze"]):
@@ -585,14 +587,13 @@ class InvView(View):
         items = [items for name, items in self.inventory.items() if name == select.values[0]][0]
         self.item: MazeItem = items[-1]
 
-        use_1 = [i for i in self.children if i.custom_id == "use_1"][0]
-        use_1.disabled = False
+        use_btns = [i for i in self.children if "use" in i.custom_id]
+        for i in use_btns:
+            i.disabled = False
 
         use_max = [i for i in self.children if i.custom_id == "use_max"][0]
-        use_max.disabled = False
-
         inv_quantity = len(items)
-        self.max_quantity = inv_quantity if inv_quantity < self.item.max_use else self.item.max_use
+        self.max_quantity = min(inv_quantity, self.item.max_use)
         use_max.label = f"Use max ({self.max_quantity})"
 
         embed = self.msg.embeds[0]
@@ -608,40 +609,59 @@ class InvView(View):
                 option.default = True
         await self.msg.edit(embed=embed, view=self)
 
-    @button(label="Use 1", style=ButtonStyle.blurple, disabled=True, custom_id="use_1")
-    async def use_1_item(self, button: Button, interaction: Interaction):
+    async def _use_item(self, interaction: Interaction, quantity: int):
         items = self.inventory[self.item.name]
-        if len(items) < 1:
+        if len(items) < quantity:
             await interaction.send(
                 embed=TextEmbed(f"You don't have enough {self.item.emoji} {self.item.name}!"),
                 ephemeral=True,
             )
             return
 
-        res = await self.item.use(view=self.maze, interaction=interaction)
+        res = await self.item.use(view=self.maze, interaction=interaction, quantity=quantity)
         # item.use() will return `True` if the item should be consumed and `False` if not
         if res:
-            if len(items) == 1:
+            if len(items) == quantity:
                 self.inventory.pop(self.item.name)
             else:
                 self.inventory[self.item.name] = items[:-1]
 
         await self.msg.delete()
 
+    @button(label="Use 1", style=ButtonStyle.blurple, disabled=True, custom_id="use_1")
+    async def use_1_item(self, button: Button, interaction: Interaction):
+        await self._use_item(interaction, 1)
+
     @button(label="Use max", style=ButtonStyle.blurple, disabled=True, custom_id="use_max")
     async def use_max_item(self, button: Button, interaction: Interaction):
-        items = self.inventory[self.item.name]
-        if len(items) < self.max_quantity:
-            await interaction.send(
-                embed=TextEmbed(f"You don't have enough {self.item.emoji} {self.item.name}!"),
-                ephemeral=True,
-            )
-            return
+        await self._use_item(interaction, self.max_quantity)
 
-        if len(items) == self.max_quantity:
-            self.inventory.pop(self.item.name)
-        else:
-            self.inventory[self.item.name] = items[: -self.max_quantity]
+    @button(label="Use custom amount", style=ButtonStyle.blurple, disabled=True, custom_id="use_custom")
+    async def use_custom_item(self, button: Button, interaction: Interaction):
+        async def modal_callback(modal_interaction: Interaction):
+            input = [i for i in modal.children if i.custom_id == "input"][0]
+            quantity: str = input.value
+            if re.search(r"\D", quantity):
+                await modal_interaction.send(embed=TextEmbed("That's not a number."), ephemeral=True)
+            else:
+                quantity = int(quantity)
+                if quantity > self.max_quantity:
+                    await modal_interaction.send(
+                        embed=TextEmbed(
+                            f"You can only use {self.max_quantity} {self.item.emoji} {self.item.name} at most."
+                        ),
+                        ephemeral=True,
+                    )
+                    return
+                await self._use_item(interaction, quantity)
 
-        await self.item.use(view=self.maze, interaction=interaction, quantity=self.max_quantity)
-        await self.msg.delete()
+        modal = BaseModal(
+            title="Use Custom Amount",
+            inputs=[
+                TextInput(
+                    label="Times to use the item for", required=True, placeholder=self.max_quantity, custom_id="input"
+                )
+            ],
+            callback=modal_callback,
+        )
+        await interaction.response.send_modal(modal)
