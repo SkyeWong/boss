@@ -139,10 +139,9 @@ class EditItemModal(Modal):
         if other_attributes:
             # add the "other_attributes" input
             input = TextInput(
-                label="Other attributes",
+                label="Other attributes (in JSON format)",
                 # if the column is description set the style to `paragraph`
                 style=nextcord.TextInputStyle.paragraph,
-                placeholder="in JSON format",
                 default_value=json.dumps(self.item_other_attr),
                 required=False,
             )
@@ -249,7 +248,7 @@ class EditItemModal(Modal):
             await interaction.send(
                 embed=TextEmbed(
                     "No values are updated!"
-                    + ("Check if the attribute exists in `other_attributes`" if column == "other_attributes" else "")
+                    + ("\nCheck if the attribute exists in `other_attributes`" if column == "other_attributes" else "")
                 ),
                 ephemeral=True,
             )
