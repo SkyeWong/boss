@@ -362,7 +362,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             # if the user does not get an adventure, reset the "success" cooldown --> only the "fail" cooldown remains
             cooldowns.reset_cooldown("adventure_success")
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(description="Check your missions and complete them for some rewards!")
     @helpers.work_in_progress(dev_guild_only=True)
     async def missions(self, interaction: Interaction):
         pass

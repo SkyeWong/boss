@@ -25,7 +25,7 @@ def rounddown(number: int, round_to: int) -> int:
 
 
 def check_if_not_dev_guild(*args, **kwargs) -> bool:
-    return args[1].guild.id != constants.DEVS_SERVER_ID
+    return args[1].guild is not None and args[1].guild.id != constants.DEVS_SERVER_ID
 
 
 def get_formatted_time() -> str:

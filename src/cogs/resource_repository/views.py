@@ -981,8 +981,9 @@ class InventoryView(BaseView):
             embed.description += f"{item['emoji']} **{item['name']}** ─ {item['quantity']}\n"
             if not compact:
                 embed.description += f"➸ `{item_rarity} {item_type}`\n\n".replace("_", " ").title()
+        total_items = sum(i["quantity"] for i in self.items)
         embed.set_footer(
-            text=f"Page {self.page}/{math.ceil(len(self.items) / self.items_per_page)} • {len(self.items)} unique items in total"
+            text=f"Page {self.page}/{math.ceil(len(self.items) / self.items_per_page)} • {len(self.items)} unique items • total {total_items} items"
         )
         return embed
 
