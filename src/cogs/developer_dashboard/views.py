@@ -65,6 +65,22 @@ class EditItemModal(Modal):
     def __init__(self, slash_interaction: Interaction, item: Record):
         self.slash_interaction = slash_interaction
         self.item = item
+        item_dict = dict(item)
+        # remove the "normal" attributes
+        for i in (
+            "item_id",
+            "name",
+            "description",
+            "emoji_name",
+            "emoji_id",
+            "type",
+            "rarity",
+            "buy_price",
+            "sell_price",
+            "trade_price",
+        ):
+            item_dict.pop(i, None)  # ignore if key does not exists
+        self.item_other_attr = item_dict
 
         super().__init__(
             title=f"Editing {self.item['name']}",
@@ -122,28 +138,12 @@ class EditItemModal(Modal):
                 self.add_item(input)
         if other_attributes:
             # add the "other_attributes" input
-            item = dict(self.item)
-            # remove the "normal" attributes
-            for i in (
-                "item_id",
-                "name",
-                "description",
-                "emoji_name",
-                "emoji_id",
-                "type",
-                "rarity",
-                "buy_price",
-                "sell_price",
-                "trade_price",
-            ):
-                item.pop(i, None)  # ignore if key does not exists
-
             input = TextInput(
                 label="Other attributes",
                 # if the column is description set the style to `paragraph`
                 style=nextcord.TextInputStyle.paragraph,
                 placeholder="in JSON format",
-                default_value=json.dumps(item),
+                default_value=json.dumps(self.item_other_attr),
                 required=False,
             )
             # add the input to list of children of `nextcord.ui.Modal`
@@ -238,11 +238,19 @@ class EditItemModal(Modal):
 
         changed_values = {column: value for column, value in values.items() if value != self.item[column]}
         # add the other_attributes into inputted values
-        changed_values.update(**other_attributes)
+        changed_other_attr = {
+            column: new_value
+            for column, old_value in self.item_other_attr.items()
+            if old_value != (new_value := other_attributes.get(column))
+        }
+        changed_values.update(**changed_other_attr)
 
         if not changed_values:
             await interaction.send(
-                embed=TextEmbed("You didn't change anything, did you."),
+                embed=TextEmbed(
+                    "No values are updated!"
+                    + ("Check if the attribute exists in `other_attributes`" if column == "other_attributes" else "")
+                ),
                 ephemeral=True,
             )
             return

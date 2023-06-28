@@ -241,9 +241,9 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
 
     info = ""
     if (food_min := item.get("food_value_min")) and (food_max := item.get("food_value_max")):
-        info += f"- </use:1107319705070477462>: restore {food_min} - {food_max} points of hunger"
+        info += f"\n- </use:1107319705070477462>: restore {food_min} - {food_max} points of hunger"
     if additional_info := item.get("additional_info"):
-        info += f"- {additional_info}"
+        info += f"\n- {additional_info}"
 
     if info:
         embed.add_field(
