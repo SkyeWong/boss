@@ -112,6 +112,7 @@ class TradeView(BaseView):
         return ", ".join(item_strings)
 
     async def update_view(self):
+        db: Database = self.interaction.client.db
         choose_villager_select = [i for i in self.children if i.custom_id == "choose_villager"][0]
         choose_villager_select.options = []
 
@@ -119,9 +120,13 @@ class TradeView(BaseView):
             description = ""
 
             if any([isinstance(i, BossItem) for i in villager.supply]):
+                item = next((i for i in villager.supply if isinstance(i, BossItem)))
+                emoji = await item.get_emoji(db)
                 supply_items = await self._get_items_str(villager.supply)
                 description = f"Selling {supply_items}"
             else:
+                item = next((i for i in villager.demand if isinstance(i, BossItem)))
+                emoji = await item.get_emoji(db)
                 demand_items = await self._get_items_str(villager.demand)
                 description = f"Buying {demand_items}"
             description += f", {villager.remaining_trades} trades left"
@@ -133,6 +138,7 @@ class TradeView(BaseView):
                 SelectOption(
                     label=f"{villager.name} - {villager.job_title}",
                     description=description,
+                    emoji=emoji,
                     value=index,
                     default=villager == self.current_villager,
                 )
@@ -206,7 +212,9 @@ class TradeView(BaseView):
                 num_trades.append(currencies[item.currency_type] // item.price)
         # the user can trade for `max_num_trades` at most
         # note that if we use max() then users may not have enough of all items, so we need to use min()
-        max_num_trades = min(num_trades)
+        # also we append the remaining trades in `min()` function,
+        # so that either the max remaining trades or max number of trades with the user's resources will be shown
+        max_num_trades = min(num_trades + [self.current_villager.remaining_trades])
 
         async def modal_callback(modal_interaction: Interaction):
             input = [i for i in modal.children if i.custom_id == "input"][0]

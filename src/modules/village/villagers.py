@@ -184,7 +184,7 @@ class Cartographer(Villager):
         trades = [  # price is `random * quantity * unit price[min AND max]`
             {
                 "demand": [
-                    BossCurrency.from_range("5k", "9k", "copper"),
+                    BossCurrency.from_range("10", "20", "copper"),
                 ],
                 "supply": [BossItem(57, 1)]  # jungle explorer map
             },
