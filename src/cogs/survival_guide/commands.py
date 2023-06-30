@@ -213,14 +213,24 @@ class Utility(commands.Cog, name="Survival Guide"):
                     embed.colour = EmbedColour.INFO
                     await interaction.send(embed=embed)
 
-    @nextcord.slash_command()
+    @nextcord.slash_command(description="Get help navigating the wasteland with BOSS's guide.")
     @command_info(
         long_help="New to the bot? This command introduces you to the apocalyptic world BOSS sets in, and shows you a step-by-step guide on how to become one of the most supreme survivalists!"
     )
-    async def guide(self, interaction: Interaction):
-        """Get help navigating the wasteland with BOSS's guide."""
-        view = GuideView(interaction)
-        await view.send()
+    async def guide(
+        self,
+        interaction: Interaction,
+        page: int = SlashOption(
+            description="The page of the guide to start in",
+            required=False,
+            default=0,
+            choices={
+                f"{page.title} ({index + 1}/{len(GuideView.pages)})": index
+                for index, page in enumerate(GuideView.pages)
+            },
+        ),
+    ):
+        await GuideView.send(interaction, page)
 
     @nextcord.slash_command(description="Adjust user specific settings")
     async def settings(

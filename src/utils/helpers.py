@@ -143,7 +143,7 @@ def work_in_progress(dev_guild_only: bool = True):
                 else:
                     await args[1].send(
                         embed=TextEmbed(
-                            "This command is work in progress.\nYou can't use it rn, but keep checking for updates!"
+                            "The developement of this command is in progress.\nYou can't use it now, but keep checking for updates!"
                         )
                     )
 
@@ -292,13 +292,13 @@ def create_pb(percentage: int):
     pb += PB_EMOJIS["PB1F"] if filled > 0 else PB_EMOJIS["PB1E"]
     # if filled is 5, then the last one will be filled, so we need to fill 3 blocks (5 minus the first and last "rounded" blocks)
     # otherwise we fill (filled - 1) blocks since the first one is filled by the above line
-    pb += PB_EMOJIS["PB2F"] * (3 if filled == 5 else filled - 1)
+    pb += PB_EMOJIS["PB2F"] * (3 if filled >= 5 else filled - 1)
     # if filled is 0, similar to the above line, we leave 3 blocks as empty
     # otherwise we leave the remaining blocks out of 3 empty (5 minus the first and last "rounded" blocks)
     pb += PB_EMOJIS["PB2E"] * (3 if filled == 0 else 3 - (filled - 1))
     # lastly fill in the last block with reasons similar to the first block
-    pb += PB_EMOJIS["PB3F"] if filled == 5 else PB_EMOJIS["PB3E"]
-    if filled != 5:
+    pb += PB_EMOJIS["PB3F"] if filled >= 5 else PB_EMOJIS["PB3E"]
+    if filled < 5:
         # check if filled is not 5 because if the last one is filled then we don't need to replace
         # replace the last "filled" block with the "half-filled" one to make it rounded
         pb = PB_EMOJIS["PB2HF"].join(pb.rsplit(PB_EMOJIS["PB2F"], 1))

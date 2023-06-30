@@ -301,7 +301,7 @@ class GuidePage(Embed):
         fields: Optional[tuple[EmbedField]] = None,
         image: Optional[str] = None,
     ):
-        super().__init__(title=title, description=description)
+        super().__init__(title=title, description=description, colour=EmbedColour.INFO)
         self.set_image(image)
         if fields is not None:
             for field in fields:
@@ -314,29 +314,27 @@ class GuideView(BaseView):
             title="Introduction",
             description="Welcome to BOSS, the bot for a **post-apocalyptic wasteland following World War III**. \n"
             "Scavenge for resources, complete missions, and participate in events to earn **valuable currency**. \n\n"
-            "With BOSS's help, you can navigate this harsh world and build your wealth. "
-            "__So join us and let BOSS be your guide to survival and prosperity!__ \n\n"
             "To start playing, use </help:964753444164501505> to view a list of available commands.",
         ),
         GuidePage(
             title="Currency System",
-            description="In the world of BOSS, there are two main types of currency: scrap metal and copper.",
+            description="In the world of BOSS, there are two main types of currency: scrap metal and copper. To check your current cash, use </balance:1100243620033994752>.",
             fields=[
                 EmbedField(
                     f"Scrap Metal {SCRAP_METAL}",
-                    "Scrap metal is the **basic currency** in BOSS, used for everyday transactions. \n"
-                    "It's easy to find and earn, but has a relatively low value compared to other types of currency. "
-                    "Users need to manage their scrap metal wisely to build their wealth and survive. ",
+                    "- The __basic currency__\n- Easy to find and earn, but has a relatively low value. ",
                     False,
                 ),
                 EmbedField(
                     f"Copper {COPPER}",
-                    "Copper is a **valuable and versatile currency** in BOSS, used for creating and repairing weapons, armor, and electronic devices. "
-                    "Users can earn copper by scavenging for it or completing tasks and challenges. \n"
-                    "As a currency, copper is worth more than basic resources like scrap metal or cloth. "
-                    "It can be traded for valuable resources like ammunition, fuel, or medicine. \n\n"
-                    f"1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals.",
+                    "- The __valuable and versatile currency__\n"
+                    "- Worth more than basic resources like scrap metal. \n"
+                    f"- 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals.",
                     False,
+                ),
+                EmbedField(
+                    f"Exchanging currencies",
+                    "You can exchange the currencies using /exchange, but keep in mind that you will lose some value of your money.",
                 ),
             ],
         ),
@@ -346,15 +344,48 @@ class GuideView(BaseView):
             fields=[
                 EmbedField(
                     "By scavenging for resources",
-                    "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410>, </scavenge:1106580684786647180> and more! "
-                    "Each activity has its own risks and rewards, and users can use the resources they find to build their wealth and purchase goods and services.",
+                    "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410>, </scavenge:1107319706681098291> and more!\n"
+                    "They have different rewards to help you grind, but decreases your hunger. When your hunger is below 30, every command run will have a slight delay.",
                     False,
                 ),
                 EmbedField(
                     "By completing tasks and challenges",
                     "Users can also earn currency by completing tasks and challenges. "
                     "These may include delivering goods, defending against raiders, or completing other objectives. "
-                    "Users can use the /missions command to view available missions and track their progress.",
+                    "Users can use the </missions:1107319711944941638> command to view available missions and track their progress.",
+                    False,
+                ),
+            ],
+        ),
+        GuidePage(
+            title="Inventory System",
+            description="In BOSS, there are 3 types of inventory where you can store items.",
+            fields=[
+                EmbedField(
+                    "</backpack:1008017263540047872> 🎒",
+                    "- The __every-day rucksack__ that you carry wherever you go. You sell, trade and do almost everything else with the items in it.\n"
+                    "- It only has __32 slots__.\n"
+                    "- When you die (either by running out of health/hunger), you lose a random item in your backpack.",
+                    False,
+                ),
+                EmbedField(
+                    "</chest:1008017264118874112> 🧰",
+                    "- The __crate__ that you store at home. You store most of your items in it and never really care about them.\n"
+                    "- It has __infinite slots__.\n"
+                    "- You may lose items in your chest if your base gets raided.",
+                    False,
+                ),
+                EmbedField(
+                    "</vault:1008017264936755240> 🔒",
+                    "- Your secret __safe__. Only your most valuable items own a place in it.\n"
+                    "- It only has __5 slots__.\n"
+                    "- Only you can view the contents of your own vault, and you will never lose any of them.",
+                    False,
+                ),
+                EmbedField(
+                    "Transferring items",
+                    "You can move items from 1 inventory type to other by </move-item:1008017265901437088>.\n"
+                    "Keep note that it uses a few seconds.",
                     False,
                 ),
             ],
@@ -383,15 +414,21 @@ class GuideView(BaseView):
                 )
             )
 
-    async def send(self):
-        embed = self.get_embed()
-        self.update_view()
-        self.msg = await self.interaction.send(embed=embed, view=self)
+    @classmethod
+    async def send(cls, interaction: Interaction, page: int = 0):
+        """Responds to the slash command interaction by sending a message."""
+        view = cls(interaction)
+        view.current_page = page
+        embed = view.get_embed()
+        view.update_view()
+        view.msg = await interaction.send(embed=embed, view=view)
 
     def get_embed(self):
+        """Returns the current guide page."""
         return self.pages[self.current_page]
 
     def update_view(self):
+        """Update the view, disabling certain paginating buttons and making the select menu "sticky"."""
         choose_page_select = [i for i in self.children if i.custom_id == "choose_page"][0]
         for option in choose_page_select.options:
             option: SelectOption
@@ -419,6 +456,7 @@ class GuideView(BaseView):
 
     @select(placeholder="Choose a page", options=[], custom_id="choose_page")
     async def choose_page(self, select: Select, interaction: Interaction):
+        """Choose a specific page of the guide through a select menu."""
         self.current_page = int(select.values[0])
 
         self.update_view()
