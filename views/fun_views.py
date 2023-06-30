@@ -250,7 +250,14 @@ class TriviaAnswerButton(Button):
                 "Stop, you smart-aleck. Didn't you guess it?",
                 "You are bound to get lucky sometimes, ig.",
                 "~~When you get one question right finally after 10+ trials.~~",
-                "A once-in-a-lifetime coincidence...",
+                "That's a once-in-a-lifetime coincidence... \nCherish it bcs you'll never get it again.",
+                "Who knew that guessing randomly could be such a successful strategy?",
+                "Well done, you truly are a master of the game of chance.",
+                "Luck was clearly on your side today. Maybe you should consider buying a lottery ticket.",
+                "Impressive win, I had no idea that guessing could be such a valuable skill in a trivia game.",
+                "I'm sure your, uh, extensive knowledge of the topic had nothing to do with it",
+                "You must have a sixth sense for this kind of thing. Or maybe you just got lucky. \nThe latter is far more likely.",
+                "You just closed your eyes and picked an answer at random, it's pure luck.",
             )
             msg = random.choice(msgs)  # choose a random msg
         else:  # the user got the question wrong
@@ -265,6 +272,12 @@ class TriviaAnswerButton(Button):
                 "Fits you to get it wrong, you're unicellular.",
                 "Even an amoeba would have got it right.",
                 'Sodium said "_na..._" to your answer.',
+                "Better luck next time.",
+                "Nice try, that was.",
+                "You've managed to achieve a new level of incompetence.",
+                "I'm impressed, you've managed to achieve a perfect score...for wrong answers.",
+                "I'm sure your participation trophy is in the mail. Keep an eye out for it!",
+                "Better luck next time, champ. Or maybe just bring a lifeline or two.",
             )
             msg = f"{random.choice(msgs)}\nThe correct answer was _{view.question.correctAnswer}_."  # choose a random msg and append it with the correct answer
 
