@@ -25,6 +25,7 @@ from modules.maze.maze import Maze
 import random
 import asyncio
 import json
+import datetime
 
 
 class Survival(commands.Cog, name="Apocalyptic Adventures"):
@@ -376,52 +377,41 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             # if the user does not get an adventure, reset the "success" cooldown --> only the "fail" cooldown remains
             cooldowns.reset_cooldown("adventure_success")
 
-    def get_claim_mission_view(self, interaction: Interaction) -> BaseView:
-        view = BaseView(interaction, timeout=30)
-        button = Button(label="Claim")
+    async def claim_missions(self, user: nextcord.User):
+        db: Database = self.bot.db
 
-        async def claim_missions(btn_inter: Interaction):
-            mission_types = await self.bot.db.fetch("SELECT * FROM utility.mission_types ORDER BY random() LIMIT 3")
+        mission_types = await db.fetch("SELECT * FROM utility.mission_types ORDER BY random() LIMIT 3")
 
-            new_missions = []
-            for i in mission_types:
-                rewards = json.loads(i["rewards"])
-                reward: dict = random.choice(rewards)
-                # choose a random amount of the reward, update the reward and remove "min" and "max" items
-                reward.update(amount=random.randint(reward["min"], reward["max"]))
-                reward.pop("min")
-                reward.pop("max")
+        new_missions = []
+        for i in mission_types:
+            rewards = json.loads(i["rewards"])
+            reward: dict = random.choice(rewards)
+            # choose a random amount of the reward, update the reward and remove "min" and "max" items
+            reward.update(amount=random.randint(reward["min"], reward["max"]))
+            reward.pop("min")
+            reward.pop("max")
 
-                # append the mission to the list of new_missions
-                new_missions.append(
-                    (
-                        btn_inter.user.id,
-                        i["id"],
-                        0,
-                        random.randint(i["min_amount"], i["max_amount"]),
-                        json.dumps(reward),
-                    )
+            # append the mission to the list of new_missions
+            new_missions.append(
+                (
+                    user.id,
+                    i["id"],
+                    0,
+                    random.randint(i["min_amount"], i["max_amount"]),
+                    json.dumps(reward),
                 )
-
-            # delete any "old" missions
-            await self.bot.db.execute("DELETE FROM players.missions WHERE player_id = $1", btn_inter.user.id)
-            # insert the missions into the database table
-            await self.bot.db.executemany(
-                """
-                INSERT INTO players.missions (player_id, mission_type_id, finished_amount, total_amount, reward)
-                VALUES ($1, $2, $3, $4, $5)
-                """,
-                new_missions,
             )
 
-            button.disabled = True
-            await btn_inter.response.edit_message(
-                embed=TextEmbed("Claimed new quests! Check </missions:1107319711944941638>."), view=view
-            )
-
-        button.callback = claim_missions
-        view.add_item(button)
-        return view
+        # delete any "old" missions
+        await db.execute("DELETE FROM players.missions WHERE player_id = $1", user.id)
+        # insert the missions into the database table
+        await db.executemany(
+            """
+            INSERT INTO players.missions (player_id, mission_type_id, finished_amount, total_amount, reward)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
+            new_missions,
+        )
 
     @nextcord.slash_command(description="Check your missions and complete them for some rewards!")
     @helpers.work_in_progress(dev_guild_only=True)
@@ -429,7 +419,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         db: Database = self.bot.db
         missions = await db.fetch(
             """
-                SELECT t.description, m.finished_amount, m.total_amount, m.reward, m.finished
+                SELECT t.description, m.finished_amount, m.total_amount, m.reward, m.finished, m.date
                     FROM players.missions AS m
                     INNER JOIN utility.mission_types AS t
                     ON m.mission_type_id = t.id
@@ -438,40 +428,35 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             """,
             interaction.user.id,
         )
-        if missions:
-            embed = Embed(
-                description=f"### {helpers.upper(interaction.user.name)}'s Missions\n", colour=EmbedColour.DEFAULT
-            )
-            for i in missions:
-                embed.description += "✅" if i["finished"] else "❎"
-                embed.description += f" **{i['description'].format(quantity=i['total_amount'])}**\n"
+        # if the user does not have any missions previously, or the date of them are not equal to today (daily missions --> update every day)
+        if not missions or any(i["date"] != datetime.date.today() for i in missions):
+            await self.claim_missions(interaction.user)
 
-                # generate the "reward" string
-                reward = json.loads(i["reward"])
-                if reward["type"] == "item":
-                    item = BossItem(reward["id"], reward["amount"])
-                    embed.description += f"<:ReplyCont:1124521050655440916> Reward: {reward['amount']}x {await item.get_emoji(db)} {await item.get_name(db)}\n"
-                else:
-                    # reward["type"] will be "scrap_metal" or "copper"
-                    embed.description += f"<:ReplyCont:1124521050655440916> Reward: {CURRENCY_EMOJIS[reward['type']]} {reward['amount']}\n"
+        embed = Embed(
+            description=f"### {helpers.upper(interaction.user.name)}'s Daily Missions\n", colour=EmbedColour.DEFAULT
+        )
+        for i in missions:
+            embed.description += "✅" if i["finished"] else "❎"
+            embed.description += f" **{i['description'].format(quantity=i['total_amount'])}**\n"
 
-                # generate the progress bar
-                finished = i["finished_amount"]
-                total = i["total_amount"]
-                done_percent = round(finished / total * 100)
-                embed.description += f"<:reply:1117458829869858917> {helpers.create_pb(done_percent)} ` {done_percent}% ` ` {finished} / {total} `\n\n"
-
-            # if the user finished all of their missions, let them claim new missions.
-            if all(i["finished"] for i in missions):
-                embed.set_footer(text="You have completed all of your missions! Claim for more.")
-                view = self.get_claim_mission_view(interaction)
-                await interaction.send(embed=embed, view=view)
+            # generate the "reward" string
+            reward = json.loads(i["reward"])
+            if reward["type"] == "item":
+                item = BossItem(reward["id"], reward["amount"])
+                embed.description += f"<:ReplyCont:1124521050655440916> Reward: {reward['amount']}x {await item.get_emoji(db)} {await item.get_name(db)}\n"
             else:
-                await interaction.send(embed=embed)
-        else:
-            # if the user does not have any missions, let them claim new missions.
-            view = self.get_claim_mission_view(interaction)
-            await interaction.send(embed=TextEmbed("You don't have any missions."), view=view)
+                # reward["type"] will be "scrap_metal" or "copper"
+                embed.description += (
+                    f"<:ReplyCont:1124521050655440916> Reward: {CURRENCY_EMOJIS[reward['type']]} {reward['amount']}\n"
+                )
+
+            # generate the progress bar
+            finished = i["finished_amount"]
+            total = i["total_amount"]
+            done_percent = round(finished / total * 100)
+            embed.description += f"<:reply:1117458829869858917> {helpers.create_pb(done_percent)} ` {done_percent}% ` ` {finished} / {total} `\n\n"
+
+        await interaction.send(embed=embed)
 
 
 def setup(bot: commands.Bot):
