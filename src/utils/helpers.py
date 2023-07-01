@@ -318,12 +318,12 @@ class TextEmbed(Embed):
 class BossItem:
     def __init__(
         self,
-        item_id: int,
+        id: int,
         quantity: Optional[int] = 1,
         name: Optional[str] = None,
         emoji: Optional[str] = None,
     ) -> None:
-        self.item_id = item_id
+        self.id = id
         self.quantity = quantity
         self._name = name
         self._emoji = emoji
@@ -337,7 +337,7 @@ class BossItem:
                 FROM utility.items
                 WHERE item_id = $1
                 """,
-                self.item_id,
+                self.id,
             )
         return self._name
 
@@ -350,16 +350,16 @@ class BossItem:
                 FROM utility.items
                 WHERE item_id = $1
                 """,
-                self.item_id,
+                self.id,
             )
         return self._emoji
 
     def __eq__(self, other):
         """Check if the `item_id`s of 2 BossItem instances are the same, or the `item_id` is equal to a `int`."""
         if isinstance(other, BossItem):
-            return self.item_id == other.item_id
+            return self.id == other.id
         if isinstance(other, int):
-            return self.item_id == other
+            return self.id == other
         raise NotImplementedError
 
     def __mul__(self, other):
@@ -378,10 +378,10 @@ class BossItem:
         """
         if not isinstance(other, (int, float)):
             raise NotImplementedError(f"`other` must be type int or float, not {other.__class__}")
-        return self.__class__(self.item_id, round(self.quantity * other), self._name, self._emoji)
+        return self.__class__(self.id, round(self.quantity * other), self._name, self._emoji)
 
     def __repr__(self):
-        return f"BossItem(item_id={self.item_id}, quantity={self.quantity}, name={self._name!r}, emoji={self._emoji!r})"
+        return f"BossItem(item_id={self.id}, quantity={self.quantity}, name={self._name!r}, emoji={self._emoji!r})"
 
 
 class BossCurrency:

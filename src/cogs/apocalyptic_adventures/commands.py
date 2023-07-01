@@ -2,6 +2,7 @@
 import nextcord
 from nextcord.ext import commands
 from nextcord import Interaction, Embed, SlashOption
+from nextcord.ui import Button
 
 # slash command cooldowns
 import cooldowns
@@ -15,7 +16,7 @@ from utils import constants, helpers
 from utils.constants import CURRENCY_EMOJIS, EmbedColour
 from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, BossCurrency
 from utils.player import Player
-from utils.template_views import ConfirmView
+from utils.template_views import ConfirmView, BaseView
 
 # maze
 from modules.maze.maze import Maze
@@ -135,7 +136,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 WHERE player_id = $2) AS old_hunger, 
                 hunger
             """,
-            random.randint(1, 3),
+            random.randint(0, 2),
             interaction.user.id,
         )
         if old_hunger >= 30 and new_hunger < 30:
@@ -147,7 +148,12 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             )
 
     async def _handle_grind_cmd(
-        self, interaction: Interaction, loot_table: dict, fail_messages: list[str], success_message: str
+        self,
+        interaction: Interaction,
+        loot_table: dict,
+        fail_messages: list[str],
+        success_message: str,
+        mission_id: int = None,
     ):
         """Handles a grind command, which accepts no parameters and choose a random reward for the user.
 
@@ -155,7 +161,8 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             interaction (Interaction): The interaction of the slash command
             loot_table (dict): The loot table, which should be initalised in `Survival.__init__()`
             fail_messages (list[str]): A list of messages to show the user when they get nothing, then a random one will be chosen to shown
-            success_message (str): The message to show when they succeed. It must include "{reward}", which will be used to format
+            success_message (str): The message to show when they succeed. It must include "{reward}", which will be used to format the reward item
+            mission_id (int): The id of the mission type.
         """
         db: Database = self.bot.db
         reward_category = random.choices(list(loot_table.keys()), [i["chance"] for i in loot_table.values()])[0]
@@ -186,6 +193,10 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             embed = TextEmbed(success_message.format(reward=f"{CURRENCY_EMOJIS[reward['type']]} **{value}**"))
         await interaction.send(embed=embed)
 
+        # if the user has a mission of the type of the command, update its progress
+        if mission_id:
+            await player.update_missions(interaction, mission_id)
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def hunt(self, interaction: Interaction):
@@ -203,7 +214,8 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 "Well, that was disappointing. Maybe you should stick to playing Minecraft.",
                 "Don't worry, there's always next time. Maybe try using a bigger gun?",
             ],
-            success_message="You went hunting and found a {reward}!",
+            success_message="You went hunting and found {reward}!",
+            mission_id=2,
         )
 
     @nextcord.slash_command()
@@ -220,6 +232,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 "Wait... what's that? Aww, it's just another worm.",
             ],
             success_message="You dug in the ground and unearthed {reward}!",
+            mission_id=3,
         )
 
     @nextcord.slash_command()
@@ -256,6 +269,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 "Sorry, no luck this time. Maybe try scaring the items out of hiding with a louder noise next time?",
             ],
             success_message="You searched absolutely everywhere and finally got {reward}!",
+            mission_id=4,
         )
 
     async def adventure_pyramid(self, button, interaction: Interaction):
@@ -362,10 +376,102 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             # if the user does not get an adventure, reset the "success" cooldown --> only the "fail" cooldown remains
             cooldowns.reset_cooldown("adventure_success")
 
+    def get_claim_mission_view(self, interaction: Interaction) -> BaseView:
+        view = BaseView(interaction, timeout=30)
+        button = Button(label="Claim")
+
+        async def claim_missions(btn_inter: Interaction):
+            mission_types = await self.bot.db.fetch("SELECT * FROM utility.mission_types ORDER BY random() LIMIT 3")
+
+            new_missions = []
+            for i in mission_types:
+                rewards = json.loads(i["rewards"])
+                reward: dict = random.choice(rewards)
+                # choose a random amount of the reward, update the reward and remove "min" and "max" items
+                reward.update(amount=random.randint(reward["min"], reward["max"]))
+                reward.pop("min")
+                reward.pop("max")
+
+                # append the mission to the list of new_missions
+                new_missions.append(
+                    (
+                        btn_inter.user.id,
+                        i["id"],
+                        0,
+                        random.randint(i["min_amount"], i["max_amount"]),
+                        json.dumps(reward),
+                    )
+                )
+
+            # delete any "old" missions
+            await self.bot.db.execute("DELETE FROM players.missions WHERE player_id = $1", btn_inter.user.id)
+            # insert the missions into the database table
+            await self.bot.db.executemany(
+                """
+                INSERT INTO players.missions (player_id, mission_type_id, finished_amount, total_amount, reward)
+                VALUES ($1, $2, $3, $4, $5)
+                """,
+                new_missions,
+            )
+
+            button.disabled = True
+            await btn_inter.response.edit_message(
+                embed=TextEmbed("Claimed new quests! Check </missions:1107319711944941638>."), view=view
+            )
+
+        button.callback = claim_missions
+        view.add_item(button)
+        return view
+
     @nextcord.slash_command(description="Check your missions and complete them for some rewards!")
     @helpers.work_in_progress(dev_guild_only=True)
     async def missions(self, interaction: Interaction):
-        pass
+        db: Database = self.bot.db
+        missions = await db.fetch(
+            """
+                SELECT t.description, m.finished_amount, m.total_amount, m.reward, m.finished
+                    FROM players.missions AS m
+                    INNER JOIN utility.mission_types AS t
+                    ON m.mission_type_id = t.id
+                WHERE m.player_id = $1
+                ORDER BY m.finished DESC
+            """,
+            interaction.user.id,
+        )
+        if missions:
+            embed = Embed(
+                description=f"### {helpers.upper(interaction.user.name)}'s Missions\n", colour=EmbedColour.DEFAULT
+            )
+            for i in missions:
+                embed.description += "✅" if i["finished"] else "❎"
+                embed.description += f" **{i['description'].format(quantity=i['total_amount'])}**\n"
+
+                # generate the "reward" string
+                reward = json.loads(i["reward"])
+                if reward["type"] == "item":
+                    item = BossItem(reward["id"], reward["amount"])
+                    embed.description += f"<:ReplyCont:1124521050655440916> Reward: {reward['amount']}x {await item.get_emoji(db)} {await item.get_name(db)}\n"
+                else:
+                    # reward["type"] will be "scrap_metal" or "copper"
+                    embed.description += f"<:ReplyCont:1124521050655440916> Reward: {CURRENCY_EMOJIS[reward['type']]} {reward['amount']}\n"
+
+                # generate the progress bar
+                finished = i["finished_amount"]
+                total = i["total_amount"]
+                done_percent = round(finished / total * 100)
+                embed.description += f"<:reply:1117458829869858917> {helpers.create_pb(done_percent)} ` {done_percent}% ` ` {finished} / {total} `\n\n"
+
+            # if the user finished all of their missions, let them claim new missions.
+            if all(i["finished"] for i in missions):
+                embed.set_footer(text="You have completed all of your missions! Claim for more.")
+                view = self.get_claim_mission_view(interaction)
+                await interaction.send(embed=embed, view=view)
+            else:
+                await interaction.send(embed=embed)
+        else:
+            # if the user does not have any missions, let them claim new missions.
+            view = self.get_claim_mission_view(interaction)
+            await interaction.send(embed=TextEmbed("You don't have any missions."), view=view)
 
 
 def setup(bot: commands.Bot):

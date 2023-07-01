@@ -206,7 +206,7 @@ class TradeView(BaseView):
         num_trades = []  # a list to store how many times the user can trade for each item
         for item in self.current_villager.demand:
             if isinstance(item, BossItem):
-                owned_quantity = next((i["quantity"] for i in inventory if i["item_id"] == item.item_id), 0)
+                owned_quantity = next((i["quantity"] for i in inventory if i["item_id"] == item.id), 0)
                 num_trades.append(owned_quantity // item.quantity)
             elif isinstance(item, BossCurrency):
                 num_trades.append(currencies[item.currency_type] // item.price)
@@ -284,14 +284,14 @@ class TradeView(BaseView):
                                 return
                         elif isinstance(item, BossItem):
                             # get the quantity of the item the player owns with a generator expression
-                            owned_quantity = next((i["quantity"] for i in inventory if i["item_id"] == item.item_id), 0)
+                            owned_quantity = next((i["quantity"] for i in inventory if i["item_id"] == item.id), 0)
                             try:
                                 # Add/remove the required amount of items to/from the player's inventory
                                 required_quantity = multiplier * item.quantity * trade_quantity
-                                new_quantity = await player.add_item(item.item_id, required_quantity)
+                                new_quantity = await player.add_item(item.id, required_quantity)
                                 remaining_inventory.append(
                                     BossItem(
-                                        item.item_id,
+                                        item.id,
                                         new_quantity,
                                     )
                                 )

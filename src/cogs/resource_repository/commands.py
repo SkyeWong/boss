@@ -155,13 +155,13 @@ class Resource(commands.Cog, name="Resource Repository"):
                             # therefore if the item in question is an item, leave the last 2 fields empty
                             # if it is a currency/price, leave the first 2 columns blank
                             [
-                                (item.item_id, item.quantity, None, None)
+                                (item.id, item.quantity, None, None)
                                 if isinstance(item, BossItem)
                                 else (None, None, item.price, item.currency_type)
                                 for item in villager.demand
                             ],
                             [
-                                (item.item_id, item.quantity, None, None)
+                                (item.id, item.quantity, None, None)
                                 if isinstance(item, BossItem)
                                 else (None, None, item.price, item.currency_type)
                                 for item in villager.supply
@@ -642,7 +642,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                     """,
                     item["item_id"],
                 )
-                food_value = random.randint(food_min, food_max)
+                food_value = random.randint(food_min, food_max) * quantity
                 old_hunger = await db.fetchval(
                     """
                         UPDATE players.players

@@ -1,14 +1,19 @@
 # nextcord
 import nextcord
-
-# default modules
-from typing import Literal
+from nextcord import Interaction, Embed
 
 # database
 from utils.postgres_db import Database
 import asyncpg
 
-from utils import helpers
+# my modules
+from utils import helpers, constants
+from utils.helpers import BossItem
+from utils.constants import EmbedColour
+
+# default modules
+from typing import Literal
+import json
 
 
 class Player:
@@ -163,3 +168,45 @@ class Player:
                     return quantity
         else:
             raise helpers.PlayerNotExist()
+
+    async def update_missions(self, interaction: Interaction, mission_id: int, amount: int = 1):
+        # if the user has a mission of the type of the command, update its progress
+        if mission_id:
+            mission = await self.db.fetchrow(
+                """
+                    UPDATE players.missions
+                    SET finished_amount = finished_amount + 1
+                    WHERE player_id = $1 AND mission_type_id = $2 AND finished = FALSE
+                    RETURNING 
+                        finished_amount, 
+                        total_amount, 
+                        finished, 
+                        reward, 
+                        (SELECT description FROM utility.mission_types WHERE id = $2) AS description
+                """,
+                self.user.id,
+                mission_id,
+            )
+            if mission is None:  # the mission does not exist
+                return
+
+            # check whether the mission has been finished (finished > total) and check that it has not been finished before
+            if mission["finished_amount"] >= mission["total_amount"] and mission["finished"] == False:
+                embed = Embed(colour=EmbedColour.SUCCESS)
+                embed.set_thumbnail("https://i.imgur.com/OzmCuvW.png")
+                embed.description = "### You completed a mission!\n"
+                embed.description += f"- Mission: {mission['description'].format(quantity=mission['total_amount'])}\n"
+
+                # generate the "reward" string
+                reward = json.loads(mission["reward"])
+                if reward["type"] == "item":
+                    item = BossItem(reward["id"], reward["amount"])
+                    await self.add_item(item.id, item.quantity)
+                    reward_msg = f"{reward['amount']}x {await item.get_emoji(self.db)} {await item.get_name(self.db)}"
+                else:
+                    # reward["type"] will be "scrap_metal" or "copper"
+                    await self.modify_currency(reward["type"], reward["amount"])
+                    reward_msg = f"{constants.CURRENCY_EMOJIS[reward['type']]} {reward['amount']}"
+                embed.description += f"You received {reward_msg}\n"
+
+                await interaction.send(embed=embed, ephemeral=True)

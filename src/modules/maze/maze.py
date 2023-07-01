@@ -393,7 +393,7 @@ class Maze(BaseView):
                 for i in self.rewards:
                     boss_player = BossPlayer(db, self.interaction.user)
                     if isinstance(i, BossItem):
-                        await boss_player.add_item(i.item_id, i.quantity)
+                        await boss_player.add_item(i.id, i.quantity)
                         reward_msg += f"\n- ` {i.quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"
                     else:
                         await boss_player.modify_currency(i.currency_type, i.price)
