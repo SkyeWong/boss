@@ -6,11 +6,11 @@ from nextcord.ui import Button, button, Select, select
 # my modules
 from utils import constants, helpers
 from utils.constants import SCRAP_METAL, COPPER, EmbedColour
+from utils.helpers import TextEmbed
 from utils.template_views import BaseView
 
 # default modules
 from typing import Optional
-import random
 import math
 
 
@@ -287,7 +287,7 @@ class HelpView(BaseView):
 
 
 class EmbedField:
-    def __init__(self, name: str, value: str, inline: bool = True) -> None:
+    def __init__(self, name: str, value: str, inline: bool = False) -> None:
         self.name = name
         self.value = value
         self.inline = inline
@@ -299,10 +299,12 @@ class GuidePage(Embed):
         title: str,
         description: str,
         fields: Optional[tuple[EmbedField]] = None,
-        image: Optional[str] = None,
+        images: Optional[dict[str, str]] = None,
     ):
         super().__init__(title=title, description=description, colour=EmbedColour.INFO)
-        self.set_image(image)
+        if not images:
+            images = []
+        self.images = images
         if fields is not None:
             for field in fields:
                 self.add_field(name=field.name, value=field.value, inline=field.inline)
@@ -323,20 +325,22 @@ class GuideView(BaseView):
                 EmbedField(
                     f"Scrap Metal {SCRAP_METAL}",
                     "- The __basic currency__\n- Easy to find and earn, but has a relatively low value. ",
-                    False,
                 ),
                 EmbedField(
                     f"Copper {COPPER}",
                     "- The __valuable and versatile currency__\n"
                     "- Worth more than basic resources like scrap metal. \n"
                     f"- 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals.",
-                    False,
                 ),
                 EmbedField(
                     f"Exchanging currencies",
                     "You can exchange the currencies using /exchange, but keep in mind that you will lose some value of your money.",
                 ),
             ],
+            images={
+                "Checking your balance": "https://i.imgur.com/OHMF0PG.png",
+                "Exchanging scrap metals to coppers": "https://i.imgur.com/2Kzr6QC.png",
+            },
         ),
         GuidePage(
             title="How to survive",
@@ -346,16 +350,17 @@ class GuideView(BaseView):
                     "By scavenging for resources",
                     "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410>, </scavenge:1107319706681098291> and more!\n"
                     "They have different rewards to help you grind, but decreases your hunger. When your hunger is below 30, every command run will have a slight delay.",
-                    False,
                 ),
                 EmbedField(
                     "By completing tasks and challenges",
-                    "Users can also earn currency by completing tasks and challenges. "
-                    "These may include delivering goods, defending against raiders, or completing other objectives. "
-                    "Users can use the </missions:1107319711944941638> command to view available missions and track their progress.",
-                    False,
+                    "You can also earn currency by completing tasks and challenges. "
+                    "Use the </missions:1107319711944941638> command to view available missions and track their progress.",
                 ),
             ],
+            images={
+                "/scavenge": "https://i.imgur.com/CUCwYXI.png",
+                "Checking and completing a mission": "https://i.imgur.com/YgrOEA9.gif",
+            },
         ),
         GuidePage(
             title="Inventory System",
@@ -366,35 +371,65 @@ class GuideView(BaseView):
                     "- The __every-day rucksack__ that you carry wherever you go. You sell, trade and do almost everything else with the items in it.\n"
                     "- It only has __32 slots__.\n"
                     "- When you die (either by running out of health/hunger), you lose a random item in your backpack.",
-                    False,
                 ),
                 EmbedField(
                     "</chest:1008017264118874112> 🧰",
                     "- The __crate__ that you store at home. You store most of your items in it and never really care about them.\n"
                     "- It has __infinite slots__.\n"
                     "- You may lose items in your chest if your base gets raided.",
-                    False,
                 ),
                 EmbedField(
                     "</vault:1008017264936755240> 🔒",
                     "- Your secret __safe__. Only your most valuable items own a place in it.\n"
                     "- It only has __5 slots__.\n"
                     "- Only you can view the contents of your own vault, and you will never lose any of them.",
-                    False,
                 ),
                 EmbedField(
                     "Transferring items",
                     "You can move items from 1 inventory type to other by </move-item:1008017265901437088>.\n"
                     "Keep note that it uses a few seconds.",
-                    False,
                 ),
             ],
+            images={"Viewing your inventory": "https://i.imgur.com/hPuwxb4.gif"},
         ),
         GuidePage(
             title="Manage your wealth",
             description="Use your currency to purchase goods and services. \n\n"
             "Use the /shop command to view available items and their prices, and use the /buy command to purchase items. \n"
             "You can also use the </trade:1102561137893056563> command to trade currency with virtual villagers, and acquire valuable resources to build your wealth. ",
+            images={"Trading with villagers": "https://i.imgur.com/FyrT5Qy.gif"},
+        ),
+        GuidePage(
+            title="Advanced: macros",
+            description="You can run commands automatically (by clicking buttons, not by typing them in the chat) using a macro.",
+            fields=[
+                EmbedField(
+                    "Adding a macro",
+                    "You can either record a macro or import one to add them to your list.\n"
+                    "\nTo record a macro, use </macro record:1124712041307979827>\n"
+                    "> Then you can run commands as usual and they will be recorded!\n"
+                    "> When you have finished running all the commands, stop the recording. Then enter a name for it.\n"
+                    "> ⚠️ Note that you could not rename the macro afterwards.\n"
+                    "\nTo import a macro, click the 'import' button in </macro list:1124712041307979827>\n"
+                    "> Enter the ID of the macro. It should be 6 characters long and can have letters and digits.",
+                ),
+                EmbedField(
+                    "Viewing your macros",
+                    "Use </macro list:1124712041307979827>. A list of your macros will be shown. You can also remove them or import new ones.",
+                ),
+                EmbedField(
+                    "Running your macros",
+                    "Run the command </macro start:1124712041307979827> and choose the macro to start, or"
+                    "Turn to the page with your macro and click the 'run' button in </macro list:1124712041307979827>.\n"
+                    "You can then run the commands one by one by clicking the buttons."
+                    "After you are finished, click the 'end' button.",
+                ),
+            ],
+            images={
+                "/macro list": "https://i.imgur.com/NXioI57.png",
+                "/macro start": "https://i.imgur.com/5p5wlVd.gif",
+                "/macro record": "https://i.imgur.com/hR3mp2v.gif",
+            },
         ),
     ]
 
@@ -403,10 +438,9 @@ class GuideView(BaseView):
         self.current_page = 0
         self.msg: nextcord.WebhookMessage | nextcord.PartialInteractionMessage = None
 
-        choose_page_select = [i for i in self.children if i.custom_id == "choose_page"][0]
-        choose_page_select.options = []
+        self.choose_page.options = []
         for index, page in enumerate(self.pages):
-            choose_page_select.options.append(
+            self.choose_page.options.append(
                 SelectOption(
                     label=f"{page.title} ({index + 1}/{len(self.pages)})",
                     value=index,
@@ -429,68 +463,99 @@ class GuideView(BaseView):
 
     def update_view(self):
         """Update the view, disabling certain paginating buttons and making the select menu "sticky"."""
-        choose_page_select = [i for i in self.children if i.custom_id == "choose_page"][0]
-        for option in choose_page_select.options:
+        for option in self.choose_page.options:
             option: SelectOption
             if option.value == self.current_page:
                 option.default = True
             else:
                 option.default = False
 
-        back_btn = [i for i in self.children if i.custom_id == "back"][0]
-        first_btn = [i for i in self.children if i.custom_id == "first"][0]
+        if self.pages[self.current_page].images:
+            self.show_images.disabled = False
+        else:
+            self.show_images.disabled = True
+
         if self.current_page == 0:
-            back_btn.disabled = True
-            first_btn.disabled = True
+            self.back.disabled = True
+            self.first.disabled = True
         else:
-            back_btn.disabled = False
-            first_btn.disabled = False
-        next_btn = [i for i in self.children if i.custom_id == "next"][0]
-        last_btn = [i for i in self.children if i.custom_id == "last"][0]
+            self.back.disabled = False
+            self.first.disabled = False
         if self.current_page == len(self.pages) - 1:
-            next_btn.disabled = True
-            last_btn.disabled = True
+            self.next.disabled = True
+            self.last.disabled = True
         else:
-            next_btn.disabled = False
-            last_btn.disabled = False
+            self.next.disabled = False
+            self.last.disabled = False
+
+    async def update_message(self, interaction: Interaction):
+        self.update_view()
+        embed = self.get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
 
     @select(placeholder="Choose a page", options=[], custom_id="choose_page")
     async def choose_page(self, select: Select, interaction: Interaction):
         """Choose a specific page of the guide through a select menu."""
         self.current_page = int(select.values[0])
-
-        self.update_view()
-        embed = self.get_embed()
-        await interaction.response.edit_message(view=self, embed=embed)
+        await self.update_message(interaction)
 
     @button(emoji="⏮️", style=ButtonStyle.blurple, custom_id="first", disabled=True)
     async def first(self, button: Button, interaction: Interaction):
         self.current_page = 0
-
-        self.update_view()
-        embed = self.get_embed()
-        await interaction.response.edit_message(view=self, embed=embed)
+        await self.update_message(interaction)
 
     @button(emoji="◀️", style=ButtonStyle.blurple, disabled=True, custom_id="back")
     async def back(self, button: Button, interaction: Interaction):
         self.current_page -= 1
+        await self.update_message(interaction)
 
-        self.update_view()
-        embed = self.get_embed()
-        await interaction.response.edit_message(view=self, embed=embed)
+    @button(emoji="🖼️", style=ButtonStyle.blurple, custom_id="show_image")
+    async def show_images(self, button: Button, interaction: Interaction):
+        view = ChooseImageView(interaction, self.pages[self.current_page].images)
+        view.update_view()
+        await interaction.send(embed=view.get_embed(), view=view, ephemeral=True)
 
     @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
     async def next(self, button: Button, interaction: Interaction):
         self.current_page += 1
-
-        self.update_view()
-        embed = self.get_embed()
-        await interaction.response.edit_message(view=self, embed=embed)
+        await self.update_message(interaction)
 
     @button(emoji="⏭️", style=ButtonStyle.blurple, custom_id="last")
     async def last(self, button: Button, interaction: Interaction):
         self.current_page = len(self.pages) - 1
+        await self.update_message(interaction)
 
-        self.update_view()
+
+class ChooseImageView(BaseView):
+    def __init__(self, interaction: Interaction, images: dict[str]):
+        super().__init__(interaction, timeout=180)
+        self.images = images
+        self.msg: nextcord.WebhookMessage | nextcord.PartialInteractionMessage = None
+
+        self.current_img = list(images.keys())[0]
+
+        self.choose_image.options = []
+        for title in self.images.keys():
+            self.choose_image.options.append(SelectOption(label=title))
+
+    def get_embed(self):
+        """Returns the current guide page."""
+        embed = Embed(title=self.current_img, colour=EmbedColour.DEFAULT)
+        embed.set_image(self.images[self.current_img])
+        return embed
+
+    def update_view(self):
+        """Update the view, disabling certain paginating buttons and making the select menu "sticky"."""
+        for option in self.choose_image.options:
+            if option.label == self.current_img:
+                option.default = True
+            else:
+                option.default = False
+
+    @select(placeholder="Choose an image", options=[])
+    async def choose_image(self, select: Select, interaction: Interaction):
+        """Choose a specific image through a select menu."""
+        self.current_img = select.values[0]
         embed = self.get_embed()
+        self.update_view()
         await interaction.response.edit_message(view=self, embed=embed)
