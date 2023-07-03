@@ -9,6 +9,7 @@ from utils.helpers import TextEmbed
 
 # default modules
 from typing import Optional, Callable
+from contextlib import suppress
 
 
 class BaseView(View):
@@ -22,7 +23,8 @@ class BaseView(View):
     async def on_timeout(self) -> None:
         for i in self.children:
             i.disabled = True
-        await self.interaction.edit_original_message(view=self)
+        with suppress(nextcord.errors.NotFound):  # the message might have been deleted
+            await self.interaction.edit_original_message(view=self)
 
     async def interaction_check(self, interaction: Interaction) -> bool:
         if interaction.user != self.interaction.user:
@@ -71,7 +73,7 @@ class ConfirmView(BaseView):
         button.style = ButtonStyle.green
         for item in self.children:
             item.disabled = True
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.message.edit(embed=embed, view=self)
 
     async def cancel(self, button: Button, interaction: Interaction):
         embed = interaction.message.embeds[0]
@@ -80,7 +82,7 @@ class ConfirmView(BaseView):
         button.style = ButtonStyle.red
         for item in self.children:
             item.disabled = True
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.message.edit(embed=embed, view=self)
 
     @button(emoji="✅", style=ButtonStyle.blurple)
     async def confirm_callback(self, button: Button, interaction: Interaction):
@@ -88,6 +90,8 @@ class ConfirmView(BaseView):
         await self.confirm(button, interaction)
         if self.confirm_func:
             await self.confirm_func(button, interaction)
+        if not interaction.response.is_done():  # the interaction has not been responded
+            await interaction.response.defer()
 
     @button(emoji="❎", style=ButtonStyle.blurple)
     async def cancel_callback(self, button: Button, interaction: Interaction):
@@ -95,6 +99,8 @@ class ConfirmView(BaseView):
         await self.cancel(button, interaction)
         if self.cancel_func:
             await self.cancel_func(button, interaction)
+        if not interaction.response.is_done():  # the interaction has not been responded
+            await interaction.response.defer()
 
 
 class BaseModal(Modal):

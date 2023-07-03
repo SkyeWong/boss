@@ -1,5 +1,6 @@
 # nextcord
 from nextcord.ext import commands
+from nextcord.utils import MISSING
 from nextcord import Embed, Interaction, BaseApplicationCommand, CallbackWrapper
 from nextcord.ui import View, Button
 import nextcord
@@ -13,7 +14,7 @@ from utils.postgres_db import Database
 import math
 import random
 from datetime import datetime
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Union, List
 
 
 def roundup(number: int, round_to: int) -> int:
@@ -115,7 +116,7 @@ def command_info(
     class AddCommandInfo(CallbackWrapper):
         def modify(self, app_cmd: BaseApplicationCommand) -> None:
             app_cmd.long_help = long_help
-            app_cmd.notes = notes if isinstance(notes, list) else [notes]
+            app_cmd.notes = [notes] if isinstance(notes, str) else notes
             app_cmd.examples = examples
             for k, v in kwargs.items():
                 setattr(app_cmd, k, v)
@@ -286,7 +287,8 @@ PB_EMOJIS = {
 
 def create_pb(percentage: int):
     """Creates a progress bar with the width of 5 and with `filled` emojis set to the filled variants."""
-    filled = round(percentage / 100 * 5)
+    filled = roundup(percentage, 20)  # round up to the nearest 20
+    filled //= 20
     pb = ""
     # if even 1 block needs to be filled set the first block to filled, otherwise leave it empty
     pb += PB_EMOJIS["PB1F"] if filled > 0 else PB_EMOJIS["PB1E"]
@@ -313,6 +315,65 @@ class TextEmbed(Embed):
 
     def __init__(self, text: str, colour: int = EmbedColour.DEFAULT):
         super().__init__(description=text, colour=colour)
+
+
+async def send(
+    interaction: Interaction,
+    content: Optional[str] = None,
+    *,
+    embed: Embed = MISSING,
+    embeds: List[Embed] = MISSING,
+    file: nextcord.File = MISSING,
+    files: List[nextcord.File] = MISSING,
+    view: View = MISSING,
+    tts: bool = False,
+    delete_after: Optional[float] = None,
+    allowed_mentions: nextcord.AllowedMentions = MISSING,
+    flags: Optional[nextcord.MessageFlags] = None,
+    ephemeral: Optional[bool] = None,
+    suppress_embeds: Optional[bool] = None,
+):
+    """
+    Sends a message with the given `interaction`, and modifies embed if the user is running a macro.
+    Only use this in grinding commands, since it fetches values from the database every time it is run.
+    """
+    running_macro_id = await interaction.client.db.fetchval(
+        "SELECT running_macro_id FROM players.players WHERE player_id = $1", interaction.user.id
+    )
+    if running_macro_id and embed:  # check whether the user is running a macro
+        footer = f"{upper(interaction.user.name)} is running a /macro"
+        if embed.footer.text:
+            footer += f" | {embed.footer.text}"
+        embed.set_footer(text=footer)
+
+    return await interaction.send(
+        content=content,
+        embed=embed,
+        embeds=embeds,
+        file=file,
+        files=files,
+        view=view,
+        tts=tts,
+        ephemeral=ephemeral,
+        delete_after=delete_after,
+        allowed_mentions=allowed_mentions,
+        flags=flags,
+        suppress_embeds=suppress_embeds,
+    )
+
+
+def find_command(
+    client: Union[commands.Bot, nextcord.Client], command_name: str
+) -> Union[nextcord.SlashApplicationCommand, nextcord.SlashApplicationSubcommand]:
+    """Finds the slash command (searches for subcommands too) with the name `command_name`. This presumes that command exist and has no typos."""
+    cmds = client.get_all_application_commands()
+    slash_cmd: nextcord.SlashApplicationCommand = next(cmd for cmd in cmds if cmd.name == command_name.split()[0])
+    split_index = 1
+    # find the macro command in the children of the base command, if it doesnt match the full command name
+    while slash_cmd.qualified_name != command_name:
+        slash_cmd = slash_cmd.children[command_name.split()[split_index]]
+        split_index += 1
+    return slash_cmd
 
 
 class BossItem:

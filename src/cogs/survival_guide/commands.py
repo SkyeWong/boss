@@ -1,6 +1,7 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands
+from nextcord.ui import Button
 from nextcord import Embed, Interaction, SlashOption
 
 # database
@@ -10,6 +11,9 @@ from utils.postgres_db import Database
 from utils import helpers, constants
 from utils.constants import EmbedColour
 from utils.helpers import TextEmbed, command_info
+from modules.macro.run_macro import RunMacroView
+from modules.macro.show_macro import ShowMacrosView
+from modules.macro.record_macro import RecordMacroView, recording_macro_views
 
 from .views import HelpView, GuideView
 
@@ -253,6 +257,51 @@ class Utility(commands.Cog, name="Survival Guide"):
             value,
         )
         await interaction.send(embed=TextEmbed("Updated your settings!"))
+
+    @nextcord.slash_command(description="Manage your macros - tools to run commands automatically.")
+    async def macro(self, interaction: Interaction):
+        pass
+
+    async def choose_macro_autocomplete(self, interaction: Interaction, data: str):
+        user_macros = await interaction.client.db.fetch(
+            """
+                SELECT m.name
+                FROM players.macros AS m
+                INNER JOIN players.macro_players AS mp
+                ON mp.macro_id = m.macro_id
+                WHERE mp.player_id = $1
+            """,
+            interaction.user.id,
+        )
+        user_macros = [i["name"] for i in user_macros]
+        if not data:
+            # return full list
+            await interaction.response.send_autocomplete(user_macros[:25])
+        else:
+            near_macros = [i for i in user_macros if data in i][:25]
+            await interaction.response.send_autocomplete(near_macros)
+
+    @macro.subcommand(description="Start a macro.")
+    async def start(
+        self,
+        interaction: Interaction,
+        macro: str = SlashOption(description="The macro to run.", autocomplete_callback=choose_macro_autocomplete),
+    ):
+        await RunMacroView.start(interaction, macro_name=macro)
+
+    @macro.subcommand(description="Record a macro and save it.")
+    async def record(self, interaction: Interaction):
+        # if the user is recording a macro, stop recording
+        # otherwise, start the recording
+        if record_macro_view := recording_macro_views.get(interaction.user.id):
+            btn: Button = record_macro_view.stop_recording
+            await btn.callback(interaction)
+        else:
+            await RecordMacroView.start(interaction)
+
+    @macro.subcommand(name="list", description="Show your list of added macros.")
+    async def show(self, interaction: Interaction):
+        await ShowMacrosView.send(interaction)
 
 
 def setup(bot: commands.Bot):
