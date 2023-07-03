@@ -59,9 +59,9 @@ class RunMacroView(BaseView):
         )
         # if the user is already running a macro, we do not restart it.
         # instead, we send a message to them telling them
-        if running_macro_id == res[0]["macro_id"]:
-            # check whether the user is running the same macro previously
-            await interaction.send(embed=TextEmbed("You are already running the same macro!"))
+        if running_macro_id:
+            # check whether the user is running a macro previously
+            await interaction.send(embed=TextEmbed("You are already a macro!"))
             return
         # if the user is recording a macro, we halt the execution and tell the user that they can't run a macro while recording one.
         if recording_macro_id is not None:
@@ -168,13 +168,12 @@ class RunMacroView(BaseView):
         if self.cmd_index > len(self.macro_cmds) - 1:
             self.cmd_index -= len(self.macro_cmds)
 
-        # run the slash command. this will invoke it with the hooks (check, before_invoke, after_invoke)
-        await slash_cmd.invoke_callback_with_hooks(interaction._state, interaction, args=options)
-
         # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
         with suppress(nextcord.errors.NotFound):
-            msg = await interaction.original_message()
-            await msg.delete()
+            await self.latest_msg.delete()
+
+        # run the slash command. this will invoke it with the hooks (check, before_invoke, after_invoke)
+        await slash_cmd.invoke_callback_with_hooks(interaction._state, interaction, args=options)
 
     @button(label="", style=ButtonStyle.blurple, custom_id="run")
     async def run_cmd_btn(self, button: Button, interaction: Interaction):

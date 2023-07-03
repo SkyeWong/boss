@@ -26,14 +26,16 @@ class RecordMacroView(BaseView):
         OptionType.boolean,
         OptionType.number,
     )
+    MAX_NUMBER_OF_COMMANDS = 25
 
     def __init__(self, interaction: Interaction):
         super().__init__(interaction, timeout=500)
         self.db: Database = interaction.client.db
         self.bot: commands.Bot = interaction.client
         self.recorded_cmds = []
-        self.cmd_index = 0
         self.latest_msg: nextcord.Message = None
+        self.saved_macro = False  # flag variable to show if the user has saved the currently recording macro
+        self.recording = True  # flag variable to show if the user is currently recording
 
     @classmethod
     async def start(cls, interaction: Interaction):
@@ -73,7 +75,9 @@ class RecordMacroView(BaseView):
             embed=Embed(
                 title="Macro recording started",
                 description="Use commands as usual and they will be recorded!\n"
-                "After you have finished, click the ⏹️ button or run </macro record:1124712041307979827> again.",
+                "After you have finished, click the ⏹️ button or run </macro record:1124712041307979827> again.\n\n"
+                f"You can have {record_macro_view.MAX_NUMBER_OF_COMMANDS} commands in a macro at most.\n"
+                "If the max number of commands is reached, the recording will stop automatically.",
                 colour=EmbedColour.DEFAULT,
             )
         )
@@ -157,9 +161,12 @@ class RecordMacroView(BaseView):
         self.recorded_cmds.append(
             {"command": cmd.qualified_name, "options": {i.get("name"): i.get("value") for i in option_data}}
         )
-        # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
-        with suppress(nextcord.errors.NotFound):
-            await self.latest_msg.delete()
+        if len(self.recorded_cmds) == self.MAX_NUMBER_OF_COMMANDS:  # the max length of a macro has reached
+            await self.stop_recording.callback(interaction)
+        else:
+            # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
+            with suppress(nextcord.errors.NotFound):
+                await self.latest_msg.delete()
 
     @button(label="", style=ButtonStyle.grey, custom_id="delete")
     async def delete_cmd_btn(self, button: Button, interaction: Interaction):
@@ -198,6 +205,7 @@ class RecordMacroView(BaseView):
             """
             await self.db.execute("DELETE FROM players.macros WHERE macro_id = $1", recording_macro_id)
 
+        self.recording = False
         # set the `recording_macro_id` of the user to null since recording is finished,
         # also fetch the id of the macro that the user had been recording
         recording_macro_id = await self.db.fetchval(
@@ -275,7 +283,6 @@ class RecordMacroView(BaseView):
                     embed.title = "Discarded the macro"
                     await msg.edit(embed=embed)
 
-            self.saved_macro = False
             modal = BaseModal(
                 title="Saving macro",
                 inputs=[TextInput(label="Name", required=True, min_length=3, max_length=30, custom_id="input")],

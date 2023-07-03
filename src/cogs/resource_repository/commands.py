@@ -685,6 +685,16 @@ class Resource(commands.Cog, name="Resource Repository"):
                     EmbedColour.SUCCESS,
                 )
 
+            case {"item_id": 61}:  # health potion
+                # add 60-80 points of health to the player
+                value = random.randint(60, 80)
+                new_health = await player.modify_health(value)
+                embed = TextEmbed(
+                    f"You drank {quantity} {item['emoji']} **{item['name']}**.\n"
+                    f"Your health is now {new_health}, increased by {value}.",
+                    EmbedColour.SUCCESS,
+                )
+
             case {"type": constants.ItemType.ANIMAL.value}:
                 # convert the animal to "food" item
                 await player.add_item(55, quantity)
@@ -746,7 +756,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         new_quantity = await player.add_item(item["item_id"], -quantity)
         view = View()
         button = Button(
-            label=f"You have {new_quantity}x {item['name']} left",
+            label=f"You have {new_quantity if new_quantity is not None else 0}x {item['name']} left",
             emoji=item["emoji"],
             style=ButtonStyle.grey,
             disabled=True,

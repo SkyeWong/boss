@@ -287,19 +287,25 @@ PB_EMOJIS = {
 
 def create_pb(percentage: int):
     """Creates a progress bar with the width of 5 and with `filled` emojis set to the filled variants."""
-    filled = roundup(percentage, 20)  # round up to the nearest 20
+    filled = round(percentage / 20) * 20  # round off to the nearest 20
     filled //= 20
+
+    if filled < 0:
+        filled = 0
+    if filled > 5:
+        filled = 5
+
     pb = ""
     # if even 1 block needs to be filled set the first block to filled, otherwise leave it empty
     pb += PB_EMOJIS["PB1F"] if filled > 0 else PB_EMOJIS["PB1E"]
     # if filled is 5, then the last one will be filled, so we need to fill 3 blocks (5 minus the first and last "rounded" blocks)
     # otherwise we fill (filled - 1) blocks since the first one is filled by the above line
-    pb += PB_EMOJIS["PB2F"] * (3 if filled >= 5 else filled - 1)
+    pb += PB_EMOJIS["PB2F"] * (3 if filled == 5 else filled - 1)
     # if filled is 0, similar to the above line, we leave 3 blocks as empty
     # otherwise we leave the remaining blocks out of 3 empty (5 minus the first and last "rounded" blocks)
     pb += PB_EMOJIS["PB2E"] * (3 if filled == 0 else 3 - (filled - 1))
     # lastly fill in the last block with reasons similar to the first block
-    pb += PB_EMOJIS["PB3F"] if filled >= 5 else PB_EMOJIS["PB3E"]
+    pb += PB_EMOJIS["PB3F"] if filled == 5 else PB_EMOJIS["PB3E"]
     if filled < 5:
         # check if filled is not 5 because if the last one is filled then we don't need to replace
         # replace the last "filled" block with the "half-filled" one to make it rounded

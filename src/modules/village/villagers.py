@@ -105,6 +105,7 @@ class Hunter(Villager):
             })
             
         trade = random.choice(trades)
+        # fmt: on
         super().__init__(
             name=name,
             job_title=__class__.__name__,
@@ -114,7 +115,6 @@ class Hunter(Villager):
             villager_id=None,
             db=db,
         )
-        # fmt: on
 
 
 class Mason(Villager):
@@ -132,6 +132,7 @@ class Mason(Villager):
             },
         ]
         trade = random.choice(trades)
+        # fmt: on
         super().__init__(
             name=name,
             job_title=__class__.__name__,
@@ -141,7 +142,6 @@ class Mason(Villager):
             villager_id=None,
             db=db,
         )
-        # fmt: on
 
 
 class Armourer(Villager):
@@ -165,6 +165,7 @@ class Armourer(Villager):
             }
         ]
         trade = random.choice(trades)
+        # fmt: on
         super().__init__(
             name=name,
             job_title=__class__.__name__,
@@ -174,7 +175,6 @@ class Armourer(Villager):
             villager_id=None,
             db=db,
         )
-        # fmt: on
 
 
 class Cartographer(Villager):
@@ -190,6 +190,7 @@ class Cartographer(Villager):
             },
         ]
         trade = random.choice(trades)
+        # fmt: on
         super().__init__(
             name=name,
             job_title=__class__.__name__,
@@ -199,7 +200,6 @@ class Cartographer(Villager):
             villager_id=None,
             db=db,
         )
-        # fmt: on
 
 
 class Archaeologist(Villager):
@@ -224,6 +224,7 @@ class Archaeologist(Villager):
             },
         ]
         trade = random.choice(trades)
+        # fmt: on
         super().__init__(
             name=name,
             job_title=__class__.__name__,
@@ -233,7 +234,6 @@ class Archaeologist(Villager):
             villager_id=None,
             db=db,
         )
-        # fmt: on
 
 
 class Farmer(Villager):
@@ -268,6 +268,7 @@ class Farmer(Villager):
             },
         ]
         trade = random.choice(trades)
+        # fmt: on
         super().__init__(
             name=name,
             job_title=__class__.__name__,
@@ -277,4 +278,28 @@ class Farmer(Villager):
             villager_id=None,
             db=db,
         )
+
+
+class Cleric(Villager):
+    def __init__(self, name: str, db: Database) -> None:
+        rand = random.uniform(0.8, 1)
+        # fmt: off
+        trades = [  # price is `random * quantity * unit price[min AND max]`
+            {
+                "demand": [
+                    BossCurrency.from_range(round(rand * 5 * 2_000), round(rand * 5 * 4_000))
+                ],
+                "supply": [BossItem(61, round(rand * 5))]  # health potion
+            },
+        ]
+        trade = random.choice(trades)
         # fmt: on
+        super().__init__(
+            name=name,
+            job_title=__class__.__name__,
+            demand=trade["demand"],
+            supply=trade["supply"],
+            num_trades=trade.get("trades", 1),
+            villager_id=None,
+            db=db,
+        )

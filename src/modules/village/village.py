@@ -359,7 +359,7 @@ class TradeView(BaseView):
         else:
             remaining_msg = ""
         for i in remaining_inventory:
-            remaining_msg += f"\n- ` {i.quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"  # fmt: skip
+            remaining_msg += f"\n- ` {i.quantity if i.quantity else 0}x ` {await i.get_emoji(db)} {await i.get_name(db)}"  # fmt: skip
 
         await interaction.send(
             embed=TextEmbed(f"You successfully received: {supply_msg}\n\nYou now have: {remaining_msg}"),

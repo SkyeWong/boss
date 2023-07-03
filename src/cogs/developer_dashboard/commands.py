@@ -512,7 +512,14 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             return
 
         db: Database = self.bot.db
-        res = await db.fetchrow(self.GET_ITEM_SQL, name)
+        res = await db.fetchrow(
+            """
+            SELECT name
+            FROM utility.items
+            WHERE name = $1
+            """,
+            name,
+        )
         if res:
             await interaction.send(
                 embed=TextEmbed("An item with the same name exists. Rename the item."),

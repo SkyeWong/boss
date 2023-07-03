@@ -110,7 +110,11 @@ async def after_invoke(interaction: Interaction):
     # Recording a macro
     if record_macro_view := recording_macro_views.get(interaction.user.id):
         await record_macro_view.record(interaction)
-        await record_macro_view.send_msg(interaction)
+        # if the max number of commands has reached,
+        # `view.record()` will stop recording and set `view.recording` to False.
+        # in that case, we do not sent the message to let users continue.
+        if record_macro_view.recording:
+            await record_macro_view.send_msg(interaction)
 
     # Update the user's experience and other attributes
     old_exp, new_exp = await interaction.client.db.fetchrow(
