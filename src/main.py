@@ -1,7 +1,8 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands
-from nextcord import Embed, Interaction
+from nextcord import Embed, Interaction, ButtonStyle
+from nextcord.ui import Button
 
 # nextcord cooldowns
 from cooldowns import CallableOnCooldown
@@ -22,14 +23,15 @@ from utils.constants import EmbedColour
 from utils.helpers import TextEmbed, CommandCheckException
 from utils.player import Player
 from utils.postgres_db import Database
+from modules.macro.run_macro import RunMacroView
 from cogs.wasteland_workshop.views import PersistentWeatherView
 
 # default modules
 import os
 import random
 import sys
-import traceback
 import logging
+from typing import Union, Optional
 from datetime import datetime, timezone
 
 
@@ -82,6 +84,7 @@ class BossBot(commands.Bot):
         for folder in os.listdir("cogs"):
             if folder != "__pycache__":
                 self.load_extension(f"cogs.{folder}.commands")
+        self.load_extension("utils.application_hooks")
 
     async def on_ready(self):
         if not self.persistent_views_added:
@@ -132,31 +135,52 @@ class BossBot(commands.Bot):
         if not self.LIVE:
             embed.add_field(name="Error", value=f"```py\n{str(error)[:1000]}\n```")
         await interaction.send(embed=embed, view=view)
-
-        embed.set_image("https://i.imgur.com/PX67hRV.png")
-        error_log = self.get_channel(1071712392020500530)
-        cmd_name = interaction.application_command.qualified_name
-        embed.title = f"{embed.title[:17]} while running `/{cmd_name}`"
-        embed.description = ""
-        await error_log.send(embed=embed)
         raise error
 
     async def on_error(self, event: str, *args, **kwargs) -> None:
-        embed = Embed(title="An error occured while running!")
-        embed.description = "**Error**"
         exc = sys.exc_info()
-
-        exc_formatted = traceback.format_exc()
         logging.error("An error occured", exc_info=exc)
 
-        embed.description += f"```py\n{exc_formatted[:4060]}\n```"
-        embed.set_image("https://i.imgur.com/LjH76fq.png")
-        if exc_formatted.find(r"C:\Users\emo") != -1:
-            embed.set_footer(text="Running on my computer")
-        else:
-            embed.set_footer(text="Running on render.com")
-        error_log = self.get_channel(1071712392020500530)
-        await error_log.send(embed=embed)
+    @staticmethod
+    async def get_or_fetch_member(guild: nextcord.Guild, member_id: int) -> Union[nextcord.Member, None]:
+        """Looks up a member in cache or fetches if not found. If the member is not in the guid, returns `None`."""
+        member = guild.get_member(member_id)
+        if member is not None:
+            return member
+
+        member = await guild.fetch_member(member_id)
+        return member
+
+    async def get_or_fetch_channel(
+        self, channel_id: int
+    ) -> Optional[
+        Union[nextcord.abc.GuildChannel, nextcord.Thread, nextcord.abc.PrivateChannel, nextcord.PartialMessageable]
+    ]:
+        """Looks up a channel in cache or fetches if not found."""
+        channel = self.get_channel(channel_id)
+        if channel:
+            return channel
+
+        channel = await self.fetch_channel(channel_id)
+        return channel
+
+    async def get_or_fetch_guild(self, guild_id: int) -> nextcord.Guild:
+        """Looks up a guild in cache or fetches if not found."""
+        guild = self.get_guild(guild_id)
+        if guild:
+            return guild
+
+        guild = await self.fetch_guild(guild_id)
+        return guild
+
+    async def get_or_fetch_user(self, user_id: int) -> Union[nextcord.User, None]:
+        """Looks up a user in cache or fetches if not found."""
+        user = self.get_user(user_id)
+        if user:
+            return user
+
+        user = await self.fetch_user(user_id)
+        return user
 
 
 bot = BossBot()
@@ -178,124 +202,6 @@ def cd_embed(interaction: Interaction, error: CallableOnCooldown):
     cd_ui.description = f"You can use </{command.qualified_name}:{list(command.command_ids.values())[0]}> again <t:{int(resets_at.timestamp())}:R>!"
     cd_ui.colour = random.choice(constants.EMBED_COLOURS)
     return cd_ui
-
-
-@bot.application_command_check
-async def cmd_check(interaction: Interaction):
-    cmd = interaction.application_command
-
-    # Reconnect to the database if it is not
-    if bot.db.reconnecting or not bot.db.connected:
-        msg = await interaction.send(
-            embed=TextEmbed("We are reconnecting to the database, please be patient and wait for a few seconds."),
-            ephemeral=True,
-        )
-        await bot.db.connect()
-
-        await msg.edit(
-            embed=TextEmbed(
-                "We have successfully connected to the database! "
-                f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again."
-            )
-        )
-        raise helpers.DatabaseReconnect()
-
-    # Pause execution if command is disabled
-    if interaction.guild_id != constants.DEVS_SERVER_ID:  # only check for disabled commands if its not the dev server.
-        db = bot.db
-        res = await db.fetchrow(
-            """
-            SELECT until, reason, extra_info
-            FROM utility.disabled_commands
-            WHERE $1 LIKE command_name
-            """,
-            cmd.qualified_name,
-        )
-
-        if res is not None:
-            until = res[0]
-
-            utc = pytz.UTC
-
-            if until is None or until > datetime.now(tz=utc):  # until is None --> permanently disabled
-                embed = Embed()
-                embed.title = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> is disabled!"
-
-                embed.add_field(name="Reason", value=res[1], inline=False)
-                embed.add_field(name="Extra info", value=res[2], inline=False)
-
-                await interaction.send(embed=embed, ephemeral=True)
-                raise helpers.DisabledCommand()
-
-            if until <= datetime.now(tz=utc):
-                await db.execute(
-                    """
-                    DELETE FROM utility.disabled_commands 
-                    WHERE command_name = $1
-                    """,
-                    cmd.qualified_name,
-                )
-
-    # Add player to database if he/she is new
-    player = Player(bot.db, interaction.user)
-    if not await player.is_present():
-        await player.create_profile()
-
-        await interaction.send(
-            embeds=[
-                TextEmbed(
-                    "> Welcome to BOSS, the Discord bot for a post-apocalyptic world after World War III. "
-                    "\n\n> In this world, everything is tarnished and resources are scarce. "
-                    "The currency system is based on a variety of items that have value in this new world, "
-                    "including scrap metal, ammunition, and other valuable resources that can be traded or used to purchase goods and services."
-                    "\n\n> BOSS is here to help you navigate this harsh world by providing a currency system that allows you to earn, spend, and trade valuable resources. "
-                    "It makes it easy to manage your currency and track your progress as you explore the post-apocalyptic wasteland. "
-                    "Whether you're scavenging for resources, completing missions, or participating in events, BOSS is here to help you earn currency and build your wealth in this new world. "
-                    "So, join us in the post-apocalyptic wasteland and let BOSS be your guide to survival and prosperity."
-                ),
-                TextEmbed(
-                    f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again to continue"
-                ),  # TODO: add a /guide command and have players use this instead
-            ]
-        )  # TODO: add a greet message to this
-        raise helpers.NewPlayer()
-
-    return True
-
-
-@bot.application_command_before_invoke
-async def before_invoke(interaction: Interaction):
-    if not interaction.response.is_done():
-        await interaction.response.defer()
-
-
-@bot.application_command_after_invoke
-async def after_invoke(interaction: Interaction):
-    old_exp, new_exp = await bot.db.fetchrow(
-        """
-        UPDATE players.players
-        SET experience = experience + $1
-        WHERE player_id = $2
-        RETURNING 
-            (SELECT experience
-            FROM players.players
-            WHERE player_id = $2) AS old_experience, 
-            experience
-        """,
-        random.randint(1, 5),
-        interaction.user.id,
-    )
-    new_level = new_exp // 100
-    old_level = old_exp // 100
-    if new_level > old_level:  # player levelled up
-        await interaction.user.send(
-            embed=Embed(
-                title="Level up!",
-                description=f"Poggers! You levelled up from level **{old_level}** to level **{new_level}**!",
-                timestamp=datetime.now(),
-                colour=EmbedColour.INFO,
-            )
-        )
 
 
 keep_alive()
