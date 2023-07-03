@@ -104,8 +104,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def trade(self, interaction: Interaction):
         """Trade with villagers for valuable and possibly unique items!"""
-        view = TradeView(interaction)
-        await view.send()
+        await TradeView.send(interaction)
 
     @tasks.loop(hours=1)
     async def update_villagers(self):
@@ -118,8 +117,8 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         # generate the villagers
         villagers: list[Villager] = []
-        for name in names:
-            job_type = random.choice(Villager.__subclasses__())
+        job_types = random.choices(Villager.__subclasses__(), k=len(names))
+        for job_type, name in zip(job_types, names):
             villagers.append(job_type(name, self.bot.db))
 
         # update villagers to database
@@ -285,7 +284,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     GET_SELLABLE_SQL = """
         SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, i.sell_price, bp.quantity
             FROM utility.items AS i
-            INNER JOIN utility.SearchItem('$2) AS s
+            INNER JOIN utility.SearchItem($2) AS s
             ON i.item_id = s.item_id
             LEFT JOIN 
                 (SELECT inv.item_id, inv.quantity
@@ -298,10 +297,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     async def choose_backpack_sellable_autocomplete(self, interaction: Interaction, data: str):
         """Returns a list of autocompleted choices of the sellable items in a user's backpack"""
         db: Database = self.bot.db
-        items = await db.fetch(
-            self.GET_SELLABLE_SQL,
-            interaction.user.id,
-        )
+        items = await db.fetch(self.GET_SELLABLE_SQL, interaction.user.id, data)
         await interaction.response.send_autocomplete([i["name"] for i in items][:25])
 
     @nextcord.slash_command()
@@ -380,7 +376,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             confirmed_title="BOSS Cash Receipt",
             exclude_items=exclude_items,
         )
-
+        view.embed.title = "Pending Confirmation"
         await interaction.send(embed=view.embed, view=view)
 
     @sell.subcommand(name="item")
@@ -433,27 +429,30 @@ class Resource(commands.Cog, name="Resource Repository"):
             await interaction.send(embed=embed)
             return
 
-        async with db.pool.acquire() as conn:
-            async with conn.transaction():
-                await conn.execute(
-                    """
-                        UPDATE players.inventory
-                        SET quantity = quantity - $3
-                        WHERE player_id = $1 AND inv_type = 0 AND item_id = $2
-                    """,
-                    interaction.user.id,
-                    item["item_id"],
-                    quantity,
-                )
-
-                player = Player(db, interaction.user)
-                total_price = item["sell_price"] * quantity
-                await player.modify_scrap(total_price)
         item = dict(item)  # convert the item into a dictionary so that we can modify it
         item["quantity"] = quantity
-        embed = self.get_sell_item_embed((item,), total_price)
+        total_price = item["sell_price"] * quantity
 
-        await interaction.send(f"{interaction.user.mention}, you successfully sold the items!", embed=embed)
+        async def sell_player_items(button=None, btn_inter=None):
+            async with db.pool.acquire() as conn:
+                async with conn.transaction():
+                    player = Player(db, interaction.user)
+                    await player.modify_scrap(total_price)
+                    await player.add_item(item["item_id"], -quantity)
+
+        if total_price > 100_000:
+            view = ConfirmView(
+                slash_interaction=interaction,
+                embed=self.get_sell_item_embed((item,), total_price),
+                confirm_func=sell_player_items,
+                confirmed_title="BOSS Cash Receipt",
+            )
+            view.embed.title = "Pending Confirmation"
+            await interaction.send(embed=view.embed, view=view)
+        else:
+            await sell_player_items()
+            embed = self.get_sell_item_embed((item,), total_price)
+            await interaction.send(embed=embed)
 
     @nextcord.slash_command(name="exchange")
     async def exchange_currency_cmd(self, interaction: Interaction):
@@ -496,6 +495,12 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         exchange_rate = round(exchange_rate)
         exchanged_amount = round(op(amount, exchange_rate))
+
+        if exchanged_amount <= 0:  # The user has not exchanged enough scrap metal to have 1 copper
+            await interaction.send(
+                embed=TextEmbed(f"{amount} {from_currency_msg} is not enough to make 1 {to_currency_msg}.")
+            )
+            return
 
         db: Database = interaction.client.db
         player = Player(db, interaction.user)
@@ -749,7 +754,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         view.add_item(button)
         await interaction.send(embed=embed, view=view)
 
-    @nextcord.slash_command(name="profile", description="Check the profile of your own or others.")
+    @nextcord.slash_command(name="profile", description="Check the profile of a user.")
     @command_info(notes="If you leave the `user` parameter empty, you can view your own profile.")
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
     async def profile(
@@ -757,7 +762,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         interaction: Interaction,
         user: nextcord.User = SlashOption(
             name="user",
-            description="The user to check the profile. Leave this empty to view yours.",
+            description="The user to check the profile. Leave the option empty to view yours.",
             required=False,
             default=None,
         ),
@@ -845,16 +850,14 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command(
-        name="balance", description="Check your or other user's balance. Cash, item worth, and net."
-    )
+    @nextcord.slash_command(name="balance", description="Check a user's balance. Cash, item worth, and net.")
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
     async def balance(
         self,
         interaction: Interaction,
         user: nextcord.User = SlashOption(
             name="user",
-            description="The user to check the balance. Leave this empty to view yours.",
+            description="The user to check the balance. Leave the option empty to view yours.",
             required=False,
             default=None,
         ),
@@ -880,9 +883,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             user.id,
         )
 
-        embed = Embed()
-        embed.colour = random.choice(constants.EMBED_COLOURS)
-        embed.title = f"{helpers.upper(user.name)}'s Balance"
+        embed = Embed(title=f"{helpers.upper(user.name)}'s Balance", colour=EmbedColour.INFO)
 
         item_worth = await db.fetchval(
             """

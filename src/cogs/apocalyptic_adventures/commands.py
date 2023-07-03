@@ -14,7 +14,7 @@ from utils.postgres_db import Database
 # my modules and constants
 from utils import constants, helpers
 from utils.constants import CURRENCY_EMOJIS, EmbedColour
-from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, BossCurrency
+from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, send
 from utils.player import Player
 from utils.template_views import ConfirmView, BaseView
 
@@ -169,16 +169,15 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         reward_category = random.choices(list(loot_table.keys()), [i["chance"] for i in loot_table.values()])[0]
 
         if reward_category == "fail":
-            await interaction.send(embed=TextEmbed(random.choice(fail_messages)))
+            await send(interaction, embed=TextEmbed(random.choice(fail_messages)))
             return
 
         player = Player(db, interaction.user)
         rewards = loot_table[reward_category]["rewards"]
         reward = random.choices(
             rewards,
-            [
-                i["chance"] if i.get("chance") else 1 / len(rewards) for i in rewards
-            ],  # select the chance of the reward if it exists, or make the chance same for all of them
+            [i["chance"] if i.get("chance") else 1 / len(rewards) for i in rewards],
+            # select the chance of the reward if it exists, or make the chance same for all of them
         )[0]
         if reward["type"] == "item":
             quantity = random.randint(reward["min"], reward["max"])
@@ -192,7 +191,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             value = random.randint(reward["min"], reward["max"])
             await player.modify_currency(reward["type"], value)
             embed = TextEmbed(success_message.format(reward=f"{CURRENCY_EMOJIS[reward['type']]} **{value}**"))
-        await interaction.send(embed=embed)
+        await send(interaction, embed=embed)
 
         # if the user has a mission of the type of the command, update its progress
         if mission_id:
@@ -414,49 +413,64 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         )
 
     @nextcord.slash_command(description="Check your missions and complete them for some rewards!")
-    @helpers.work_in_progress(dev_guild_only=True)
     async def missions(self, interaction: Interaction):
         db: Database = self.bot.db
-        missions = await db.fetch(
-            """
-                SELECT t.description, m.finished_amount, m.total_amount, m.reward, m.finished, m.date
-                    FROM players.missions AS m
-                    INNER JOIN utility.mission_types AS t
-                    ON m.mission_type_id = t.id
-                WHERE m.player_id = $1
-                ORDER BY m.finished DESC
-            """,
-            interaction.user.id,
-        )
-        # if the user does not have any missions previously, or the date of them are not equal to today (daily missions --> update every day)
-        if not missions or any(i["date"] != datetime.date.today() for i in missions):
-            await self.claim_missions(interaction.user)
 
-        embed = Embed(
-            description=f"### {helpers.upper(interaction.user.name)}'s Daily Missions\n", colour=EmbedColour.DEFAULT
-        )
-        for i in missions:
-            embed.description += "✅" if i["finished"] else "❎"
-            embed.description += f" **{i['description'].format(quantity=i['total_amount'])}**\n"
+        async def fetch_missions():
+            return await db.fetch(
+                """
+                    SELECT t.description, m.finished_amount, m.total_amount, m.reward, m.finished, m.date
+                        FROM players.missions AS m
+                        INNER JOIN utility.mission_types AS t
+                        ON m.mission_type_id = t.id
+                    WHERE m.player_id = $1
+                    ORDER BY m.finished DESC, t.description ASC
+                """,
+                interaction.user.id,
+            )
 
-            # generate the "reward" string
-            reward = json.loads(i["reward"])
-            if reward["type"] == "item":
-                item = BossItem(reward["id"], reward["amount"])
-                embed.description += f"<:ReplyCont:1124521050655440916> Reward: {reward['amount']}x {await item.get_emoji(db)} {await item.get_name(db)}\n"
-            else:
-                # reward["type"] will be "scrap_metal" or "copper"
-                embed.description += (
-                    f"<:ReplyCont:1124521050655440916> Reward: {CURRENCY_EMOJIS[reward['type']]} {reward['amount']}\n"
-                )
+        async def get_embed():
+            missions = await fetch_missions()
+            # if the user does not have any missions previously, or the date of them are not equal to today (daily missions --> update every day)
+            if not missions or any(i["date"] != datetime.date.today() for i in missions):
+                await self.claim_missions(interaction.user)
+                missions = await fetch_missions()  # update the list of missions in order to show them
 
-            # generate the progress bar
-            finished = i["finished_amount"]
-            total = i["total_amount"]
-            done_percent = round(finished / total * 100)
-            embed.description += f"<:reply:1117458829869858917> {helpers.create_pb(done_percent)} ` {done_percent}% ` ` {finished} / {total} `\n\n"
+            embed = Embed(
+                description=f"### {helpers.upper(interaction.user.name)}'s Daily Missions\n\n",
+                colour=EmbedColour.DEFAULT,
+            )
+            for i in missions:
+                embed.description += "✅" if i["finished"] else "❎"
+                embed.description += f" **{i['description'].format(quantity=i['total_amount'])}**\n"
 
-        await interaction.send(embed=embed)
+                # generate the "reward" string
+                reward = json.loads(i["reward"])
+                if reward["type"] == "item":
+                    item = BossItem(reward["id"], reward["amount"])
+                    embed.description += f"<:ReplyCont:1124521050655440916> Reward: {reward['amount']}x {await item.get_emoji(db)} {await item.get_name(db)}\n"
+                else:
+                    # reward["type"] will be "scrap_metal" or "copper"
+                    embed.description += f"<:ReplyCont:1124521050655440916> Reward: {CURRENCY_EMOJIS[reward['type']]} {reward['amount']}\n"
+
+                # generate the progress bar
+                finished = i["finished_amount"]
+                total = i["total_amount"]
+                done_percent = round(finished / total * 100)
+                embed.description += f"<:reply:1117458829869858917> {helpers.create_pb(done_percent)} ` {done_percent}% ` ` {finished} / {total} `\n\n"
+            return embed
+
+        # create a view to let users reload the embed
+        view = BaseView(interaction, timeout=300)  # timeout is 5 minutes
+        button = Button(emoji="🔄")
+
+        async def reload_missions(btn_inter: Interaction):
+            await btn_inter.response.edit_message(embed=await get_embed())
+
+        button.callback = reload_missions
+        view.add_item(button)
+
+        await interaction.send(embed=await get_embed(), view=view)
 
 
 def setup(bot: commands.Bot):

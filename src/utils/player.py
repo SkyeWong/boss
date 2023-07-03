@@ -175,7 +175,7 @@ class Player:
             mission = await self.db.fetchrow(
                 """
                     UPDATE players.missions
-                    SET finished_amount = finished_amount + 1
+                    SET finished_amount = finished_amount + $3
                     WHERE player_id = $1 AND mission_type_id = $2 AND finished = FALSE
                     RETURNING 
                         finished_amount, 
@@ -186,6 +186,7 @@ class Player:
                 """,
                 self.user.id,
                 mission_id,
+                amount,
             )
             if mission is None:  # the mission does not exist
                 return

@@ -884,7 +884,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         guild_ids=[constants.DEVS_SERVER_ID],
     )
     async def raise_error(self, interaction: Interaction):
-        raise ZeroDivisionError
+        raise helpers.BossException
 
     def search_subcommand(self, cmd: nextcord.SlashApplicationCommand, cmd_name):
         cmd_found = False

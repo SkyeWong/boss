@@ -30,15 +30,34 @@ class TradeView(BaseView):
         self.current_index = 0
         self.msg: nextcord.Message = None
 
-    async def send(self):
-        await self.get_villagers()
-        self.current_villager = self.villagers[0]
+    @classmethod
+    async def send(cls, interaction: Interaction):
+        view = cls(interaction)
+        await view.get_villagers()
+        view.current_villager = view.villagers[0]
 
-        embed = await self.get_embed()
-        await self.update_view()
-        self.msg = await self.interaction.send(embed=embed, view=self)
+        embed = await view.get_embed()
+        await view.update_view()
+        view.msg = await view.interaction.send(embed=embed, view=view)
+
+    async def update_message(self):
+        last_updated = self.msg.edited_at or self.msg.created_at
+        if datetime.datetime.now(tz=pytz.UTC).hour != last_updated.hour:
+            # it is a new hour, tell the users to run /trade again to see the updated villagers
+            # this assumes that the trades are not updated by devs through /reload-villagers
+            await self.msg.edit(
+                embed=TextEmbed(
+                    "The villagers are updated! Run </trade:1102561137893056563> again to view the newest trades."
+                ),
+                view=None,
+            )
+        else:
+            embed = await self.get_embed()
+            await self.update_view()
+            await self.msg.edit(embed=embed, view=self)
 
     async def get_villagers(self) -> None:
+        """Get the list of villagers from the database"""
         db: Database = self.interaction.client.db
         res = await db.fetch(
             """
@@ -148,34 +167,33 @@ class TradeView(BaseView):
     async def choose_villager(self, select: Select, interaction: Interaction):
         self.current_index = int(select.values[0])
         self.current_villager = self.villagers[self.current_index]
-
-        embed = await self.get_embed()
-        await self.update_view()
-        await interaction.response.edit_message(view=self, embed=embed)
+        await self.update_message()
 
     @button(emoji="◀️", style=ButtonStyle.gray, custom_id="back")
     async def back(self, button: Button, interaction: Interaction):
+        # Go to the last page if the first page is shown,
+        # otherwise go back a page.
+        # This allows the pages to "loop"
         if self.current_index == 0:
             self.current_index = len(self.villagers) - 1
         else:
             self.current_index -= 1
         self.current_villager = self.villagers[self.current_index]
 
-        embed = await self.get_embed()
-        await self.update_view()
-        await interaction.response.edit_message(view=self, embed=embed)
+        await self.update_message()
 
     @button(emoji="▶️", style=ButtonStyle.grey, custom_id="next")
     async def next(self, button: Button, interaction: Interaction):
+        # Go to the last page if the first page is shown,
+        # otherwise go back a page.
+        # This allows the pages to "loop"
         if self.current_index == len(self.villagers) - 1:
             self.current_index = 0
         else:
             self.current_index += 1
         self.current_villager = self.villagers[self.current_index]
 
-        embed = await self.get_embed()
-        await self.update_view()
-        await interaction.response.edit_message(view=self, embed=embed)
+        await self.update_message()
 
     @button(label="Trade Once", style=ButtonStyle.blurple, custom_id="trade_once")
     async def trade_once(self, button: Button, interaction: Interaction):
@@ -217,6 +235,7 @@ class TradeView(BaseView):
         max_num_trades = min(num_trades + [self.current_villager.remaining_trades])
 
         async def modal_callback(modal_interaction: Interaction):
+            await modal_interaction.response.defer()
             input = [i for i in modal.children if i.custom_id == "input"][0]
             quantity: str = input.value
             if re.search(r"\D", quantity):
@@ -346,3 +365,9 @@ class TradeView(BaseView):
             embed=TextEmbed(f"You successfully received: {supply_msg}\n\nYou now have: {remaining_msg}"),
             ephemeral=True,
         )
+
+        # update the player's missions
+        await player.update_missions(interaction, mission_id=5, amount=trade_quantity)
+
+        # update the view to show the newest remaining trades in the select menu
+        await self.update_message()
