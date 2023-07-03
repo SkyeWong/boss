@@ -2,7 +2,13 @@
 import nextcord
 from nextcord.ext import commands
 from nextcord.ui import Button
-from nextcord import Embed, Interaction, SlashOption
+from nextcord import (
+    Embed,
+    Interaction,
+    SlashOption,
+    SlashApplicationCommand as SlashCmd,
+    SlashApplicationSubcommand as SlashSubcmd,
+)
 
 # database
 from utils.postgres_db import Database
@@ -17,8 +23,7 @@ from modules.macro.record_macro import RecordMacroView, recording_macro_views
 
 from .views import HelpView, GuideView
 
-# default modules
-import random
+from typing import Union
 
 
 class Utility(commands.Cog, name="Survival Guide"):
@@ -26,58 +31,34 @@ class Utility(commands.Cog, name="Survival Guide"):
 
     COG_EMOJI = "📖"
 
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self._last_member = None
 
-    def search_subcommand(self, cmd: nextcord.SlashApplicationCommand, cmd_name):
-        """Search for a subcommand with its name."""
-        cmd_found = False
-        subcommands = cmd.children.values()
-        for x in subcommands:
-            if x.qualified_name in cmd_name:
-                if cmd_name == x.qualified_name:
-                    cmd_found = True
-                    cmd = x
-                    break
-                elif x.children:
-                    return self.search_subcommand(x, cmd_name)
-
-        if not cmd_found:
-            raise helpers.CommandNotFound()
-        return cmd
-
-    def get_all_subcmd_names(self, guild_id: int, cmd):
+    def get_all_subcommands(self, cmd: Union[SlashCmd, SlashSubcmd]) -> list[SlashCmd, SlashSubcmd]:
         """Get all subcommand names of a command."""
         cmd_names = []
-        cmd_in_server = lambda cmd: cmd.is_global or guild_id in cmd.guild_ids
         for subcmd in cmd.children.values():
-            base_cmd = cmd
-            while not isinstance(base_cmd, nextcord.SlashApplicationCommand):
-                base_cmd = base_cmd.parent_cmd
-            if cmd_in_server(base_cmd):
-                cmd_names.append(subcmd.qualified_name)
-            if len(subcmd.children) > 0:
-                cmd_names.extend(self.get_all_subcmd_names(guild_id, subcmd))
+            if subcmd.children:
+                cmd_names.extend(self.get_all_subcommands(subcmd))
+            else:
+                cmd_names.append(subcmd)
         return cmd_names
 
-    async def choose_command_autocomplete(self, interaction: Interaction, data: str):
+    async def choose_command_autocomplete(self, interaction: Interaction, data: str) -> list[str]:
         """
         Return every command and subcommand in the bot.
         Returns command that match `data` if it is provided.
         """
-        if data.startswith("$"):
-            await interaction.response.send_autocomplete([data, "Searching mode: on"])
-            return
+        client: nextcord.Client = interaction.client
+        cmds = [i for i in client.get_all_application_commands() if isinstance(i, SlashCmd)]
 
-        base_cmds = interaction.client.get_all_application_commands()
         cmd_names = []
-        cmd_in_server = lambda cmd: cmd.is_global or interaction.guild_id in cmd.guild_ids
-        for base_cmd in base_cmds:
-            if cmd_in_server(base_cmd):
-                cmd_names.append(base_cmd.name)
-            if hasattr(base_cmd, "children") and len(base_cmd.children) > 0:
-                cmd_names.extend(self.get_all_subcmd_names(interaction.guild_id, base_cmd))
+        for cmd in cmds:
+            if cmd.is_global or interaction.guild_id in cmd.guild_ids:
+                cmd_names.append(cmd.qualified_name)
+                if cmd.children:
+                    cmd_names.extend([i.qualified_name for i in self.get_all_subcommands(cmd)])
+
         cmd_names.sort()
         if not data:
             # return full list
@@ -87,12 +68,32 @@ class Utility(commands.Cog, name="Survival Guide"):
             near_items = [cmd for cmd in cmd_names if data.lower() in cmd.lower()]
             await interaction.response.send_autocomplete(near_items[:25])
 
+    def parse_command(self, interaction: Interaction, cmd_name: str):
+        client: nextcord.Client = interaction.client
+        all_cmds = [i for i in client.get_all_application_commands() if isinstance(i, SlashCmd)]
+
+        cmd_list = cmd_name.split()
+        for item in cmd_list:
+            cmd = next((i for i in all_cmds if i.name == item), None)
+            if cmd is None:
+                raise helpers.CommandNotFound()
+            if isinstance(cmd, SlashCmd):
+                base_cmd = cmd
+            all_cmds = cmd.children.values()
+
+        if cmd.qualified_name != cmd_name:
+            raise helpers.CommandNotFound()
+
+        if not base_cmd.is_global and interaction.guild_id not in base_cmd.guild_ids:
+            raise helpers.CommandNotFound()
+
+        return cmd
+
     @nextcord.slash_command()
     @command_info(
         examples={
             "help": "Shows the complete list of commands in BOSS, which you can then filter by category.",
             "help command:hunt": "Teaches you how to use a command, with examples and more!",
-            "help command:$backpack": "Searches for a command based on the query; it will be found based on its name and description.",
         }
     )
     async def help(
@@ -100,122 +101,74 @@ class Utility(commands.Cog, name="Survival Guide"):
         interaction: Interaction,
         cmd_name: str = SlashOption(
             name="command",
-            description="Get extra info for this command. Tip: prefix the query with '$' to search for partial matches.",
+            description="Get extra info for this command.",
             default=None,
             required=False,
             autocomplete_callback=choose_command_autocomplete,
         ),
     ):
         """Get a list of commands or info of a specific command."""
-        if not cmd_name:  # send full command list
+        if not cmd_name:
+            # send full command list
             view = HelpView(interaction)
             await view.send()
-        else:
-            # find a specific command
-            cmd_name = cmd_name.strip()
-            if cmd_name.startswith("$"):  # search for commands, not just exact matches
-                cmd_name = cmd_name[1:]  # remove "$" prefix
-                if len(cmd_name) < 3:
-                    await interaction.send(embed=TextEmbed("Use search terms at least 3 characters long."))
-                    return
+            return
 
-                cmds = []
-                search_command = (
-                    lambda command: cmd_name in command.qualified_name
-                    or cmd_name.lower() in command.description.lower()
+        # search for exact matches since the user is likely to have selected it from autocomplete
+        try:
+            cmd = self.parse_command(interaction, cmd_name)
+        except helpers.CommandNotFound:
+            await interaction.send(
+                embed=TextEmbed(
+                    "The command is not found! Use </help:964753444164501505> for a list of available commands.",
+                    EmbedColour.WARNING,
                 )
-                for i in interaction.client.get_all_application_commands():
-                    # prioritise subcommands
-                    if subcmds := [j for j in i.children.values() if search_command(j)]:
-                        cmds.extend(subcmds)
-                    elif subsubcmds := [
-                        k for j in i.children.values() for k in j.children.values() if search_command(k)
-                    ]:
-                        cmds.extend(subsubcmds)
-                    elif search_command(i):
-                        cmds.append(i)
+            )
+            return
 
-                if not cmds:
-                    await interaction.send(
-                        embed=TextEmbed(
-                            f"There are no commands matching _{cmd_name}_. Use </help:964753444164501505> for a list of available commands"
-                        )
-                    )
-                    return
+        # the exact match has been found
+        name = cmd.qualified_name
+        full_desc = cmd.description
+        if long_help := getattr(cmd, "long_help", None):
+            full_desc += f"\n{long_help}"
+        if notes := getattr(cmd, "notes", None):
+            for note in notes:
+                full_desc += f"\n- {note}"
+        if cmd.children:
+            # this command has subcommands, send a list of the subcommands
+            view = HelpView(interaction, cmd_list=self.get_all_subcommands(cmd), with_select_menu=False)
+            await view.send(
+                description=f"{full_desc}\n\n",
+                author_name=f"Subcommands of /{name}",
+            )
+        else:
+            # this command does not have subcommands,
+            # send values of the command itself
+            embed = Embed()
+            embed.title = cmd.get_mention(interaction.guild)
+            embed.description = full_desc
+            embed.colour = EmbedColour.INFO
+            embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
 
-                # at least 1 command has been found, send the view with the command list
-                view = HelpView(interaction, cmd_list=cmds, with_select_menu=False)
-                await view.send(author_name=f"Commands matching '{cmd_name}'")
-            else:  # search for exact matches since the user is likely to have selected it from autocomplete
-                cmd = None
-
-                for i in interaction.client.get_all_application_commands():
-                    # search for the command name
-                    if i.is_global or interaction.guild_id in i.guild_ids:  # command is available to user
-                        if i.name == cmd_name:  # matched exact command
-                            cmd = i
-                            break
-                        elif i.children and i.qualified_name in cmd_name:  # subcommand
-                            try:
-                                cmd = self.search_subcommand(i, cmd_name)
-                            except helpers.CommandNotFound:
-                                continue
-                            else:
-                                break
-
-                if cmd is None:  # no exact match of command
-                    await interaction.send(
-                        embed=TextEmbed(
-                            "The command is not found! Use </help:964753444164501505> for a list of available commands."
-                        )
-                    )
-                    return
-
-                # the exact match has been found
-                name = cmd.qualified_name
-                if len(cmd.children) > 0:
-                    # this command has subcommands, send a list of the subcommands
-                    view = HelpView(interaction, cmd_list=cmd.children.values(), with_select_menu=False)
-                    await view.send(
-                        description=f"> {cmd.description}\n\n",
-                        author_name=f"Subcommands of /{name}",
-                    )
+            # show all options of the command and add a field to the embed
+            option_msg = []
+            for name, option in cmd.options.items():
+                if option.required:
+                    option_msg.append(f"<{name}>")
                 else:
-                    # this command does not have subcommands,
-                    # send values of the command itself
-                    embed = Embed()
-                    embed.title = f"</{name}:{list(cmd.command_ids.values())[0]}>"
-                    embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
+                    option_msg.append(f"[{name}]")
+            usage = f"`/{name} {' '.join(option_msg)}`"
+            embed.add_field(name="Usage", value=usage, inline=False)
 
-                    embed.description = cmd.description
-                    if long_help := getattr(cmd, "long_help", None):
-                        embed.description += f"\n\n{long_help}"
-                    if notes := getattr(cmd, "notes", None):
-                        for note in notes:
-                            embed.description += f"\n- {note}"
+            # add an "examples" field showing how to use the command
+            if examples := getattr(cmd, "examples", None):
+                example_txt = ""
+                for syntax, description in examples.items():
+                    example_txt += f"`/{syntax}`\n<:reply:1117458829869858917> {description}\n"
+                embed.add_field(name="Examples", value=example_txt, inline=False)
 
-                    # show all options of the command and add a field to the embed
-                    cmd_options = [i for i in list(cmd.options.values())]
-                    usage = f"`/{name} "
-                    for option in cmd_options:
-                        if option.required:
-                            usage += f"<{option.name}> "
-                        else:
-                            usage += f"[{option.name}] "
-                    usage = usage[:-1]  # remove the last space
-                    usage += "`"  # make it monospace
-                    embed.add_field(name="Usage", value=usage, inline=False)
-
-                    # add an "examples" field showing how to use the command
-                    if examples := getattr(cmd, "examples", None):
-                        example_txt = ""
-                        for syntax, description in examples.items():
-                            example_txt += f"`/{syntax}`\n<:reply:1117458829869858917> {description}\n"
-                        embed.add_field(name="Examples", value=example_txt, inline=False)
-
-                    embed.set_footer(text="Syntax: <required> [optional]")
-                    embed.colour = EmbedColour.INFO
-                    await interaction.send(embed=embed)
+            embed.set_footer(text="Syntax: <required> [optional]")
+            await interaction.send(embed=embed)
 
     @nextcord.slash_command(description="Get help navigating the wasteland with BOSS's guide.")
     @command_info(
@@ -259,6 +212,9 @@ class Utility(commands.Cog, name="Survival Guide"):
         await interaction.send(embed=TextEmbed("Updated your settings!"))
 
     @nextcord.slash_command(description="Manage your macros - tools to run commands automatically.")
+    @command_info(
+        long_help="To see more info on how to use macros, use </guide:1102561144327127201> and select the page about macros."
+    )
     async def macro(self, interaction: Interaction):
         pass
 
