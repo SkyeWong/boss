@@ -197,14 +197,14 @@ class ShowMacrosView(BaseView):
 
         async def delete_macro(button: Button, btn_inter: Interaction):
             # Delete the macro from the user's list
-            macro_id = self.macro_ids.pop(self.current_page)  # local list
+            self.macro_ids.remove(macro_to_delete)  # local list
             await interaction.client.db.execute(  # foreign (database) list
                 """
                 DELETE FROM players.macro_players
                 WHERE player_id = $1 AND macro_id = $2 
                 """,
                 interaction.user.id,
-                macro_id,
+                macro_to_delete,
             )
             # Delete the confirmation message
             msg = await interaction.original_message()
@@ -223,10 +223,11 @@ class ShowMacrosView(BaseView):
                     m.macro_id = $1 AND 
                     (SELECT COUNT(*) FROM players.macro_players AS mp WHERE mp.macro_id = $1) = 0
                 """,
-                macro_id,
+                macro_to_delete,
             )
 
         name, cmds = await self._get_macro()
+        macro_to_delete = self.macro_ids[self.current_page]
         # Send a message to let users confirm/cancel deleting the macro
         embed = TextEmbed(f"Remove the marco **{name}**?")
         view = ConfirmView(

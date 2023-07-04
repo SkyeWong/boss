@@ -81,7 +81,6 @@ class RecordMacroView(BaseView):
                 colour=EmbedColour.DEFAULT,
             )
         )
-        return record_macro_view
 
     async def _get_embed(self, interaction: Interaction):
         """Returns an embed showing the recorded commands currently"""

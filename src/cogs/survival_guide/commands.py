@@ -144,31 +144,35 @@ class Utility(commands.Cog, name="Survival Guide"):
         else:
             # this command does not have subcommands,
             # send values of the command itself
-            embed = Embed()
-            embed.title = cmd.get_mention(interaction.guild)
-            embed.description = full_desc
-            embed.colour = EmbedColour.INFO
-            embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
-
-            # show all options of the command and add a field to the embed
-            option_msg = []
-            for name, option in cmd.options.items():
-                if option.required:
-                    option_msg.append(f"<{name}>")
-                else:
-                    option_msg.append(f"[{name}]")
-            usage = f"`/{name} {' '.join(option_msg)}`"
-            embed.add_field(name="Usage", value=usage, inline=False)
-
-            # add an "examples" field showing how to use the command
-            if examples := getattr(cmd, "examples", None):
-                example_txt = ""
-                for syntax, description in examples.items():
-                    example_txt += f"`/{syntax}`\n<:reply:1117458829869858917> {description}\n"
-                embed.add_field(name="Examples", value=example_txt, inline=False)
-
-            embed.set_footer(text="Syntax: <required> [optional]")
+            embed = self._get_command_embed(interaction, cmd, full_desc)
             await interaction.send(embed=embed)
+
+    def _get_command_embed(self, interaction, cmd, full_desc):
+        embed = Embed()
+        embed.title = cmd.get_mention(interaction.guild)
+        embed.description = full_desc
+        embed.colour = EmbedColour.INFO
+        embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.display_avatar.url)
+
+        # show all options of the command and add a field to the embed
+        option_msg = []
+        for name, option in cmd.options.items():
+            if option.required:
+                option_msg.append(f"<{name}>")
+            else:
+                option_msg.append(f"[{name}]")
+        usage = f"`/{name} {' '.join(option_msg)}`"
+        embed.add_field(name="Usage", value=usage, inline=False)
+
+        # add an "examples" field showing how to use the command
+        if examples := getattr(cmd, "examples", None):
+            example_txt = ""
+            for syntax, description in examples.items():
+                example_txt += f"`/{syntax}`\n<:reply:1117458829869858917> {description}\n"
+            embed.add_field(name="Examples", value=example_txt, inline=False)
+
+        embed.set_footer(text="Syntax: <required> [optional]")
+        return embed
 
     @nextcord.slash_command(description="Get help navigating the wasteland with BOSS's guide.")
     @command_info(
