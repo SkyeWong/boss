@@ -311,7 +311,7 @@ class RecordMacroView(BaseView):
             await self.latest_msg.delete()
 
     async def interaction_check(self, interaction: Interaction) -> bool:
-        if not self.latest_msg.id == interaction.message.id:
+        if self.latest_msg.id != interaction.message.id:
             await interaction.send(
                 embed=TextEmbed("The macro message is outdated. Check the most recent one."),
                 ephemeral=True,

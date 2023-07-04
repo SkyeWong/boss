@@ -33,7 +33,7 @@ class MazeItem:
     spawn_chance = 0
 
     def __init__(self, view, x, y) -> None:
-        view = view
+        self.view = view
         self.x = x
         self.y = y
 
@@ -83,7 +83,7 @@ class Pill(MazeItem):
 
     async def use(self, *, view, interaction: Interaction, quantity: int = 1):
         player = view.player
-        player.hp += sum([random.randint(12, 20) for i in range(quantity)])
+        player.hp += sum(random.randint(12 * quantity, 20 * quantity))
         player.hp = 100 if player.hp > 100 else player.hp
         embed = view.get_embed()
         await view.update_msg(embed=embed)

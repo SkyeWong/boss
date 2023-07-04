@@ -249,7 +249,7 @@ class Fun(commands.Cog, name="Survivor's Playground"):
 
             fields = [i.name for i in dataclasses.fields(TriviaQuestion)]
             for i in question_res.copy():
-                if not i in fields:
+                if i not in fields:
                     question_res.pop(i)
             try:
                 question = TriviaQuestion(**question_res)

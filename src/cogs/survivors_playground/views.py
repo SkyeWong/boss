@@ -29,22 +29,22 @@ class FightView(BaseView):
     def _next_round(self):
         self._round += 1
 
-    def get_round(self):
+    def get_turn(self):
         return self._round % 2
 
     def get_embed(self):
         embed = Embed()
         embed.set_author(name="Fight ⚔️")
 
-        embed.description = f"`{self.players[self.get_round()].user.name}`'s round"
+        embed.description = f"`{self.players[self.get_turn()].user.name}`'s round"
         for player in self.players:
             embed.add_field(name=player.user.name, value=player.hp)
         return embed
 
     @button(emoji="👊🏻", style=nextcord.ButtonStyle.blurple)
     async def hit(self, button: Button, interaction: Interaction):
-        round = self.get_round()
-        enemy = self.players[round - 1]
+        turn = self.get_turn()
+        enemy = self.players[turn - 1]
         enemy.hp -= random.randint(25, 50)
 
         msg: nextcord.Message = self.msg
@@ -52,7 +52,7 @@ class FightView(BaseView):
             enemy.hp = 0
             button.disabled = True
             await msg.edit(
-                content=f"{self.players[round].user.name} won!",
+                content=f"{self.players[turn].user.name} won!",
                 embed=self.get_embed(),
                 view=self,
             )
@@ -62,7 +62,7 @@ class FightView(BaseView):
         await msg.edit(embed=self.get_embed())
 
     async def interaction_check(self, interaction: Interaction) -> bool:
-        if interaction.user == self.players[self.get_round()].user:
+        if interaction.user == self.players[self.get_turn()].user:
             return True
         elif [player for player in self.players if player.user == interaction.user]:
             await interaction.send("It is not your round yet!", ephemeral=True)

@@ -25,7 +25,7 @@ def rounddown(number: int, round_to: int) -> int:
     return number if number % round_to == 0 else number - number % round_to
 
 
-def check_if_not_dev_guild(*args, **kwargs) -> bool:
+def check_if_not_dev_guild(*args, **_) -> bool:
     return args[1].guild is not None and args[1].guild.id != constants.DEVS_SERVER_ID
 
 
@@ -422,7 +422,7 @@ class BossItem:
             return self.id == other.id
         if isinstance(other, int):
             return self.id == other
-        raise NotImplementedError
+        return NotImplemented
 
     def __mul__(self, other):
         """
@@ -439,7 +439,7 @@ class BossItem:
             BossItem: A new BossItem instance with a quantity equal to the current quantity multiplied by the scalar value.
         """
         if not isinstance(other, (int, float)):
-            raise NotImplementedError(f"`other` must be type int or float, not {other.__class__}")
+            return NotImplemented
         return self.__class__(self.id, round(self.quantity * other), self._name, self._emoji)
 
     def __repr__(self):

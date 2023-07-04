@@ -19,8 +19,6 @@ class MazeEnemy:
     """Represents an enemy in the maze. Could be zombies, and other stuffs that i havent thought of."""
 
     def __init__(self, view, x: int, y: int):
-        # self.hp = 100
-        # self.direction = 0
         self.x = x
         self.y = y
         self.view = view
@@ -32,12 +30,6 @@ class MazeEnemy:
                 "<:karson:1004400450117836850>",
             ]
         )
-
-    # def start_moving(self):
-    #     self.moving = True
-
-    # def stop_moving(self):
-    #     self.moving = False
 
     def get_all_possible_routes(self):
         player = self.view.player
@@ -67,7 +59,6 @@ class MazeEnemy:
         return adjacent_cells
 
     def remove_unwalkable_cells(self, cells: list[Cell]):
-        player = self.view.player
         maze_map = self.view.maze_map
 
         filtered_cells = []

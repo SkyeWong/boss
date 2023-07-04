@@ -16,7 +16,7 @@ import googleapiclient.discovery
 import datetime
 from typing import Optional, Literal
 import enum
-import random
+import os
 import math
 import re
 
@@ -360,7 +360,7 @@ class Video:
                 # No match for this unit: it's absent
                 duration_vals.update({sep.lower(): 0})
 
-        duration = " ".join([f"{value}{unit}" for unit, value in duration_vals.items() if not value == 0])
+        duration = " ".join([f"{value}{unit}" for unit, value in duration_vals.items()])
 
         views = video_response["statistics"].get("viewCount", 0)
         likes = video_response["statistics"].get("likeCount", 0)
@@ -531,7 +531,7 @@ class VideoView(BaseView):
     async def show_video_list(self, interaction: Interaction, type: Literal["prev", "next"]):
         api_service_name = "youtube"
         api_version = "v3"
-        dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
+        dev_key = os.getenv("GOOGLE_API_KEY")
 
         youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
         search_response = (
@@ -591,7 +591,7 @@ class ChannelVideoView(VideoView):
     async def show_video_list(self, interaction: Interaction, type: Literal["prev", "next"]):
         api_service_name = "youtube"
         api_version = "v3"
-        dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
+        dev_key = os.getenv("GOOGLE_API_KEY")
 
         youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
         playlist_response = (
@@ -784,7 +784,6 @@ class Train:
         for train_type, trains_res in trains.items():
             for index, train in enumerate(trains_res):
                 destination_code = train["dest"]
-                # destination_name = [name for name, code in LINE_STATION_CODES[line].items() if code == destination_code][0]
                 sequence = train["seq"]
                 platform = train["plat"]
                 via_racecourse = bool(train.get("route"))

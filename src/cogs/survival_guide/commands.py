@@ -216,6 +216,7 @@ class Utility(commands.Cog, name="Survival Guide"):
         long_help="To see more info on how to use macros, use </guide:1102561144327127201> and select the page about macros."
     )
     async def macro(self, interaction: Interaction):
+        # The parent command of a subcommand will never be called
         pass
 
     async def choose_macro_autocomplete(self, interaction: Interaction, data: str):

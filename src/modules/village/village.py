@@ -26,7 +26,7 @@ class TradeView(BaseView):
     def __init__(self, interaction: Interaction):
         super().__init__(interaction, timeout=60)
         self.villagers: list[Villager] = []
-        self.current_villager: Villager = None
+        self.current_villager: Villager | None = None
         self.current_index = 0
         self.msg: nextcord.Message = None
 
@@ -236,8 +236,8 @@ class TradeView(BaseView):
 
         async def modal_callback(modal_interaction: Interaction):
             await modal_interaction.response.defer()
-            input = [i for i in modal.children if i.custom_id == "input"][0]
-            quantity: str = input.value
+            text_input = [i for i in modal.children if i.custom_id == "input"][0]
+            quantity: str = text_input.value
             if re.search(r"\D", quantity):
                 await modal_interaction.send(embed=TextEmbed("That's not a number."), ephemeral=True)
             else:

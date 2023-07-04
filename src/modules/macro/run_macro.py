@@ -217,7 +217,7 @@ class RunMacroView(BaseView):
             return False
 
         # check if the button the user clicked is the lastest message
-        if not self.latest_msg.id == interaction.message.id:
+        if self.latest_msg.id != interaction.message.id:
             await interaction.send(
                 embed=TextEmbed("The macro message is outdated. Check the most recent one or restart it."),
                 ephemeral=True,

@@ -1,7 +1,14 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands
-from nextcord import Embed, Interaction, SlashOption, ButtonStyle
+from nextcord import (
+    Embed,
+    Interaction,
+    SlashOption,
+    ButtonStyle,
+    SlashApplicationCommand as SlashCmd,
+    SlashApplicationSubcommand as SlashSubcmd,
+)
 from nextcord.ui import View, Button
 
 # database
@@ -29,6 +36,7 @@ from datetime import datetime
 import random
 from collections import defaultdict
 import json
+from typing import Union
 
 
 class DevOnly(commands.Cog, name="Developer Dashboard"):
@@ -444,7 +452,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         embed.add_field(
             name="Quantites",
             inline=False,
-            value="```diff\n" f"- {quantities['old']}\n" f"+ {quantities['new']}\n" "```",
+            value="```diff\n" f"- {quantities['old']}\n+ {quantities['new']}\n" "```",
         )
         embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
         await interaction.send(embed=embed)
@@ -794,18 +802,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         view = ConfirmChangelogEdit(interaction, message, embed)
         await interaction.send(embed=view.embed, view=view)
 
-    def get_all_subcmd_names(
-        self,
-        cmd: nextcord.SlashApplicationCommand | nextcord.SlashApplicationSubcommand,
-    ):
-        cmd_names = []
-        for subcmd in cmd.children.values():
-            if subcmd.children:
-                return self.get_all_subcmd_names(subcmd)
-            else:
-                cmd_names.append(subcmd.qualified_name)
-        return cmd_names
-
     async def choose_base_commands_autocomplete(self, interaction: Interaction, data: str):
         client: nextcord.Client = interaction.client
         cmds = client.get_all_application_commands()
@@ -855,12 +851,12 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         embed.title = f"</{command.qualified_name}:{command_id}>"
 
         embed.description = (
-            f"> ID: `{command_id}`\n" f"> Mention syntax: <\/{command.qualified_name}:{command_id}>"
+            f"> ID: `{command_id}`\n> Mention syntax: <\/{command.qualified_name}:{command_id}>"
             if not command.children
             else ""
         )  # only show base command mention syntax if it has no subcommands
 
-        subcmd_names = self.get_all_subcmd_names(interaction.guild_id, command)
+        subcmd_names = [i.qualified_name for i in self.get_all_subcommands(command)]
         if subcmd_names:
             embed.add_field(
                 name="Subcommands",
@@ -907,36 +903,31 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                         return self.search_subcommand(x, cmd_name)
         return cmd_found, cmd
 
-    def get_all_subcmd_names(self, guild_id: int, cmd):
+    def get_all_subcommands(self, cmd: Union[SlashCmd, SlashSubcmd]) -> list[SlashCmd, SlashSubcmd]:
+        """Get all subcommand names of a command."""
         cmd_names = []
         for subcmd in cmd.children.values():
-            base_cmd = cmd
-            while not isinstance(base_cmd, nextcord.SlashApplicationCommand):
-                base_cmd = base_cmd.parent_cmd
-            cmd_in_guild = False
-            if base_cmd.is_global:
-                cmd_in_guild = True
-            elif guild_id in base_cmd.guild_ids:
-                cmd_in_guild = True
-            if cmd_in_guild == True:
-                cmd_names.append(subcmd.qualified_name)
-            if len(subcmd.children) > 0:
-                cmd_names.extend(self.get_all_subcmd_names(guild_id, subcmd))
+            if subcmd.children:
+                cmd_names.extend(self.get_all_subcommands(subcmd))
+            else:
+                cmd_names.append(subcmd)
         return cmd_names
 
-    async def choose_all_commands_autocomplete(self, interaction: Interaction, data: str):
-        base_cmds = interaction.client.get_all_application_commands()
+    async def choose_command_autocomplete(self, interaction: Interaction, data: str) -> list[str]:
+        """
+        Return every command and subcommand in the bot.
+        Returns command that match `data` if it is provided.
+        """
+        client: nextcord.Client = interaction.client
+        cmds = [i for i in client.get_all_application_commands() if isinstance(i, SlashCmd)]
+
         cmd_names = []
-        for base_cmd in base_cmds:
-            cmd_in_guild = False
-            if base_cmd.is_global:
-                cmd_in_guild = True
-            elif interaction.guild_id in base_cmd.guild_ids:
-                cmd_in_guild = True
-            if cmd_in_guild == True:
-                cmd_names.append(base_cmd.name)
-            if hasattr(base_cmd, "children") and len(base_cmd.children) > 0:
-                cmd_names.extend(self.get_all_subcmd_names(interaction.guild_id, base_cmd))
+        for cmd in cmds:
+            if cmd.is_global or interaction.guild_id in cmd.guild_ids:
+                cmd_names.append(cmd.qualified_name)
+                if cmd.children:
+                    cmd_names.extend([i.qualified_name for i in self.get_all_subcommands(cmd)])
+
         cmd_names.sort()
         if not data:
             # return full list
@@ -946,6 +937,27 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             near_items = [cmd for cmd in cmd_names if data.lower() in cmd.lower()]
             await interaction.response.send_autocomplete(near_items[:25])
 
+    def parse_command(self, interaction: Interaction, cmd_name: str):
+        client: nextcord.Client = interaction.client
+        all_cmds = [i for i in client.get_all_application_commands() if isinstance(i, SlashCmd)]
+
+        cmd_list = cmd_name.split()
+        for item in cmd_list:
+            cmd = next((i for i in all_cmds if i.name == item), None)
+            if cmd is None:
+                raise helpers.CommandNotFound()
+            if isinstance(cmd, SlashCmd):
+                base_cmd = cmd
+            all_cmds = cmd.children.values()
+
+        if cmd.qualified_name != cmd_name:
+            raise helpers.CommandNotFound()
+
+        if not base_cmd.is_global and interaction.guild_id not in base_cmd.guild_ids:
+            raise helpers.CommandNotFound()
+
+        return cmd
+
     @nextcord.slash_command(name="disable-global", guild_ids=[constants.DEVS_SERVER_ID])
     async def disable_global(
         self,
@@ -953,7 +965,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         command: str = SlashOption(
             description="The command to disable",
             required=True,
-            autocomplete_callback=choose_all_commands_autocomplete,
+            autocomplete_callback=choose_command_autocomplete,
         ),
         duration_str: str = SlashOption(
             name="duration",
@@ -977,98 +989,78 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         ),
     ):
         """Disable a command globally"""
-        mapping = helpers.get_mapping(interaction, self.bot)
-
-        command = command.strip()
-        cmd_found = False
-        for cog, commands in mapping.values():
-            for i in commands:
-                cmd_in_guild = False
-                if i.is_global:
-                    cmd_in_guild = True
-                elif interaction.guild_id in i.guild_ids:
-                    cmd_in_guild = True
-                if cmd_in_guild:
-                    if i.name == command:
-                        cmd_found = True
-                        cmd = i
-                        break
-                    else:
-                        if hasattr(i, "children") and len(i.children) > 0:
-                            cmd_found, cmd = self.search_subcommand(i, command)
-                            if cmd_found:
-                                break
-            if cmd_found:
-                break
-
-        if cmd_found:
-            until = None
-
-            if duration_str:
-                cal = pdt.Calendar()
-                result = cal.parse(duration_str)
-
-                until = datetime(*result[0][:6])
-
-            db: Database = self.bot.db
-
-            embed = Embed(title="Successfully disabled the command!")
-            embed.description = f"{helpers.format_with_link('Command')} - "
-
-            if cmd.children:
-                await db.executemany(
-                    """
-                    INSERT INTO utility.disabled_commands (command_name, until, reason, extra_info)
-                    VALUES ($1, $2, $3, $4)
-                    ON CONFLICT(command_name) DO UPDATE
-                        SET until = excluded.until,
-                            reason = excluded.reason,
-                            extra_info = excluded.extra_info
-                    """,
-                    [
-                        (subcommand.qualified_name, until, reason, extra_info)
-                        for subcommand in list(cmd.children.values())
-                    ],
+        try:
+            cmd = self.parse_command(interaction, command)
+        except helpers.CommandNotFound:
+            await interaction.send(
+                embed=TextEmbed(
+                    "The command is not found! Use </help:964753444164501505> for a list of available commands.",
+                    EmbedColour.WARNING,
                 )
+            )
+            return
 
-                embed.description += ", ".join(
-                    [
-                        f"</{subcommand.qualified_name}:{list(subcommand.command_ids.values())[0]}>"
-                        for subcommand in list(cmd.children.values())
-                    ]
-                )
+        until = None
+        if duration_str:
+            cal = pdt.Calendar()
+            result = cal.parse(duration_str)
 
-            else:
-                await db.execute(
-                    """
-                    INSERT INTO utility.disabled_commands (command_name, until, reason, extra_info)
-                    VALUES ($1, $2, $3, $4)
-                    ON CONFLICT(command_name) DO UPDATE
-                        SET until = excluded.until,
-                            reason = excluded.reason,
-                            extra_info = excluded.extra_info
-                    """,
-                    cmd.qualified_name,
-                    until,
-                    reason,
-                    extra_info,
-                )
-                embed.description += f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
+            until = datetime(*result[0][:6])
 
-            if until:
-                until_ts = int(until.timestamp())
-                embed.description += f"\n{helpers.format_with_link('Until')} - <t:{until_ts}:F> • <t:{until_ts}:R>"
-            else:
-                embed.description += f"\n{helpers.format_with_link('Until')} - forever"
+        db: Database = self.bot.db
 
-            embed.description += (
-                f"\n{helpers.format_with_link('Reason')} - {reason}"
-                f"\n{helpers.format_with_link('Extra info')} - {extra_info}"
+        embed = Embed(title="Successfully disabled the command!")
+        embed.description = f"{helpers.format_with_link('Command')} - "
+
+        if cmd.children:
+            await db.executemany(
+                """
+                INSERT INTO utility.disabled_commands (command_name, until, reason, extra_info)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT(command_name) DO UPDATE
+                    SET until = excluded.until,
+                        reason = excluded.reason,
+                        extra_info = excluded.extra_info
+                """,
+                [(subcommand.qualified_name, until, reason, extra_info) for subcommand in list(cmd.children.values())],
             )
 
-            await interaction.send(embed=embed)
+            embed.description += ", ".join(
+                [
+                    f"</{subcommand.qualified_name}:{list(subcommand.command_ids.values())[0]}>"
+                    for subcommand in list(cmd.children.values())
+                ]
+            )
+
         else:
-            await interaction.send(embed=Embed("The command is not found!"))
+            await db.execute(
+                """
+                INSERT INTO utility.disabled_commands (command_name, until, reason, extra_info)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT(command_name) DO UPDATE
+                    SET until = excluded.until,
+                        reason = excluded.reason,
+                        extra_info = excluded.extra_info
+                """,
+                cmd.qualified_name,
+                until,
+                reason,
+                extra_info,
+            )
+            embed.description += f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
+
+        if until:
+            until_ts = int(until.timestamp())
+            embed.description += f"\n{helpers.format_with_link('Until')} - <t:{until_ts}:F> • <t:{until_ts}:R>"
+        else:
+            embed.description += f"\n{helpers.format_with_link('Until')} - forever"
+
+        embed.description += (
+            f"\n{helpers.format_with_link('Reason')} - {reason}"
+            f"\n{helpers.format_with_link('Extra info')} - {extra_info}"
+        )
+
+        await interaction.send(embed=embed)
 
     @nextcord.slash_command(name="enable-global", guild_ids=[constants.DEVS_SERVER_ID])
     async def enable_global(
@@ -1077,67 +1069,50 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         command: str = SlashOption(
             description="The command to enable",
             required=True,
-            autocomplete_callback=choose_all_commands_autocomplete,
+            autocomplete_callback=choose_command_autocomplete,
         ),
     ):
         """Enable a command globally"""
-        mapping = helpers.get_mapping(interaction, self.bot)
-
-        command = command.strip()
-        cmd_found = False
-        for cog, commands in mapping.values():
-            for i in commands:
-                cmd_in_guild = False
-                if i.is_global:
-                    cmd_in_guild = True
-                elif interaction.guild_id in i.guild_ids:
-                    cmd_in_guild = True
-                if cmd_in_guild:
-                    if i.name == command:
-                        cmd_found = True
-                        cmd = i
-                        break
-                    else:
-                        if hasattr(i, "children") and len(i.children) > 0:
-                            cmd_found, cmd = self.search_subcommand(i, command)
-                            if cmd_found:
-                                break
-            if cmd_found:
-                break
-
-        if cmd_found:
-            db: Database = self.bot.db
-            embed = Embed(title="Successfully enabled the command!")
-            embed.description = f"{helpers.format_with_link('Command')} - "
-
-            if cmd.children:
-                await db.executemany(
-                    """
-                    DELETE FROM utility.disabled_commands 
-                    WHERE command_name = $1
-                    """,
-                    [(subcommand.qualified_name,) for subcommand in list(cmd.children.values())],
+        try:
+            cmd = self.parse_command(interaction, command)
+        except helpers.CommandNotFound:
+            await interaction.send(
+                embed=TextEmbed(
+                    "The command is not found! Use </help:964753444164501505> for a list of available commands.",
+                    EmbedColour.WARNING,
                 )
+            )
+            return
+        db: Database = self.bot.db
+        embed = Embed(title="Successfully enabled the command!")
+        embed.description = f"{helpers.format_with_link('Command')} - "
 
-                embed.description += ", ".join(
-                    [
-                        f"</{subcommand.qualified_name}:{list(subcommand.command_ids.values())[0]}>"
-                        for subcommand in list(cmd.children.values())
-                    ]
-                )
+        if cmd.children:
+            await db.executemany(
+                """
+                DELETE FROM utility.disabled_commands 
+                WHERE command_name = $1
+                """,
+                [(subcommand.qualified_name,) for subcommand in list(cmd.children.values())],
+            )
 
-            else:
-                await db.execute(
-                    """
-                    DELETE FROM utility.disabled_commands 
-                    WHERE command_name = $1
-                    """,
-                    cmd.qualified_name,
-                )
-                embed.description += f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
-            await interaction.send(embed=embed)
+            embed.description += ", ".join(
+                [
+                    f"</{subcommand.qualified_name}:{list(subcommand.command_ids.values())[0]}>"
+                    for subcommand in list(cmd.children.values())
+                ]
+            )
+
         else:
-            await interaction.send(embed=Embed("The command is not found!"))
+            await db.execute(
+                """
+                DELETE FROM utility.disabled_commands 
+                WHERE command_name = $1
+                """,
+                cmd.qualified_name,
+            )
+            embed.description += f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>"
+        await interaction.send(embed=embed)
 
     @nextcord.slash_command(name="reload-villagers", guild_ids=[constants.DEVS_SERVER_ID])
     async def reload_villagers(self, interaction: Interaction):

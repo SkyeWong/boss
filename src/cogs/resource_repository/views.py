@@ -113,7 +113,7 @@ async def _get_farm_embed_and_img(
         # add a small label in bottom right corner of crop if `label_crops` is True
         if label_crops:
             crop_draw = ImageDraw.Draw(tile_img)
-            label = f"{ascii_uppercase[index // farm_width]}" f"{index % farm_width + 1}"  # example label: A1
+            label = f"{ascii_uppercase[index // farm_width]}{index % farm_width + 1}"  # example label: A1
 
             font = ImageFont.truetype("resources/font/font.ttf", 24)
             txt_width, txt_height = font.getsize(label)
@@ -149,10 +149,10 @@ async def _get_farm_embed_and_img(
     farm_img.save(output, format="PNG")
     output.seek(0)
 
-    file = nextcord.File(output, "farm.png")
+    farm_img_file = nextcord.File(output, "farm.png")
     embed.set_image("attachment://farm.png")
 
-    return dict(embed=embed, file=file)
+    return dict(embed=embed, file=farm_img_file)
 
 
 class FarmView(BaseView):
@@ -287,9 +287,6 @@ class FarmView(BaseView):
 
         await interaction.send(embed=embed, ephemeral=True)
 
-    async def upgrade_farm(self, new_width, new_height):
-        pass
-
     @button(label="Upgrade")
     async def upgrade_farm_btn(self, button: Button, interaction: Interaction):
         """Increase the user's farm size."""
@@ -376,9 +373,7 @@ class PlantView(BaseView):
 
         for index, crop in enumerate(self.farm):
             if crop is None:  # check if the tile is empty
-                label = (
-                    f"{ascii_uppercase[index // self.farm_width]}" f"{index % self.farm_width + 1}"
-                )  # example label: A1
+                label = f"{ascii_uppercase[index // self.farm_width]}{index % self.farm_width + 1}"  # example label: A1
                 crops_select.options.append(
                     SelectOption(
                         label=label,
@@ -633,9 +628,7 @@ class HarvestView(BaseView):
 
         for index, crop in enumerate(self.farm):
             if crop is not None:
-                label = (
-                    f"{ascii_uppercase[index // self.farm_width]}" f"{index % self.farm_width + 1}"
-                )  # example label: A1
+                label = f"{ascii_uppercase[index // self.farm_width]}{index % self.farm_width + 1}"  # example label: A1
                 crops_select.options.append(
                     SelectOption(
                         label=label,

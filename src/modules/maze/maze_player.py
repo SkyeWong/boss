@@ -22,7 +22,7 @@ class MazePlayer:
         self.inventory = {"food": [], "pill": [], "drill": []}
 
         for name, items in self.inventory.items():
-            items.extend([ITEMS[name](view, 0, 0) for i in range(INITIAL_INVENTORY[name])])
+            items.extend([ITEMS[name](view, 0, 0)] * len(INITIAL_INVENTORY[name]))
 
         self.direction = 2
 
@@ -69,7 +69,7 @@ class MazePlayer:
         x = self.x
         y = self.y
 
-        # MAZE_DIRECTIONS = ["⬆️", "⬅️", "⬇️", "➡️"]
+        # the maze directions are ["⬆️", "⬅️", "⬇️", "➡️"]
 
         if self.direction == 0:  # up
             y -= num_of_cells
@@ -92,7 +92,6 @@ class MazePlayer:
         return False
 
     def move(self):
-        # MAZE_DIRECTIONS = ["⬆️", "⬅️", "⬇️", "➡️"]
         x, y = self.get_new_position()
         if self.check_postion_valid(x, y):
             self.x = x

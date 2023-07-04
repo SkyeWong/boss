@@ -46,7 +46,7 @@ class Enum(enum.Enum):
     def try_value(cls, value):
         try:
             return cls(value)
-        except:
+        except ValueError:
             return value
 
     @classmethod

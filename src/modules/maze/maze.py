@@ -78,7 +78,7 @@ class MazeButton(Button["Maze"]):
 
         player = self.player
 
-        # MAZE_DIRECTIONS = ["⬆️", "⬅️", "⬇️", "➡️"]
+        # the maze directions are ["⬆️", "⬅️", "⬇️", "➡️"]
 
         embed = None
 
@@ -277,10 +277,10 @@ class Maze(BaseView):
         self.items = []
         MAX_NUM_OF_ITEMS = 25
 
-        for i in range(MAX_NUM_OF_ITEMS):
+        for _ in range(MAX_NUM_OF_ITEMS):
             self.spawn_item()
 
-        for i in range(MAX_NUM_OF_ENEMIES):
+        for _ in range(MAX_NUM_OF_ENEMIES):
             self.spawn_enemy()
 
         self.cam_width = 10
@@ -534,7 +534,7 @@ class Maze(BaseView):
                 self.updating = True
                 try:
                     await self.message.edit(view=self, **kwargs)
-                except:
+                except nextcord.errors.NotFound:  # the message is deleted
                     self.on_timeout()
                     return
                 else:
@@ -556,7 +556,7 @@ class InvView(View):
         super().__init__()
         self.maze = maze
         self.inventory = maze.player.inventory
-        self.item: MazeItem = None
+        self.item: MazeItem | None = None
 
         item_select = [i for i in self.children if i.custom_id == "choose_item"][0]
         options = []
@@ -639,8 +639,8 @@ class InvView(View):
     @button(label="Use custom amount", style=ButtonStyle.blurple, disabled=True, custom_id="use_custom")
     async def use_custom_item(self, button: Button, interaction: Interaction):
         async def modal_callback(modal_interaction: Interaction):
-            input = [i for i in modal.children if i.custom_id == "input"][0]
-            quantity: str = input.value
+            text_input = [i for i in modal.children if i.custom_id == "input"][0]
+            quantity: str = text_input.value
             if re.search(r"\D", quantity):
                 await modal_interaction.send(embed=TextEmbed("That's not a number."), ephemeral=True)
             else:

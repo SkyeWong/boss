@@ -192,6 +192,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         pass
 
     @farm.before_invoke
+    @staticmethod
     async def create_farm(interaction: Interaction):
         # if the user hasn't started his/her farm, then we need to insert his/her record into the table
         # if the user has already started farming, then do nothing (ON CONFLICT DO NOTHING)
@@ -1038,6 +1039,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
 
     @vault.before_invoke
+    @staticmethod
     async def vault_before_invoke(interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
 
@@ -1280,7 +1282,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             try:
                 amount = amount.removesuffix("%")
                 amount = float(amount) if "." in amount else int(amount)
-            except:
+            except ValueError:
                 await interaction.send(embed=TextEmbed("That is not a valid relative keyword (eg 50%)."))
                 return
             if amount > 100 or amount <= 0:
@@ -1322,7 +1324,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             try:
                 amount = amount.removesuffix("%")
                 amount = float(amount) if "." in amount else int(amount)
-            except:
+            except ValueError:
                 await interaction.send(embed=TextEmbed("That is not a valid relative keyword (eg 50%)."))
                 return
             if amount > 100 or amount <= 0:

@@ -124,7 +124,7 @@ class EditItemModal(Modal):
                     value = self.item[column_name]
                 value = str(value)
 
-                input = TextInput(
+                text_input = TextInput(
                     label=column_name,
                     # if the column is description set the style to `paragraph`
                     style=nextcord.TextInputStyle.paragraph
@@ -134,11 +134,11 @@ class EditItemModal(Modal):
                 )
 
                 # add the input to list of children of `nextcord.ui.Modal`
-                self.inputs[column_name] = input
-                self.add_item(input)
+                self.inputs[column_name] = text_input
+                self.add_item(text_input)
         if other_attributes:
             # add the "other_attributes" input
-            input = TextInput(
+            text_input = TextInput(
                 label="Other attributes (in JSON format)",
                 # if the column is description set the style to `paragraph`
                 style=nextcord.TextInputStyle.paragraph,
@@ -146,8 +146,8 @@ class EditItemModal(Modal):
                 required=False,
             )
             # add the input to list of children of `nextcord.ui.Modal`
-            self.inputs["other_attributes"] = input
-            self.add_item(input)
+            self.inputs["other_attributes"] = text_input
+            self.add_item(text_input)
 
     async def callback(self, interaction: Interaction):
         errors = []
@@ -280,7 +280,7 @@ class EditItemModal(Modal):
             new = str(changed_value).replace("\n", " ")
             embed.add_field(
                 name=f"\n**`{column}`**",
-                value=f"```diff\n" f"- {old}\n" f"+ {new}\n" f"```",
+                value=f"```diff\n- {old}\n+ {new}\n```",
                 inline=False,
             )
 

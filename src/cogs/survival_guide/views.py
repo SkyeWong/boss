@@ -64,7 +64,7 @@ class HelpView(BaseView):
         # Set the number of commands per page to 6.
         self.cmd_per_page = 6
 
-    def _get_cogs_options(self) -> list[SelectOption]:
+    def _get_cogs_options(self) -> list[SelectOption] | None:
         """Gets a list of SelectOption objects for the cogs.
 
         Returns:

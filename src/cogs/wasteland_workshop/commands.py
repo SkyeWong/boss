@@ -65,22 +65,19 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        try:
-            response = requests.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json")
-            response = response.json().get("DYN_DAT_MINDS_RHRREAD")
+        response = requests.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json")
+        response = response.json().get("DYN_DAT_MINDS_RHRREAD")
 
-            self.location_list = {}
-            for k, v in response.items():
-                if "LocationName" in k:
-                    if not v["Val_Eng"] or not v["Val_Chi"]:
-                        self.location_list[k.replace("LocationName", "")] = k.replace("LocationName", "")
-                    else:
-                        self.location_list[html.unescape(f"{v['Val_Eng']} - {v['Val_Chi']}")] = k.replace(
-                            "LocationName", ""
-                        )
-            self.location_list = dict(sorted(self.location_list.items()))
-        except:
-            print("Failed to update location list from HKO")
+        self.location_list = {}
+        for k, v in response.items():
+            if "LocationName" in k:
+                if not v["Val_Eng"] or not v["Val_Chi"]:
+                    self.location_list[k.replace("LocationName", "")] = k.replace("LocationName", "")
+                else:
+                    self.location_list[html.unescape(f"{v['Val_Eng']} - {v['Val_Chi']}")] = k.replace(
+                        "LocationName", ""
+                    )
+        self.location_list = dict(sorted(self.location_list.items()))
         self.announce_temp.start()
         self.AES_KEY = os.urandom(32)
 
@@ -243,10 +240,10 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                 solve_button.label = "Solve"
                 future = loop.run_in_executor(None, save_img, unsolved_img)
             output = loop.run_until_complete(future)
-            file = nextcord.File(output, "maze.png")
+            maze_img_file = nextcord.File(output, "maze.png")
             solve_button.disabled = False
             embed.set_footer(text=None)  # clear the footer text
-            await msg.edit(file=file, embed=embed, view=solve_view)
+            await msg.edit(file=maze_img_file, embed=embed, view=solve_view)
 
         solve_button.callback = toggle_solve
         solve_view.add_item(solve_button)
@@ -254,9 +251,9 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         # default to the unsolved image
         future = loop.run_in_executor(None, save_img, unsolved_img)
         output = loop.run_until_complete(future)
-        file = nextcord.File(output, "maze.png")
+        maze_img_file = nextcord.File(output, "maze.png")
 
-        msg = await msg.edit(file=file, embed=embed, view=solve_view)
+        msg = await msg.edit(file=maze_img_file, embed=embed, view=solve_view)
 
         # send a message to notify users that the maze has finished generating,
         # and add a "jump" button to let users jump to the maze message
@@ -371,14 +368,14 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         else:
             try:
                 key = base64.b64decode(key)
-            except:
+            except ValueError:
                 await interaction.send(embed=TextEmbed("The key is not properly encoded in base64."))
                 return
 
         # Encrypt data with AES
         try:
             cipher = AES.new(key, AES.MODE_ECB)
-        except:
+        except ValueError:
             await interaction.send(embed=TextEmbed("The key is invalid!", EmbedColour.FAIL))
             return
 
@@ -429,21 +426,21 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         for k, v in data.items():
             try:
                 data[k] = base64.b64decode(v)
-            except:
+            except ValueError:
                 await interaction.send(embed=TextEmbed(f"The {k} is not properly encoded in base64.", EmbedColour.FAIL))
                 return
 
         # Decrypt data with AES
         try:
             cipher = AES.new(data["key"], AES.MODE_ECB)
-        except:
+        except ValueError:
             await interaction.send(embed=TextEmbed("The key is invalid!"))
             return
 
         try:
             data = cipher.decrypt(data["ciphertext"])
             unpadded_data = unpad(data, AES.block_size).decode("UTF-8")
-        except:
+        except ValueError:
             await interaction.send(
                 embed=TextEmbed(
                     "The message could not be decrypted. Are you sure that both of you are using the same key?",
@@ -467,6 +464,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
     @encrypt.before_invoke
     @decrypt.before_invoke
+    @staticmethod
     async def defer_ephemeral(interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
 
@@ -560,7 +558,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             encrypted_location = base64.b64decode(encrypted_location)
             data = cipher.decrypt(encrypted_location)
             decrypted_location = unpad(data, AES.block_size).decode("UTF-8")
-        except:
+        except ValueError:
             await interaction.send(embed=TextEmbed("Choose a valid location from the list."))
             return
 
@@ -605,8 +603,8 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         qc.height = 360
         qc.background_color = "#282B30"
         y_min = helpers.rounddown(min(data["hourly"]["apparent_temperature"] + data["hourly"]["temperature_2m"]), 8)
-        y_max = helpers.roundup(max(data["hourly"]["apparent_temperature"] + data["hourly"]["temperature_2m"]), 10)
 
+        FONT_FAMILY = "Noto Sans"
         qc.config = {
             "type": "line",
             "data": {
@@ -655,7 +653,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                         "position": "bottom",
                         "labels": {
                             "font": {
-                                "family": "Noto Sans",
+                                "family": FONT_FAMILY,
                                 "size": 16,
                             },
                         },
@@ -687,13 +685,13 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                             "display": True,
                             "text": "Temperature (°C)",
                             "font": {
-                                "family": "Noto Sans",
+                                "family": FONT_FAMILY,
                                 "size": 20,
                             },
                         },
                         "ticks": {
                             "font": {
-                                "family": "Noto Sans",
+                                "family": FONT_FAMILY,
                                 "size": 12,
                             },
                             "beginAtZero": False,
@@ -709,13 +707,13 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                             "display": True,
                             "text": "Humidity (%)",
                             "font": {
-                                "family": "Noto Sans",
+                                "family": FONT_FAMILY,
                                 "size": 20,
                             },
                         },
                         "ticks": {
                             "font": {
-                                "family": "Noto Sans",
+                                "family": FONT_FAMILY,
                                 "size": 12,
                             },
                             "beginAtZero": False,
@@ -728,13 +726,13 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                             "display": True,
                             "text": f"Time ({data['timezone_abbreviation']})",
                             "font": {
-                                "family": "Noto Sans",
+                                "family": FONT_FAMILY,
                                 "size": 18,
                             },
                         },
                         "ticks": {
                             "font": {
-                                "family": "Noto Sans",
+                                "family": FONT_FAMILY,
                                 "size": 16,
                             },
                         },
@@ -875,7 +873,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
         temp = await self.get_temperature(location, language)
         forecast = await self.get_hko_weather_forecast(language)
-        # icon_src = self.get_weather_icon()
 
         embed = self.get_hko_weather_embed(temp)
         view = WeatherView(forecast)
@@ -966,7 +963,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         # initalise the youtube api cilent
         api_service_name = "youtube"
         api_version = "v3"
-        dev_key = "AIzaSyA9Ba9ntb537WecGTfR9izUCT6Y1ULkQIY"
+        dev_key = os.getenv("GOOGLE_API_KEY")
         youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
 
         if limit_channel:
@@ -1103,9 +1100,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         )
         embed.add_field(
             name="Image",
-            value=(
-                f"**`WIDTH`** - {data['width']}\n" f"**`HEIGHT`** - {data['height']}\n" f"**`TYPE`** - `{data['type']}`"
-            ),
+            value=(f"**`WIDTH`** - {data['width']}\n**`HEIGHT`** - {data['height']}\n**`TYPE`** - `{data['type']}`"),
         )
         await interaction.send(embed=embed)
 

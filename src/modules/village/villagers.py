@@ -179,7 +179,6 @@ class Armourer(Villager):
 
 class Cartographer(Villager):
     def __init__(self, name: str, db: Database) -> None:
-        rand = random.uniform(0.8, 1)
         # fmt: off
         trades = [  # price is `random * quantity * unit price[min AND max]`
             {
