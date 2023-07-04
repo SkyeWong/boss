@@ -154,7 +154,9 @@ class RunMacroView(BaseView):
         options = []
         for name, option in slash_cmd.options.items():
             value = macro_cmd["options"].get(name)
-            if value:
+            # if the option is stored in the macro, use that value (but convert it into the right type)
+            # if the option is not stored, use the default value
+            if value is not None:
                 match option.type:
                     case OptionType.user:
                         value = await self.bot.fetch_user(int(value))
@@ -162,18 +164,22 @@ class RunMacroView(BaseView):
                         value = await self.bot.fetch_channel(int(value))
                     case OptionType.role:
                         value = interaction.guild.get_role(int(value))
+            else:
+                value = option.default
             options.append(value)
 
         self.cmd_index += 1 if not skip else 2
         if self.cmd_index > len(self.macro_cmds) - 1:
             self.cmd_index -= len(self.macro_cmds)
-
-        # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
-        with suppress(nextcord.errors.NotFound):
-            await self.latest_msg.delete()
-
+        # store the latest message in `msg`,
+        # since the after invoke will change the view's latest msg,
+        # but we want to delete the message _after_ the command has been run
+        msg = self.latest_msg
         # run the slash command. this will invoke it with the hooks (check, before_invoke, after_invoke)
         await slash_cmd.invoke_callback_with_hooks(interaction._state, interaction, args=options)
+        # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
+        with suppress(nextcord.errors.NotFound):
+            await msg.delete()
 
     @button(label="", style=ButtonStyle.blurple, custom_id="run")
     async def run_cmd_btn(self, button: Button, interaction: Interaction):

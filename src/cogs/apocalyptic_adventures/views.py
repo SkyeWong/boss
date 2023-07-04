@@ -9,7 +9,7 @@ from utils.postgres_db import Database
 # my modules and constants
 from utils import constants, helpers
 from utils.constants import EmbedColour, CURRENCY_EMOJIS
-from utils.helpers import TextEmbed, upper, BossItem
+from utils.helpers import TextEmbed, BossItem
 from utils.player import Player
 from utils.template_views import BaseView
 
@@ -33,8 +33,9 @@ class ScoutButton(Button["ScoutView"]):
                 i.style = ButtonStyle.grey
 
         embed = Embed(description="", colour=EmbedColour.DEFAULT)
-        embed.set_author(name=f"{upper(interaction.user.name)} scouted the {self.label}")
+        embed.set_author(name=f"{interaction.user.name} scouted the {self.label}")
 
+        # Choose a result based on the chances defined by `location`
         result = random.choices(
             ["nothing", "success", "fail"],
             [self.location["nothing"]["chance"], self.location["success"]["chance"], self.location["fail"]["chance"]],
@@ -73,7 +74,7 @@ class ScoutButton(Button["ScoutView"]):
 
                 punishment = self.location["fail"]["punishment"]
                 value = random.randint(punishment["min"], punishment["max"])
-                embed.description += f"\nYou also lost {value} {punishment['type']}."
+                embed.description += f"\nYou lost {value} {punishment['type']}."
 
                 await interaction.response.edit_message(embed=embed, view=view)
 
@@ -83,11 +84,13 @@ class ScoutButton(Button["ScoutView"]):
                     await player.modify_hunger(-value)
 
         view.scouting_finished = True
+        await player.set_in_inter(False)
 
 
 class ScoutView(BaseView):
     def __init__(self, interaction: Interaction) -> None:
         super().__init__(interaction, timeout=12)
+        self.player = Player(interaction.client.db, interaction.user)
         self.msg: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = None
         self.scouting_finished = False
 
@@ -100,6 +103,8 @@ class ScoutView(BaseView):
 
         embed = TextEmbed("**Where do you want to scout?**\n_Click a button to start scouting at the location!_")
         view.msg = await interaction.send(embed=embed, view=view)
+        await view.player.set_in_inter(True)
+
         return view
 
     async def on_timeout(self) -> None:
@@ -108,3 +113,4 @@ class ScoutView(BaseView):
                 i.disabled = True
             await self.msg.edit(embed=TextEmbed("Guess you didn't want to search anywhere after all?"), view=self)
             self.scouting_finished = True
+            await self.player.set_in_inter(False)

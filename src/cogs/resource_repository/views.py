@@ -11,7 +11,7 @@ from utils.postgres_db import Database
 from utils.template_views import BaseView
 from utils.player import Player
 from utils import constants, helpers
-from utils.helpers import TextEmbed, upper
+from utils.helpers import TextEmbed
 from utils.constants import EmbedColour
 
 # default modules
@@ -52,7 +52,7 @@ async def _get_farm_embed_and_img(
         selected_crops = []
     if embed is None:
         embed = Embed()
-        embed.set_author(name=f"{upper(player.user.name)}'s Farm")
+        embed.set_author(name=f"{player.user.name}'s Farm")
     embed.colour = constants.EmbedColour.DEFAULT
 
     db: Database = player.db
@@ -951,7 +951,7 @@ class InventoryView(BaseView):
 
         embed = Embed(description="")
         embed.set_author(
-            name=f"{helpers.upper(user.name)}'s {inv_type}",
+            name=f"{user.name}'s {inv_type}",
             icon_url=user.display_avatar.url,
         )
         embed.colour = constants.EmbedColour.DEFAULT

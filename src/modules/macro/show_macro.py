@@ -21,10 +21,8 @@ class ShowMacrosView(BaseView):
         self.current_page = 0  # stores the current page/macro in display
         self.macro_ids: list[str] = macro_ids  # a list of macro_ids of the user
 
-        # cache to store values of the current macro in display
-        self.current_macro_name = None
-        self.current_macro_cmds = None
-
+        # cache to store values of the macros displayed
+        self.macros: dict = {}
         # stores the message sent, which can then be edited.
         self.msg: nextcord.WebhookMessage | nextcord.PartialInteractionMessage = None
 
@@ -65,7 +63,7 @@ class ShowMacrosView(BaseView):
             )
 
         embed = Embed(title="Marcos", colour=EmbedColour.DEFAULT)
-        macro_name, macro_commands = await self._get_macro(self.macro_ids[self.current_page])
+        macro_name, macro_commands = await self._get_macro()
         embed.description = f"### {macro_name}\n"
         # `macro_commands` have the following structure:
         #   [
@@ -97,8 +95,11 @@ class ShowMacrosView(BaseView):
         )
         return embed
 
-    async def _get_macro(self, macro_id: int):
+    async def _get_macro(self):
         """Fetch the name and commands (w/ cmd options) of the macro with the given ID."""
+        macro_id = self.macro_ids[self.current_page]
+        if macro := self.macros.get(macro_id):
+            return macro
         macro = await self.interaction.client.db.fetch(
             """
                 SELECT m1.name, command_name, options
@@ -118,9 +119,10 @@ class ShowMacrosView(BaseView):
             macro_id,
         )
         # Update the cache
-        self.current_macro_name = macro[0]["name"]
-        self.current_macro_cmds = [{"command": i["command_name"], "options": json.loads(i["options"])} for i in macro]
-        return self.current_macro_name, self.current_macro_cmds
+        name = macro[0]["name"]
+        cmds = [{"command": i["command_name"], "options": json.loads(i["options"])} for i in macro]
+        self.macros[macro_id] = (name, cmds)
+        return name, cmds
 
     def update_view(self):
         """Update the view and disable certain paginating buttons."""
@@ -164,6 +166,7 @@ class ShowMacrosView(BaseView):
             interaction.user.id,
         )
         self.macro_ids = [i[0] for i in user_macros]
+        self.macros = {}  # delete cache
         await self.update_msg(interaction)
 
     @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
@@ -185,9 +188,8 @@ class ShowMacrosView(BaseView):
         # then run it with the name of the current macro
         macro_cmd = next(i for i in all_cmds if i.name == "macro")
         start_cmd = next(i for i in macro_cmd.children.values() if i.name == "start")
-        await start_cmd.invoke_callback_with_hooks(
-            macro_cmd._state, interaction, kwargs={"macro": self.current_macro_name}
-        )
+        name, cmds = await self._get_macro()
+        await start_cmd.invoke_callback_with_hooks(macro_cmd._state, interaction, kwargs={"macro": name})
 
     @button(label="Remove", style=ButtonStyle.grey, custom_id="remove")
     async def remove(self, button: Button, interaction: Interaction):
@@ -208,9 +210,7 @@ class ShowMacrosView(BaseView):
             msg = await interaction.original_message()
             await msg.delete()
 
-            await btn_inter.send(
-                embed=TextEmbed(f"Successfully removed the macro **{self.current_macro_name}**!"), ephemeral=True
-            )
+            await btn_inter.send(embed=TextEmbed(f"Successfully removed the macro **{name}**!"), ephemeral=True)
             # Reset the current page to 0, in case the new "page" may not be available (because the last macro is deleted)
             self.current_page = 0
             await self.update_msg(interaction)
@@ -226,8 +226,9 @@ class ShowMacrosView(BaseView):
                 macro_id,
             )
 
+        name, cmds = await self._get_macro()
         # Send a message to let users confirm/cancel deleting the macro
-        embed = TextEmbed(f"Remove the marco **{self.current_macro_name}**?")
+        embed = TextEmbed(f"Remove the marco **{name}**?")
         view = ConfirmView(
             slash_interaction=interaction,
             embed=embed,

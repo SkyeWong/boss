@@ -283,7 +283,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             hunger,
             user_id,
         )
-        embed = TextEmbed(f"{interaction.user.mention} set `{helpers.upper(user.name)}`'s hunger to `{hunger}`!")
+        embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s hunger to `{hunger}`!")
         await interaction.send(embed=embed)
 
         channel = await self.bot.fetch_channel(988046548309016586)
@@ -327,7 +327,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             health,
             user_id,
         )
-        embed = TextEmbed(f"{interaction.user.mention} set `{helpers.upper(user.name)}`'s health to `{health}`!")
+        embed = TextEmbed(f"{interaction.user.mention} set `{user.name}`'s health to `{health}`!")
         await interaction.send(embed=embed)
 
         channel = await self.bot.fetch_channel(988046548309016586)

@@ -801,7 +801,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         embed = Embed()
         embed.colour = EmbedColour.DEFAULT
         embed.set_thumbnail(url=user.display_avatar.url)
-        embed.set_author(name=f"{helpers.upper(user.name)}'s Profile")
+        embed.set_author(name=f"{user.name}'s Profile")
 
         exp = profile["experience"]
 
@@ -893,7 +893,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             user.id,
         )
 
-        embed = Embed(title=f"{helpers.upper(user.name)}'s Balance", colour=EmbedColour.INFO)
+        embed = Embed(title=f"{user.name}'s Balance", colour=EmbedColour.INFO)
 
         item_worth = await db.fetchval(
             """
@@ -943,7 +943,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * 25:,}"
         )
         embed.set_footer(
-            text=f"{'You are' if user == interaction.user else f'{helpers.upper(user.name)} is'} ahead of {round(rank * 100, 1)}% of users!\n"
+            text=f"{'You are' if user == interaction.user else f'{user.name} is'} ahead of {round(rank * 100, 1)}% of users!\n"
             f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals."
         )
 
@@ -976,7 +976,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         for i, (id, net_worth) in enumerate(lb):
             user = await self.bot.fetch_user(id)
             emoji = medal_emojis.get(i + 1, "🔹")
-            embed.description += f"{emoji} ` {net_worth:,} ` - {helpers.upper(user.name)}\n"
+            embed.description += f"{emoji} ` {net_worth:,} ` - {user.name}\n"
         await interaction.send(embed=embed)
 
     @nextcord.slash_command()
@@ -1211,7 +1211,7 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         embed = Embed(colour=EmbedColour.SUCCESS)
         embed.set_author(
-            name=f"Updated {helpers.upper(interaction.user.name)}'s inventory!",
+            name=f"Updated {interaction.user.name}'s inventory!",
             icon_url=interaction.user.display_avatar.url,
         )
         embed.description = f">>> Item: **{item['name']}**"

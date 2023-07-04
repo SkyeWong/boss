@@ -59,8 +59,6 @@ root.addHandler(handler)
 
 
 class BossBot(commands.Bot):
-    LIVE = False
-
     def __init__(self, *args, **kwargs):
         super().__init__(
             activity=nextcord.Game(name="/help"),
@@ -118,7 +116,7 @@ class BossBot(commands.Bot):
         # don't meet application check requirement
         if isinstance(error, nextcord.ApplicationCheckFailure):
             await interaction.send(
-                embed=TextEmbed("You do not have the necessary permissions to use this command."),
+                embed=TextEmbed("You do not have the necessary permissions to use this command.", EmbedColour.WARNING),
                 ephemeral=True,
             )
             return
@@ -132,8 +130,6 @@ class BossBot(commands.Bot):
             return
 
         embed, view = helpers.get_error_message()
-        if not self.LIVE:
-            embed.add_field(name="Error", value=f"```py\n{str(error)[:1000]}\n```")
         await interaction.send(embed=embed, view=view)
         raise error
 
@@ -199,7 +195,9 @@ def cd_embed(interaction: Interaction, error: CallableOnCooldown):
     cd_ui.title = random.choice(titles)
     command = interaction.application_command
     resets_at = error.resets_at.replace(tzinfo=timezone.utc).astimezone()
-    cd_ui.description = f"You can use </{command.qualified_name}:{list(command.command_ids.values())[0]}> again <t:{int(resets_at.timestamp())}:R>!"
+    cd_ui.description = (
+        f"You can use {command.get_mention(interaction.guild)} again <t:{int(resets_at.timestamp())}:R>!"
+    )
     cd_ui.colour = random.choice(constants.EMBED_COLOURS)
     return cd_ui
 

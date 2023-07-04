@@ -37,264 +37,6 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.HUNT_LOOT = {
-            "fail": {"chance": 20},
-            "common": {
-                "chance": 40,
-                "rewards": [
-                    {"type": "item", "id": 23, "min": 1, "max": 3},  # duck
-                    {"type": "item", "id": 24, "min": 1, "max": 3},  # rabbit
-                    {"type": "item", "id": 26, "min": 1, "max": 3},  # skunk
-                ],
-            },
-            "uncommon": {
-                "chance": 30,
-                "rewards": [
-                    {"type": "item", "id": 18, "min": 1, "max": 3},  # deer
-                    {"type": "item", "id": 22, "min": 1, "max": 3},  # cow
-                    {"type": "item", "id": 25, "min": 1, "max": 3},  # sheep
-                ],
-            },
-            "rare": {"chance": 8, "rewards": [{"type": "item", "id": 21, "min": 1, "max": 1}]},  # boar
-            "epic": {"chance": 2, "rewards": [{"type": "item", "id": 20, "min": 1, "max": 1}]},  # dragon
-        }
-        self.DIG_LOOT = {
-            "fail": {"chance": 40},
-            "common": {
-                "chance": 45,
-                "rewards": [
-                    {"type": "item", "id": 31, "min": 1, "max": 5},  # dirt
-                ],
-            },
-            "uncommon": {
-                "chance": 10,
-                "rewards": [
-                    {"type": "item", "id": 27, "min": 1, "max": 1},  # ancient coin
-                    {"type": "item", "id": 46, "min": 1, "max": 5},  # banknote
-                ],
-            },
-            "rare": {
-                "chance": 5,
-                "rewards": [
-                    {"chance": 95, "type": "scrap_metal", "min": 5_000, "max": 8_000},
-                    {"chance": 5, "type": "copper", "min": 1, "max": 3},
-                ],
-            },
-        }
-        self.MINE_LOOT = {
-            "fail": {"chance": 40},
-            "common": {"chance": 35, "rewards": [{"type": "item", "id": 33, "min": 1, "max": 10}]},  # stone
-            "uncommon": {
-                "chance": 20,
-                "rewards": [
-                    {"type": "item", "id": 45, "min": 1, "max": 3},  # emerald ore
-                    {"type": "item", "id": 44, "min": 1, "max": 5},  # iron ore
-                ],
-            },
-            "rare": {"chance": 5, "rewards": [{"type": "item", "id": 34, "min": 1, "max": 1}]},  # diamond ore
-        }
-        self.SCAVENGE_LOOT = {
-            "fail": {"chance": 30},
-            "common": {"chance": 50, "rewards": [{"type": "scrap_metal", "min": 500, "max": 1000}]},
-            "uncommon": {"chance": 18, "rewards": [{"type": "scrap_metal", "min": 1500, "max": 5000}]},
-            "rare": {
-                "chance": 2,
-                "rewards": [
-                    {"type": "copper", "min": 1, "max": 2},
-                    {"type": "item", "id": 46, "min": 1, "max": 3},  # banknotes
-                ],
-            },
-        }
-        self.SCOUT_LOOT = [
-            {
-                "name": "junkyard",
-                "nothing": {
-                    "chance": 40,
-                    "msg": "You found nothing! Maybe next time you'll finally get something useful in the giant pile of trash.",
-                },
-                "fail": {
-                    "chance": 20,
-                    "msg": "You accidentally cut yourself on some sharp metal.",
-                    "punishment": {"type": "health", "min": 10, "max": 30},
-                },
-                "success": {
-                    "chance": 40,
-                    "msg": "You rummaged through the piles of discarded items and come across {reward}.",
-                    "money": {"type": "scrap_metal", "min": 800, "max": 1200},
-                    "item": {"chance": 8, "id": 50},  # iron ingots
-                },
-            },
-            {
-                "name": "power plant",
-                "nothing": {
-                    "chance": 20,
-                    "msg": "Looks like the power's out and the lights are off. You couldn't find anything in the dark.",
-                },
-                "fail": {
-                    "chance": 50,
-                    "msg": "You set off a radiation alarm while searching the power plant, forcing you to quickly leave.",
-                    "punishment": {"type": "health", "min": 15, "max": 25},
-                },
-                "success": {
-                    "chance": 30,
-                    "msg": "You successfully navigated through the hazardous power plant and found {reward}.",
-                    "money": {"type": "scrap_metal", "min": 1000, "max": 1800},
-                },
-            },
-            {
-                "name": "underground sewer",
-                "nothing": {
-                    "chance": 30,
-                    "msg": "You tried to search the underground sewer but gave up since it was too smelly.",
-                },
-                "fail": {
-                    "chance": 40,
-                    "msg": "You accidentally stumbled into a patch of toxic sludge!",
-                    "punishment": {"type": "health", "min": 5, "max": 15},
-                },
-                "success": {
-                    "chance": 30,
-                    "msg": "You swam in the twisting tunnels of the sewer and located {reward}.",
-                    "money": {"type": "scrap_metal", "min": 600, "max": 1000},
-                },
-            },
-            {
-                "name": "swamp",
-                "nothing": {
-                    "chance": 50,
-                    "msg": "Looks like the area had nothing of value. That's definitely bad luck, not skill issues. Definitely.",
-                },
-                "fail": {
-                    "chance": 10,
-                    "msg": "You ended up getting lost in the dense fog for a while, and stepped into some quicksand.",
-                    "punishment": {"type": "hunger", "min": 10, "max": 25},
-                },
-                "success": {
-                    "chance": 40,
-                    "msg": "Your exploration of the swamp pays off and you brought home {reward}.",
-                    "money": {"type": "scrap_metal", "min": 600, "max": 1000},
-                },
-            },
-            {
-                "name": "mine",
-                "nothing": {
-                    "chance": 30,
-                    "msg": "The mine seemed to be empty. Better luck next time.",
-                },
-                "fail": {
-                    "chance": 10,
-                    "msg": "You triggered a cave-in, and spent hours escaping the falling debris.",
-                    "punishment": {"type": "hunger", "min": 15, "max": 20},
-                },
-                "success": {
-                    "chance": 60,
-                    "msg": "After carefully exploring the dangerous mine, you stumbled upon {reward}.",
-                    "money": {"type": "scrap_metal", "min": 700, "max": 1200},
-                },
-            },
-            {
-                "name": "forest",
-                "nothing": {
-                    "chance": 20,
-                    "msg": "You found the forest with thick branches everywhere difficult to navigate, and gave up.",
-                },
-                "fail": {
-                    "chance": 10,
-                    "msg": "You saw a dragon and decided to fight, but caught fire almost immediately.",
-                    "punishment": {"type": "health", "min": 5, "max": 20},
-                },
-                "success": {
-                    "chance": 70,
-                    "msg": "You found a chest in the forest, emptied the contents and obtained {reward}.",
-                    "money": {"type": "scrap_metal", "min": 500, "max": 1800},
-                },
-            },
-            {
-                "name": "ocean",
-                "nothing": {
-                    "chance": 20,
-                    "msg": "You swam in the polluted ocean and got a cramp.",
-                },
-                "fail": {
-                    "chance": 10,
-                    "msg": "You accidentally got caught in a dangerous current and struggled to keep afloat.",
-                    "punishment": {"type": "hunger", "min": 8, "max": 15},
-                },
-                "success": {
-                    "chance": 70,
-                    "msg": "You brave the treacherous waters and found {reward} floating above the ocean.",
-                    "money": {"type": "scrap_metal", "min": 300, "max": 700},
-                },
-            },
-            {
-                "name": "radioactive lake",
-                "nothing": {
-                    "chance": 20,
-                    "msg": "You swam in the lake and developed a stitch. You left shamefully.",
-                },
-                "fail": {
-                    "chance": 10,
-                    "msg": "You ingested some radioactive material, now all you got to do is wait for cancer to arrive.",
-                    "punishment": {"type": "health", "min": 15, "max": 30},
-                },
-                "success": {
-                    "chance": 70,
-                    "msg": "You found {reward} next to a suspicious piece of machine. A label on it says 'radioactive'??? Uh oh.",
-                    "money": {"type": "scrap_metal", "min": 1500, "max": 2000},
-                },
-            },
-            {
-                "name": "school",
-                "nothing": {
-                    "chance": 10,
-                    "msg": "Your exploration of the abandoned school didn't uncover any valuable resources.",
-                },
-                "fail": {
-                    "chance": 30,
-                    "msg": "You accidentally tripped over a loose piece of flooring.",
-                    "punishment": {"type": "health", "min": 10, "max": 15},
-                },
-                "success": {
-                    "chance": 60,
-                    "msg": "You explore the abandoned school and discover a hidden stash of supplies, containing {reward}.",
-                    "money": {"type": "scrap_metal", "min": 480, "max": 800},
-                },
-            },
-            {
-                "name": "dumpsite",
-                "nothing": {
-                    "chance": 10,
-                    "msg": "The dumpsite didn't have anything useful, or so it seemed.",
-                },
-                "fail": {
-                    "chance": 30,
-                    "msg": "You forgot your gas mask and got poisoned.",
-                    "punishment": {"type": "health", "min": 12, "max": 24},
-                },
-                "success": {
-                    "chance": 60,
-                    "msg": "After searching for hours in the smelly and potentially poisonous dumpsite, you found {reward}.",
-                    "money": {"type": "scrap_metal", "min": 500, "max": 700},
-                },
-            },
-            {
-                "name": "factory",
-                "nothing": {
-                    "chance": 10,
-                    "msg": "The entrance was locked, and of course you didn't have the brainpower to break in through the windows.",
-                },
-                "fail": {
-                    "chance": 30,
-                    "msg": "You accidentally turned on old alarm system and attracted the attention of nearby enemies.",
-                    "punishment": {"type": "health", "min": 10, "max": 20},
-                },
-                "success": {
-                    "chance": 60,
-                    "msg": "There were metals everywhere! You got everything you could and brought home {reward}.",
-                    "money": {"type": "scrap_metal", "min": 3500, "max": 4800},
-                },
-            },
-        ]
 
     async def cog_application_command_before_invoke(self, interaction: Interaction) -> None:
         hunger = await self.bot.db.fetchval(
@@ -388,6 +130,28 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         if mission_id:
             await player.update_missions(interaction, mission_id)
 
+    HUNT_LOOT = {
+        "fail": {"chance": 20},
+        "common": {
+            "chance": 40,
+            "rewards": [
+                {"type": "item", "id": 23, "min": 1, "max": 3},  # duck
+                {"type": "item", "id": 24, "min": 1, "max": 3},  # rabbit
+                {"type": "item", "id": 26, "min": 1, "max": 3},  # skunk
+            ],
+        },
+        "uncommon": {
+            "chance": 30,
+            "rewards": [
+                {"type": "item", "id": 18, "min": 1, "max": 3},  # deer
+                {"type": "item", "id": 22, "min": 1, "max": 3},  # cow
+                {"type": "item", "id": 25, "min": 1, "max": 3},  # sheep
+            ],
+        },
+        "rare": {"chance": 8, "rewards": [{"type": "item", "id": 21, "min": 1, "max": 1}]},  # boar
+        "epic": {"chance": 2, "rewards": [{"type": "item", "id": 20, "min": 1, "max": 1}]},  # dragon
+    }
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def hunt(self, interaction: Interaction):
@@ -409,6 +173,30 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             mission_id=2,
         )
 
+    DIG_LOOT = {
+        "fail": {"chance": 40},
+        "common": {
+            "chance": 45,
+            "rewards": [
+                {"type": "item", "id": 31, "min": 1, "max": 5},  # dirt
+            ],
+        },
+        "uncommon": {
+            "chance": 10,
+            "rewards": [
+                {"type": "item", "id": 27, "min": 1, "max": 1},  # ancient coin
+                {"type": "item", "id": 46, "min": 1, "max": 5},  # banknote
+            ],
+        },
+        "rare": {
+            "chance": 5,
+            "rewards": [
+                {"chance": 95, "type": "scrap_metal", "min": 5_000, "max": 8_000},
+                {"chance": 5, "type": "copper", "min": 1, "max": 3},
+            ],
+        },
+    }
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def dig(self, interaction: Interaction):
@@ -425,6 +213,19 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             success_message="You dug in the ground and unearthed {reward}!",
             mission_id=3,
         )
+
+    MINE_LOOT = {
+        "fail": {"chance": 40},
+        "common": {"chance": 35, "rewards": [{"type": "item", "id": 33, "min": 1, "max": 10}]},  # stone
+        "uncommon": {
+            "chance": 20,
+            "rewards": [
+                {"type": "item", "id": 45, "min": 1, "max": 3},  # emerald ore
+                {"type": "item", "id": 44, "min": 1, "max": 5},  # iron ore
+            ],
+        },
+        "rare": {"chance": 5, "rewards": [{"type": "item", "id": 34, "min": 1, "max": 1}]},  # diamond ore
+    }
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
@@ -445,6 +246,19 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             success_message="You went to the quarries and mined out {reward}!",
         )
 
+    SCAVENGE_LOOT = {
+        "fail": {"chance": 30},
+        "common": {"chance": 50, "rewards": [{"type": "scrap_metal", "min": 500, "max": 1000}]},
+        "uncommon": {"chance": 18, "rewards": [{"type": "scrap_metal", "min": 1500, "max": 5000}]},
+        "rare": {
+            "chance": 2,
+            "rewards": [
+                {"type": "copper", "min": 1, "max": 2},
+                {"type": "item", "id": 46, "min": 1, "max": 3},  # banknotes
+            ],
+        },
+    }
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def scavenge(self, interaction: Interaction):
@@ -463,123 +277,211 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             mission_id=4,
         )
 
+    SCOUT_LOOT = [
+        {
+            "name": "junkyard",
+            "nothing": {
+                "chance": 20,
+                "msg": "You found nothing! Maybe next time you'll finally get something useful in the giant pile of trash.",
+            },
+            "fail": {
+                "chance": 10,
+                "msg": "You accidentally cut yourself on some sharp metal.",
+                "punishment": {"type": "health", "min": 3, "max": 8},
+            },
+            "success": {
+                "chance": 70,
+                "msg": "You rummaged through the piles of discarded items and come across {reward}.",
+                "money": {"type": "scrap_metal", "min": 800, "max": 1200},
+                "item": {"chance": 8, "id": 50},  # iron ingots
+            },
+        },
+        {
+            "name": "power plant",
+            "nothing": {
+                "chance": 20,
+                "msg": "Looks like the power's out and the lights are off. You couldn't find anything in the dark.",
+            },
+            "fail": {
+                "chance": 30,
+                "msg": "You set off a radiation alarm while searching the power plant, forcing you to quickly leave.",
+                "punishment": {"type": "health", "min": 5, "max": 7},
+            },
+            "success": {
+                "chance": 50,
+                "msg": "You successfully navigated through the hazardous power plant and found {reward}.",
+                "money": {"type": "scrap_metal", "min": 1000, "max": 1800},
+            },
+        },
+        {
+            "name": "underground sewer",
+            "nothing": {
+                "chance": 30,
+                "msg": "You tried to search the underground sewer but gave up since it was too smelly.",
+            },
+            "fail": {
+                "chance": 20,
+                "msg": "You accidentally stumbled into a patch of toxic sludge!",
+                "punishment": {"type": "health", "min": 2, "max": 10},
+            },
+            "success": {
+                "chance": 50,
+                "msg": "You swam in the twisting tunnels of the sewer and located {reward}.",
+                "money": {"type": "scrap_metal", "min": 600, "max": 1000},
+            },
+        },
+        {
+            "name": "swamp",
+            "nothing": {
+                "chance": 50,
+                "msg": "Looks like the area had nothing of value. That's definitely bad luck, not skill issues. Definitely.",
+            },
+            "fail": {
+                "chance": 10,
+                "msg": "You ended up getting lost in the dense fog for a while, and stepped into some quicksand.",
+                "punishment": {"type": "hunger", "min": 3, "max": 8},
+            },
+            "success": {
+                "chance": 40,
+                "msg": "Your exploration of the swamp pays off and you brought home {reward}.",
+                "money": {"type": "scrap_metal", "min": 600, "max": 1000},
+            },
+        },
+        {
+            "name": "mine",
+            "nothing": {
+                "chance": 30,
+                "msg": "The mine seemed to be empty. Better luck next time.",
+            },
+            "fail": {
+                "chance": 10,
+                "msg": "You triggered a cave-in, and spent hours escaping the falling debris.",
+                "punishment": {"type": "hunger", "min": 5, "max": 15},
+            },
+            "success": {
+                "chance": 60,
+                "msg": "After carefully exploring the dangerous mine, you stumbled upon {reward}.",
+                "money": {"type": "scrap_metal", "min": 700, "max": 1200},
+            },
+        },
+        {
+            "name": "forest",
+            "nothing": {
+                "chance": 10,
+                "msg": "You found the forest with thick branches everywhere difficult to navigate, and gave up.",
+            },
+            "fail": {
+                "chance": 10,
+                "msg": "You saw a dragon and decided to fight, but caught fire almost immediately.",
+                "punishment": {"type": "health", "min": 5, "max": 12},
+            },
+            "success": {
+                "chance": 80,
+                "msg": "You found a money bag on the ground! After checking that no one was around, you emptied its contents and obtained {reward}.",
+                "money": {"type": "scrap_metal", "min": 500, "max": 1800},
+            },
+        },
+        {
+            "name": "ocean",
+            "nothing": {
+                "chance": 20,
+                "msg": "You swam in the polluted ocean and got a cramp.",
+            },
+            "fail": {
+                "chance": 10,
+                "msg": "You accidentally got caught in a dangerous current and struggled to keep afloat.",
+                "punishment": {"type": "hunger", "min": 3, "max": 10},
+            },
+            "success": {
+                "chance": 70,
+                "msg": "You brave the treacherous waters and found {reward} floating above the ocean.",
+                "money": {"type": "scrap_metal", "min": 300, "max": 700},
+            },
+        },
+        {
+            "name": "radioactive lake",
+            "nothing": {
+                "chance": 30,
+                "msg": "You swam in the lake and developed a stitch. You left shamefully.",
+            },
+            "fail": {
+                "chance": 30,
+                "msg": "You ingested some radioactive material, now all you got to do is wait for cancer to arrive.",
+                "punishment": {"type": "health", "min": 15, "max": 30},
+            },
+            "success": {
+                "chance": 40,
+                "msg": "You found {reward} next to a suspicious piece of machine. A label on it says 'radioactive'??? Uh oh.",
+                "money": {"type": "scrap_metal", "min": 1500, "max": 2000},
+            },
+        },
+        {
+            "name": "school",
+            "nothing": {
+                "chance": 10,
+                "msg": "Your exploration of the abandoned school didn't uncover any valuable resources.",
+            },
+            "fail": {
+                "chance": 30,
+                "msg": "You accidentally tripped over a loose piece of flooring.",
+                "punishment": {"type": "health", "min": 2, "max": 6},
+            },
+            "success": {
+                "chance": 60,
+                "msg": "You explore the abandoned school and discover a hidden stash of supplies, containing {reward}.",
+                "money": {"type": "scrap_metal", "min": 480, "max": 800},
+            },
+        },
+        {
+            "name": "dumpsite",
+            "nothing": {
+                "chance": 10,
+                "msg": "The dumpsite didn't have anything useful, or so it seemed.",
+            },
+            "fail": {
+                "chance": 10,
+                "msg": "You forgot your gas mask and got poisoned.",
+                "punishment": {"type": "health", "min": 3, "max": 8},
+            },
+            "success": {
+                "chance": 80,
+                "msg": "After searching for hours in the smelly and potentially poisonous dumpsite, you found {reward}.",
+                "money": {"type": "scrap_metal", "min": 500, "max": 700},
+            },
+        },
+        {
+            "name": "factory",
+            "nothing": {
+                "chance": 10,
+                "msg": "The entrance was locked, and of course you didn't have the brainpower to break in through the windows.",
+            },
+            "fail": {
+                "chance": 30,
+                "msg": "You accidentally turned on old alarm system and attracted the attention of nearby scavengers. They attacked you.",
+                "punishment": {"type": "health", "min": 5, "max": 8},
+            },
+            "success": {
+                "chance": 60,
+                "msg": "There were metals everywhere! You got everything you could and brought home {reward}.",
+                "money": {"type": "scrap_metal", "min": 3500, "max": 4800},
+            },
+        },
+    ]
+
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def scout(self, interaction: Interaction):
         """Explore the wasteland and uncover hidden resources to add to your currency stash."""
         view = await ScoutView.send(interaction, self.SCOUT_LOOT)
 
-        def is_scout_view(interaction: Interaction):
+        def check(interaction: Interaction):
             if not interaction.message:
                 return False  # a slash command is invoked, so we ignore the interaction
             return interaction.message.id == view.msg.id
 
-        await self.bot.wait_for("interaction", check=is_scout_view, timeout=12)
-        # the timeout should be equal to the timeout of the view
-
-    async def adventure_pyramid(self, button, interaction: Interaction):
-        maze_size = (random.randint(15, 20), random.randint(15, 20))
-        view = Maze(interaction, maze_size)
-        await view.send()
-
-    async def adventure_scrap_metal(self, button, interaction: Interaction):
-        player = Player(self.bot.db, interaction.user)
-        if random.randint(1, 5) > 2:
-            scrap_metal = random.randint(1000, 8000)
-            await player.modify_currency("scrap_metal", scrap_metal)
-            await interaction.send(
-                embed=TextEmbed(
-                    f"Lucky you, you got home safely without injuries, but with {CURRENCY_EMOJIS['scrap_metal']} {scrap_metal}"
-                ),
-                ephemeral=True,
-            )
-        else:
-            await interaction.send(
-                embed=TextEmbed("Someone was lurking around! You got attacked..."),
-                ephemeral=True,
-            )
-
-    async def adventure_slave(self, button, interaction: Interaction):
-        player = Player(self.bot.db, interaction.user)
-        if random.randint(1, 5) > 2:
-            await player.add_item(32)
-            await interaction.send(
-                embed=TextEmbed("Wow, you found yourself a slave! However, what he is able to do, I don't know."),
-                ephemeral=True,
-            )
-        else:
-            player_scrap = await self.bot.db.fetchval(
-                """
-                SELECT scrap_metal
-                FROM players.players
-                WHERE player_id = $1
-                """,
-                interaction.user.id,
-            )
-            # use min() with user's scrap_metal so the scrap_metal will not be negative
-            lost_scrap = min(player_scrap, random.randint(120, 800))
-            await player.modify_currency("scrap_metal", -lost_scrap)
-            await interaction.send(
-                embed=TextEmbed(
-                    f"Shame on you, he was a bandit. He attacked you and you lost {CURRENCY_EMOJIS['scrap_metal']} {lost_scrap}",
-                ),
-                ephemeral=True,
-            )
-
-    @nextcord.slash_command()
-    @cooldowns.cooldown(1, 30, SlashBucket.author, cooldown_id="adventure_fail", check=check_if_not_dev_guild)
-    @cooldowns.cooldown(1, 3 * 60, SlashBucket.author, cooldown_id="adventure_success", check=check_if_not_dev_guild)
-    async def adventure(
-        self,
-        interaction: Interaction,
-    ):
-        """Go explore, discover some structures and obtain some treasure!"""
-        if random.randint(1, 10) > 4:
-            # 60% to have an adventure
-            outcomes = {
-                10: (
-                    "You found a creepy pyramid that goes DEEP down! Do you want to continue?",
-                    self.adventure_pyramid,
-                ),
-                10: (
-                    "Wait what? You found... a random slave! Adopt him, he'd like to.",
-                    self.adventure_slave,
-                ),
-                50: (
-                    "A bag of scrap metals was lying on the ground. You saw no one around you. Have you finally decided on whether to snatch it yet?",
-                    self.adventure_scrap_metal,
-                ),
-            }
-            # choose a random outcome
-            outcome = random.choices(list(outcomes.values()), list(outcomes.keys()))[0]
-
-            embed = Embed(title="Adventure time!", description=outcome[0])
-
-            # if the user confirms the adventure, reset the "fail" cooldown --> only the "success" cooldown remains
-            async def confirm_func(button, interaction):
-                cooldowns.reset_cooldown("adventure_fail")
-                await outcome[1](button, interaction)
-
-            view = ConfirmView(
-                slash_interaction=interaction,
-                confirm_func=confirm_func,
-                # if the user cancels the adventure, reset the "success" cooldown --> only the "fail" cooldown remains
-                cancel_func=lambda button, interaction: cooldowns.reset_cooldown("adventure_success"),
-                embed=embed,
-            )
-            await interaction.send(embed=view.embed, view=view)
-        else:
-            # 40% fail
-            msg = (
-                "You don't see anything in sight, so you just went home.",
-                "It's getting dark. Feeling scared, you rushed back to your little hut and slept with a cute little plushie.",
-                "You found out that you actually don't have enough courage to explore on your own.",
-                "After getting scared by a rock that seems to [move by itself](https://www.youtube.com/watch?v=iu8vnVz5cYQ), you fled towards your shack.",
-                "What's happening? You wanted to move, but your body just doesn't seem to obey your mind.",
-            )
-            await interaction.send(embed=TextEmbed(random.choice(msg)))
-            # if the user does not get an adventure, reset the "success" cooldown --> only the "fail" cooldown remains
-            cooldowns.reset_cooldown("adventure_success")
+        # halt the execution, so that `after_invoke` is performed after the user has finished scouting
+        await self.bot.wait_for("interaction", check=check, timeout=view.timeout)
+        # the timeout should be equal to the timeout of the view, so that even when the user does nothing it will time out
 
     async def claim_missions(self, user: nextcord.User):
         db: Database = self.bot.db
@@ -642,7 +544,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 missions = await fetch_missions()  # update the list of missions in order to show them
 
             embed = Embed(
-                description=f"### {helpers.upper(interaction.user.name)}'s Daily Missions\n\n",
+                description=f"### {interaction.user.name}'s Daily Missions\n\n",
                 colour=EmbedColour.DEFAULT,
             )
             for i in missions:

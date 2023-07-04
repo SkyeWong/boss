@@ -50,25 +50,22 @@ class Player:
 
     async def modify_currency(self, currency: Literal["scrap_metal", "copper"], value: int):
         """Modify the player's currency, scrap_metal or copper."""
-        if await self.is_present():
-            if currency not in ("scrap_metal", "copper"):
-                raise ValueError("Currency must be either `scrap_metal` or `copper`.")
+        if currency not in ("scrap_metal", "copper"):
+            raise ValueError("Currency must be either `scrap_metal` or `copper`.")
 
-            try:
-                return await self.db.fetchval(
-                    f"""
-                    UPDATE players.players
-                    SET {currency} = {currency} + $1
-                    WHERE player_id = $2
-                    RETURNING {currency}
-                    """,
-                    value,
-                    self.user.id,
-                )
-            except asyncpg.exceptions.CheckViolationError:
-                raise helpers.NegativeBalance()
-        else:
-            raise helpers.PlayerNotExist()
+        try:
+            return await self.db.fetchval(
+                f"""
+                UPDATE players.players
+                SET {currency} = {currency} + $1
+                WHERE player_id = $2
+                RETURNING {currency}
+                """,
+                value,
+                self.user.id,
+            )
+        except asyncpg.exceptions.CheckViolationError:
+            raise helpers.NegativeBalance()
 
     async def modify_scrap(self, value: int):
         """The shorthand function for `Player.modify_currency("scrap_metal", value)`."""
@@ -164,6 +161,30 @@ class Player:
                 self.user.id,
             )
 
+    async def set_in_inter(self, value: bool):
+        """Modify whether the player is running a command"""
+        return await self.db.fetchval(
+            """
+            UPDATE players.players
+                SET in_interaction = $1
+            WHERE player_id = $2
+            RETURNING in_interaction
+            """,
+            value,
+            self.user.id,
+        )
+
+    async def check_in_inter(self):
+        """Check whether the player is running a command"""
+        return await self.db.fetchval(
+            """
+            SELECT in_interaction
+            FROM players.players
+            WHERE player_id = $1
+            """,
+            self.user.id,
+        )
+
     async def get_farm(self):
         """
         Fetches the player's farm.
@@ -198,7 +219,7 @@ class Player:
                 )
                 if quantity < 0:
                     raise helpers.NegativeInvQuantity()
-                    return quantity
+        return quantity
 
     async def update_missions(self, interaction: Interaction, mission_id: int, amount: int = 1):
         # if the user has a mission of the type of the command, update its progress

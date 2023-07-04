@@ -265,13 +265,6 @@ def format_with_link(text: str):
     return f"[`{text}`](https://boss-bot.onrender.com/)"
 
 
-def upper(text: str):
-    """Capitalize the first letter of a string while leaving all other letters in their original case."""
-    if text and text[0].isalpha():
-        text = text[0].upper() + text[1:]
-    return text
-
-
 PB_EMOJIS = {
     # lighter colours
     "PB1E": "<:PB1E:1121318451500290088>",
@@ -347,7 +340,7 @@ async def send(
         "SELECT running_macro_id FROM players.players WHERE player_id = $1", interaction.user.id
     )
     if running_macro_id and embed:  # check whether the user is running a macro
-        footer = f"{upper(interaction.user.name)} is running a /macro"
+        footer = f"{interaction.user.name} is running a /macro"
         if embed.footer.text:
             footer += f" | {embed.footer.text}"
         embed.set_footer(text=footer)

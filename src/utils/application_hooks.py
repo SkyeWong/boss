@@ -15,6 +15,7 @@ import random
 
 
 async def cmd_check(interaction: Interaction):
+    """Check whether the user can use a command. If not, `CommandCheckException` will be raised, which will be caught in `bot.on_application_command_error`."""
     cmd = interaction.application_command
     bot: commands.Bot = interaction.client
 
@@ -28,8 +29,8 @@ async def cmd_check(interaction: Interaction):
 
         await msg.edit(
             embed=TextEmbed(
-                "We have successfully connected to the database! "
-                f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again."
+                "We have successfully connected to the database! " f"Use {cmd.get_mention(interaction.guild)} again.",
+                EmbedColour.SUCCESS,
             )
         )
         raise helpers.DatabaseReconnect()
@@ -87,12 +88,21 @@ async def cmd_check(interaction: Interaction):
                     "Whether you're scavenging for resources, completing missions, or participating in events, BOSS is here to help you earn currency and build your wealth in this new world. "
                     "So, join us in the post-apocalyptic wasteland and let BOSS be your guide to survival and prosperity."
                 ),
-                TextEmbed(
-                    f"Use </{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> again to continue"
-                ),  # TODO: add a /guide command and have players use this instead
+                TextEmbed(f"Use {cmd.get_mention(interaction.guild)}again to continue"),
             ]
         )  # TODO: add a greet message to this
         raise helpers.NewPlayer()
+
+    if await player.check_in_inter():
+        # The user is running a command
+        await interaction.send(
+            embed=TextEmbed(
+                "You are locked from running any commands until all active commands are completed. Complete all ongoing ones or try again later.",
+                EmbedColour.WARNING,
+            ),
+            ephemeral=True,
+        )
+        raise helpers.CommandCheckException()
 
     return True
 
