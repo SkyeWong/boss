@@ -91,7 +91,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         },
     )
     @cooldowns.cooldown(1, 180, SlashBucket.author, check=check_if_not_dev_guild)
-    async def generate_maze(
+    async def generate_maze_cmd(
         self,
         interaction: Interaction,
         width: int = SlashOption(description="The width of the maze", required=True, max_value=30),
@@ -121,7 +121,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         embed.colour = EmbedColour.DEFAULT
         embed.set_author(name="Generating maze... Please wait patiently")
         embed.description = "I will ping you when it has finished!"
-        embed.description += "\n`1.` Your request has been received and is processing... "
         msg = await interaction.send(embed=embed)
 
         height = width if not height else height
@@ -130,94 +129,22 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             await msg.edit(embed=TextEmbed("The maze must be at least 3x3 large!"))
             return
 
-        m = Maze()
-        m.generator = Prims(height, width)
-        m.solver = BacktrackingSolver()
+        embed.description += "\n`1.` Generating maze... "
+        await msg.edit(embed=embed)
 
-        loop = asyncio.get_running_loop()
+        m = self._generate_maze(width, height, difficulty / 10 if difficulty else None, start, end)
 
-        if difficulty:
-            future = loop.run_in_executor(None, m.generate_monte_carlo, 10, 1, difficulty / 10)
-            embed.description += "**`Done`**!\n`2.` Generating multiple mazes and finding one with set difficulty... "
-            embed.insert_field_at(
-                0,
-                name="⚠️ Caution",
-                value="\n```fix\nThis will take a while since the difficulty is set and I'll test many maze combinations!```",
-                inline=False,
-            )
-            await msg.edit(embed=embed)
-        else:
-            embed.description += "**`Done`**!\n`2.` Generating maze grid... "
-            await msg.edit(embed=embed)
+        embed.description += f"**`Done`**!\n`2.` Generating the image... "
+        await msg.edit(embed=embed)
 
-            m.generate()
-            m.generate_entrances(start_outer=start, end_outer=end)
-
-            embed.description += "**`Done`**!\n`3.` Solving maze... "
-            await msg.edit(embed=embed)
-
-            future = loop.run_in_executor(None, m.solve)
-
-        loop.run_until_complete(future)
+        maze_str = m.tostring(True, True)
+        solved_img = self._generate_solved_img(maze_str, len(m.grid[0]), len(m.grid))
+        unsolved_img = self._generate_unsolved_img(maze_str, self.SPRITE_WIDTH, solved_img)
 
         embed.add_field(name="Solution length", value=f"`{len(m.solutions[0])}` cells")
         embed.add_field(name="Start ➡ End", value=f"`{m.start[::-1]}` ➡ `{m.end[::-1]}`")
-        embed.description += f"**`Done`**!\n`{'3' if difficulty else '4'}.` Generating maze image... "
-
         if difficulty:
-            embed.remove_field(0)
             embed.add_field(name="Difficulty", value=difficulty)
-
-        await msg.edit(embed=embed)
-
-        # Convert the string into an image
-        m_str = m.tostring(True, True)
-
-        SPRITES = {
-            "ground": Image.open("resources/maze/ground.png"),
-            "wall": Image.open("resources/maze/wall.png"),
-            "path": Image.open("resources/maze/path.png"),
-            "start": Image.open("resources/maze/start.png"),
-            "finish": Image.open("resources/maze/finish.png"),
-        }
-
-        sprite_width = 36
-
-        for k, v in SPRITES.items():
-            SPRITES[k] = v.resize((sprite_width, sprite_width))
-
-        solved_img = Image.new("RGBA", (sprite_width * len(m.grid[0]), sprite_width * len(m.grid)))
-
-        # generate the solved maze image
-        for y_i, y in enumerate(m_str.splitlines()):
-            for x_i, x in enumerate(y):
-                if x == "#":
-                    sprite = SPRITES["wall"]
-                elif x == " ":
-                    sprite = SPRITES["ground"]
-                elif x == "S":
-                    sprite = SPRITES["start"]
-                elif x == "E":
-                    sprite = SPRITES["finish"]
-                elif x == "+":
-                    sprite = SPRITES["path"]
-                # paste the cell into solved image
-                solved_img.paste(sprite, (x_i * sprite_width, y_i * sprite_width))
-
-        unsolved_img = solved_img.copy()
-        # convert every path image into ground image in unsolved image
-        for y_i, y in enumerate(m_str.splitlines()):
-            for x_i, x in enumerate(y):
-                if x == "+":
-                    unsolved_img.paste(SPRITES["ground"], (x_i * sprite_width, y_i * sprite_width))
-
-        def save_img(image: Image.Image):
-            output = BytesIO()
-            image.thumbnail((1600, 1600))
-            image.save(output, format="PNG")
-            output.seek(0)
-            return output
-
         embed.set_image("attachment://maze.png")
         embed.set_author(name="Generating maze successful!")
         embed.colour = EmbedColour.SUCCESS
@@ -234,11 +161,11 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             if solve_button.label == "Solve":
                 # change the image to "solved" image
                 solve_button.label = "Unsolve"
-                future = loop.run_in_executor(None, save_img, solved_img)
+                future = loop.run_in_executor(None, self._save_img, solved_img)
             else:
                 # change the image to "unsolved" image
                 solve_button.label = "Solve"
-                future = loop.run_in_executor(None, save_img, unsolved_img)
+                future = loop.run_in_executor(None, self._save_img, unsolved_img)
             output = loop.run_until_complete(future)
             maze_img_file = nextcord.File(output, "maze.png")
             solve_button.disabled = False
@@ -248,8 +175,9 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         solve_button.callback = toggle_solve
         solve_view.add_item(solve_button)
 
+        loop = asyncio.get_running_loop()
         # default to the unsolved image
-        future = loop.run_in_executor(None, save_img, unsolved_img)
+        future = loop.run_in_executor(None, self._save_img, unsolved_img)
         output = loop.run_until_complete(future)
         maze_img_file = nextcord.File(output, "maze.png")
 
@@ -269,6 +197,68 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             view=jump_view,
             ephemeral=True,
         )
+
+    def _generate_maze(self, width: int, height: int, difficulty: float | None, start: bool, end: bool) -> Maze:
+        m = Maze()
+        m.generator = Prims(height, width)
+        m.solver = BacktrackingSolver()
+
+        loop = asyncio.get_running_loop()
+
+        if difficulty:
+            future = loop.run_in_executor(None, m.generate_monte_carlo, 10, 1, difficulty)
+        else:
+            m.generate()
+            m.generate_entrances(start_outer=start, end_outer=end)
+            future = loop.run_in_executor(None, m.solve)
+
+        loop.run_until_complete(future)
+        return m
+
+    SPRITES = {
+        "ground": Image.open("resources/maze/ground.png"),
+        "wall": Image.open("resources/maze/wall.png"),
+        "path": Image.open("resources/maze/path.png"),
+        "start": Image.open("resources/maze/start.png"),
+        "finish": Image.open("resources/maze/finish.png"),
+    }
+    SPRITE_WIDTH = 36
+
+    def _generate_solved_img(self, maze_str, width, height):
+        solved_img = Image.new("RGBA", (self.SPRITE_WIDTH * width, self.SPRITE_WIDTH * height))
+
+        # generate the solved maze image
+        for y_i, y in enumerate(maze_str.splitlines()):
+            for x_i, x in enumerate(y):
+                if x == "#":
+                    sprite = self.SPRITES["wall"]
+                elif x == " ":
+                    sprite = self.SPRITES["ground"]
+                elif x == "S":
+                    sprite = self.SPRITES["start"]
+                elif x == "E":
+                    sprite = self.SPRITES["finish"]
+                elif x == "+":
+                    sprite = self.SPRITES["path"]
+                # paste the cell into solved image
+                solved_img.paste(sprite, (x_i * self.SPRITE_WIDTH, y_i * self.SPRITE_WIDTH))
+        return solved_img
+
+    def _generate_unsolved_img(self, maze_str, sprite_width, solved_img):
+        unsolved_img = solved_img.copy()
+        # convert every path image into ground image in unsolved image
+        for y_i, y in enumerate(maze_str.splitlines()):
+            for x_i, x in enumerate(y):
+                if x == "+":
+                    unsolved_img.paste(self.SPRITES["ground"], (x_i * sprite_width, y_i * sprite_width))
+        return unsolved_img
+
+    def _save_img(self, image: Image.Image) -> BytesIO:
+        output = BytesIO()
+        image.thumbnail((1600, 1600))
+        image.save(output, format="PNG")
+        output.seek(0)
+        return output
 
     async def emoji_autocomplete_callback(self, interaction: Interaction, data: str):
         """Returns a list of autocompleted choices of emojis of a server's emoji."""
