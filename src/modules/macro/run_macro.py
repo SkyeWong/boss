@@ -20,7 +20,7 @@ class RunMacroView(BaseView):
     """A view to let users run a preset of slash commands through buttons, instead of inputting them in the chat."""
 
     def __init__(self, interaction: Interaction):
-        super().__init__(interaction, timeout=60)  # 1 minute
+        super().__init__(interaction, timeout=120)  # 2 minutes
         self.db: Database = interaction.client.db
         self.bot: commands.Bot = interaction.client
         self.macro_cmds = []  # a list of commands to run in the macro
@@ -61,7 +61,7 @@ class RunMacroView(BaseView):
         # instead, we send a message to them telling them
         if running_macro_id:
             # check whether the user is running a macro previously
-            await interaction.send(embed=TextEmbed("You are already a macro!"))
+            await interaction.send(embed=TextEmbed("You are already running a macro!"))
             return
         # if the user is recording a macro, we halt the execution and tell the user that they can't run a macro while recording one.
         if recording_macro_id is not None:
@@ -129,24 +129,9 @@ class RunMacroView(BaseView):
         # update the lastest message of the `RunMacroView`
         self.latest_msg = await send(interaction, embed=embed, view=self, ephemeral=True)
 
-    async def _run_cmd(self, interaction: Interaction, skip: bool = False):
-        """
-        Runs a command in the current macro.
-
-        Args:
-            interaction (Interaction): the interaction of the clicked button
-            skip (bool, optional): Whether to skip to the command after next. Defaults to False.
-        """
-
-        if not skip:
-            macro_cmd = self.macro_cmds[self.cmd_index]
-        else:
-            current_index = self.cmd_index + 1
-            # if the current_index exceeds the number of total commands, decrement it by the total number of commands
-            if current_index >= len(self.macro_cmds):
-                current_index -= len(self.macro_cmds)
-            macro_cmd = self.macro_cmds[current_index]
-
+    async def _get_current_cmd(
+        self, interaction: Interaction, macro_cmd
+    ) -> tuple[nextcord.SlashApplicationSubcommand, list]:
         # find the slash command with the name
         slash_cmd = helpers.find_command(interaction.client, macro_cmd["command"])
 
@@ -168,6 +153,28 @@ class RunMacroView(BaseView):
                 value = option.default
             options.append(value)
 
+        return slash_cmd, options
+
+    async def _run_cmd(self, interaction: Interaction, skip: bool = False):
+        """
+        Runs a command in the current macro.
+
+        Args:
+            interaction (Interaction): the interaction of the clicked button
+            skip (bool, optional): Whether to skip to the command after next. Defaults to False.
+        """
+
+        if not skip:
+            macro_cmd = self.macro_cmds[self.cmd_index]
+        else:
+            current_index = self.cmd_index + 1
+            # if the current_index exceeds the number of total commands, decrement it by the total number of commands
+            if current_index >= len(self.macro_cmds):
+                current_index -= len(self.macro_cmds)
+            macro_cmd = self.macro_cmds[current_index]
+
+        slash_cmd, options = await self._get_current_cmd(interaction, macro_cmd)
+
         self.cmd_index += 1 if not skip else 2
         if self.cmd_index > len(self.macro_cmds) - 1:
             self.cmd_index -= len(self.macro_cmds)
@@ -177,9 +184,15 @@ class RunMacroView(BaseView):
         msg = self.latest_msg
         # run the slash command. this will invoke it with the hooks (check, before_invoke, after_invoke)
         await slash_cmd.invoke_callback_with_hooks(interaction._state, interaction, args=options)
-        # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
-        with suppress(nextcord.errors.NotFound):
-            await msg.delete()
+        if not interaction.attached.get("in_cooldown"):
+            # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
+            with suppress(nextcord.errors.NotFound):
+                await msg.delete()
+        else:  # the user is in cooldown, we decrement the command index
+            # basically reverse what was done above
+            self.cmd_index -= 1 if not skip else 2
+            if self.cmd_index < 0:
+                self.cmd_index += len(self.macro_cmds)
 
     @button(label="", style=ButtonStyle.blurple, custom_id="run")
     async def run_cmd_btn(self, button: Button, interaction: Interaction):

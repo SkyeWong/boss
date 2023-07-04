@@ -1232,6 +1232,10 @@ class Resource(commands.Cog, name="Resource Repository"):
 
     async def _change_balance(self, interaction: Interaction, action: Literal["deposit", "withdraw"], amount: int):
         """Deposit or withdraw a user's scrap metals. The `action` should be in past tense."""
+        if amount == 0 and action == "deposit":
+            await interaction.send(embed=TextEmbed("You already have a full safe!"))
+            return
+
         async with interaction.client.db.pool.acquire() as conn:
             async with conn.transaction():
                 new_scrap, new_safe = await conn.fetchrow(
@@ -1300,6 +1304,9 @@ class Resource(commands.Cog, name="Resource Repository"):
             if amount > scrap:
                 await interaction.send(embed=TextEmbed("You don't have that much scrap metals."))
                 return
+            if amount <= 0:
+                await interaction.send(embed=TextEmbed("Enter a positive amount of scrap metals."))
+                return
 
         amount = math.floor(amount)
         try:
@@ -1316,7 +1323,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         ),
     ):
         safe = await interaction.client.db.fetchval(
-            "SELECT scrap_metal, safe_scrap FROM players.players WHERE player_id = $1", interaction.user.id
+            "SELECT safe_scrap FROM players.players WHERE player_id = $1", interaction.user.id
         )
         amount = amount.strip().lower()
 
@@ -1341,6 +1348,9 @@ class Resource(commands.Cog, name="Resource Repository"):
                 return
             if amount > safe:
                 await interaction.send(embed=TextEmbed("You don't have that much scrap metals in your safe."))
+                return
+            if amount <= 0:
+                await interaction.send(embed=TextEmbed("Enter a positive amount of scrap metals."))
                 return
 
         amount = math.floor(amount)

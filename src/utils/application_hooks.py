@@ -15,7 +15,10 @@ import random
 
 
 async def cmd_check(interaction: Interaction):
-    """Check whether the user can use a command. If not, `CommandCheckException` will be raised, which will be caught in `bot.on_application_command_error`."""
+    """
+    Check whether the user can use a command.
+    If not, `CommandCheckException` will be raised, which will be caught in `bot.on_application_command_error`.
+    """
     cmd = interaction.application_command
     bot: commands.Bot = interaction.client
 
@@ -29,7 +32,7 @@ async def cmd_check(interaction: Interaction):
 
         await msg.edit(
             embed=TextEmbed(
-                "We have successfully connected to the database! " f"Use {cmd.get_mention(interaction.guild)} again.",
+                f"We have successfully connected to the database! Use {cmd.get_mention(interaction.guild)} again.",
                 EmbedColour.SUCCESS,
             )
         )
@@ -88,7 +91,7 @@ async def cmd_check(interaction: Interaction):
                     "Whether you're scavenging for resources, completing missions, or participating in events, BOSS is here to help you earn currency and build your wealth in this new world. "
                     "So, join us in the post-apocalyptic wasteland and let BOSS be your guide to survival and prosperity."
                 ),
-                TextEmbed(f"Use {cmd.get_mention(interaction.guild)}again to continue"),
+                TextEmbed(f"Use {cmd.get_mention(interaction.guild)} again to continue"),
             ]
         )  # TODO: add a greet message to this
         raise helpers.NewPlayer()
@@ -113,6 +116,10 @@ async def before_invoke(interaction: Interaction):
 
 
 async def after_invoke(interaction: Interaction):
+    # The user is in cooldown, we do not perform any of the after_invoke actions
+    if interaction.attached.get("in_cooldown"):
+        return
+
     # Running a macro
     if run_macro_view := running_macro_views.get(interaction.user.id):
         await run_macro_view.send_msg(interaction)
