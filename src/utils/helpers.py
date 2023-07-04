@@ -196,7 +196,9 @@ def get_mapping(interaction: Interaction, bot: commands.Bot = None) -> dict:
 def get_error_message():
     embed = Embed()
     embed.title = "An error occurred. Try again in a few seconds."
-    embed.description = ">>> If this continues to happen, please report it in our [server](https://discord.gg/SPtMSrCTAS 'BOSS Server')."
+    embed.description = (
+        "If this continues to happen, please report it in our [server](https://discord.gg/SPtMSrCTAS 'BOSS Server')."
+    )
     embed.colour = constants.EmbedColour.FAIL
     view = View()
     button = Button(label="Join server", url="https://discord.gg/tsTRMqEMFH")
@@ -271,7 +273,7 @@ PB_EMOJIS = {
     "PB1HF": "<:PB1HF:1121322335060901928>",
     "PB1F": "<:PB1F:1121318454285320324>",
     "PB2E": "<:PB2E:1121318455996592148>",
-    "PB2HF": "<:PB2HF:1121318443837296660>",
+    "PB2HF": "<:PB2HF:1125688174249791509>",
     "PB2F": "<:PB2F:1121318441845018634>",
     "PB3E": "<:PB3E:1121318446257406023>",
     "PB3F": "<:PB3F:1121318449352822788>",
@@ -280,8 +282,8 @@ PB_EMOJIS = {
 
 def create_pb(percentage: int):
     """Creates a progress bar with the width of 5 and with `filled` emojis set to the filled variants."""
-    filled = round(percentage / 20) * 20  # round off to the nearest 20
-    filled //= 20
+    filled = round(percentage / 10) * 10  # round off to the nearest 10
+    filled = round(filled / 20)
 
     if filled < 0:
         filled = 0

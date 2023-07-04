@@ -11,6 +11,7 @@ from utils.template_views import BaseView
 
 # default modules
 from typing import Optional
+from dataclasses import dataclass
 import math
 
 
@@ -286,11 +287,10 @@ class HelpView(BaseView):
         await self.get_embed_update_msg(interaction)
 
 
+@dataclass
 class EmbedField:
-    def __init__(self, name: str, value: str, inline: bool = False) -> None:
-        self.name = name
-        self.value = value
-        self.inline = inline
+    name: str
+    value: str
 
 
 class GuidePage(Embed):
@@ -301,13 +301,17 @@ class GuidePage(Embed):
         fields: Optional[tuple[EmbedField]] = None,
         images: Optional[dict[str, str]] = None,
     ):
-        super().__init__(title=title, description=description, colour=EmbedColour.INFO)
+        description = f"# {title}\n{description}"
+        if fields is not None:
+            for field in fields:
+                description += f"\n### {field.name} \n{field.value}"
+
+        super().__init__(description=description, colour=EmbedColour.INFO)
+
+        self._title = title
         if not images:
             images = []
         self.images = images
-        if fields is not None:
-            for field in fields:
-                self.add_field(name=field.name, value=field.value, inline=field.inline)
 
 
 class GuideView(BaseView):
@@ -316,21 +320,25 @@ class GuideView(BaseView):
             title="Introduction",
             description="Welcome to BOSS, the bot for a **post-apocalyptic wasteland following World War III**. \n"
             "Scavenge for resources, complete missions, and participate in events to earn **valuable currency**. \n\n"
-            "To start playing, use </help:964753444164501505> to view a list of available commands.",
+            "To start playing, use </help:964753444164501505> to view a list of available commands. "
+            "You can also use this handy </guide:1102561144327127201>, which teaches you the basics on surviving. "
+            "Turn to different pages by the select menu or buttons. Some pages have images, which you can view by clicking the 🖼️ button.",
         ),
         GuidePage(
             title="Currency System",
-            description="In the world of BOSS, there are two main types of currency: scrap metal and copper. To check your current cash, use </balance:1100243620033994752>.",
+            description="In the world of BOSS, there are two main types of currency: scrap metal and copper. To check your current cash, use </balance:1100243620033994752> or </profile:1005865383191916564>.",
             fields=[
                 EmbedField(
                     f"Scrap Metal {SCRAP_METAL}",
-                    "- The __basic currency__\n- Easy to find and earn, but has a relatively low value. ",
+                    "- The __basic currency__.\n"
+                    "- Easy to find and earn, but has a relatively low value. \n"
+                    "- All of your items are valued with scrap metals.",
                 ),
                 EmbedField(
                     f"Copper {COPPER}",
-                    "- The __valuable and versatile currency__\n"
-                    "- Worth more than basic resources like scrap metal. \n"
-                    f"- 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals.",
+                    f"- The __valuable and versatile currency__.\n"
+                    f"- 1 copper is worth {constants.COPPER_SCRAP_RATE:,} scrap metals.\n"
+                    f"- Some rarer resources can only be obtained using copper.",
                 ),
                 EmbedField(
                     f"Exchanging currencies",
@@ -347,19 +355,27 @@ class GuideView(BaseView):
             description="The ultimate guide to survive in BOSS.",
             fields=[
                 EmbedField(
+                    "Health and hunger system",
+                    "You can check your health and hunger values with </profile:1005865383191916564>.\n"
+                    "When your **hunger** is **below 30**, you will have a **slight delay** and lose 5 points of health in most grind commands. "
+                    "If your **health** is **below 0**, you **die**. You lose all your money in the pocket, and a random item in your backpack.",
+                ),
+                EmbedField(
                     "By scavenging for resources",
                     "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410>, </scavenge:1107319706681098291> and more!\n"
-                    "They have different rewards to help you grind, but decreases your hunger. When your hunger is below 30, every command run will have a slight delay.",
+                    "They have different rewards to help you grind.",
                 ),
                 EmbedField(
                     "By completing tasks and challenges",
                     "You can also earn currency by completing tasks and challenges. "
-                    "Use the </missions:1107319711944941638> command to view available missions and track their progress.",
+                    "Use the </missions:1107319711944941638> command to view available missions and track their progress.\n"
+                    "Missions update every day.",
                 ),
             ],
             images={
                 "/scavenge": "https://i.imgur.com/CUCwYXI.png",
                 "Checking and completing a mission": "https://i.imgur.com/YgrOEA9.gif",
+                "Checking health and hunger values by /profile": "https://i.imgur.com/Zy7eSkc.png",
             },
         ),
         GuidePage(
@@ -370,7 +386,7 @@ class GuideView(BaseView):
                     "</backpack:1008017263540047872> 🎒",
                     "- The __every-day rucksack__ that you carry wherever you go. You sell, trade and do almost everything else with the items in it.\n"
                     "- It only has __32 slots__.\n"
-                    "- When you die (either by running out of health/hunger), you lose a random item in your backpack.",
+                    "- When you die, you lose a random item in your backpack.",
                 ),
                 EmbedField(
                     "</chest:1008017264118874112> 🧰",
@@ -405,13 +421,13 @@ class GuideView(BaseView):
             fields=[
                 EmbedField(
                     "Adding a macro",
-                    "You can either record a macro or import one to add them to your list.\n"
-                    "\nTo record a macro, use </macro record:1124712041307979827>\n"
-                    "> Then you can run commands as usual and they will be recorded!\n"
-                    "> When you have finished running all the commands, stop the recording. Then enter a name for it.\n"
-                    "> ⚠️ Note that you could not rename the macro afterwards.\n"
-                    "\nTo import a macro, click the 'import' button in </macro list:1124712041307979827>\n"
-                    "> Enter the ID of the macro. It should be 6 characters long and can have letters and digits.",
+                    "**You can add a macro using </macro record:1124712041307979827>.**\n"
+                    "- Then you can run commands as usual and they will be recorded!\n"
+                    "- When you have finished running all the commands, stop the recording. Then enter a name for it.\n"
+                    "- ⚠️ Note that you could not rename or edit the macro afterwards.\n"
+                    "**You can also add a macro by importing one in </macro list:1124712041307979827>.**\n"
+                    "- Click the 'import' button then a modal will show up.\n"
+                    "- Enter the ID of the macro. It should be 6 characters long and can have letters and digits.",
                 ),
                 EmbedField(
                     "Viewing your macros",
@@ -419,10 +435,9 @@ class GuideView(BaseView):
                 ),
                 EmbedField(
                     "Running your macros",
-                    "Run the command </macro start:1124712041307979827> and choose the macro to start, or"
-                    "Turn to the page with your macro and click the 'run' button in </macro list:1124712041307979827>.\n"
-                    "You can then run the commands one by one by clicking the buttons."
-                    "After you are finished, click the 'end' button.",
+                    "Run the command </macro start:1124712041307979827> and choose the macro to start, or "
+                    "turn to the page with your macro in </macro list:1124712041307979827> and press the 'run' button.\n"
+                    "You can then run the commands one by one by clicking the buttons.",
                 ),
             ],
             images={
@@ -442,7 +457,7 @@ class GuideView(BaseView):
         for index, page in enumerate(self.pages):
             self.choose_page.options.append(
                 SelectOption(
-                    label=f"{page.title} ({index + 1}/{len(self.pages)})",
+                    label=f"{page._title} ({index + 1}/{len(self.pages)})",
                     value=index,
                     default=index == self.current_page,
                 )

@@ -273,7 +273,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             ephemeral=True,
         )
 
-    async def emoji_autocomplete_callback(self, interaction: Interaction, data):
+    async def emoji_autocomplete_callback(self, interaction: Interaction, data: str):
         """Returns a list of autocompleted choices of emojis of a server's emoji."""
         emojis = interaction.guild.emojis
 
@@ -281,7 +281,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             # return full list
             await interaction.response.send_autocomplete(sorted([emoji.name for emoji in emojis])[:25])
         # send a list of nearest matches from the list of item
-        near_emojis = sorted([emoji.name for emoji in emojis if emoji.name.lower().startswith(data.lower())])
+        near_emojis = sorted([emoji.name for emoji in emojis if data.lower() in emoji.name.lower()])
         await interaction.response.send_autocomplete(near_emojis[:25])
 
     @nextcord.slash_command(name="emoji", description="Search for emojis in the server!")

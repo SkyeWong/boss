@@ -182,7 +182,7 @@ class Utility(commands.Cog, name="Survival Guide"):
             required=False,
             default=0,
             choices={
-                f"{page.title} ({index + 1}/{len(GuideView.pages)})": index
+                f"{page._title} ({index + 1}/{len(GuideView.pages)})": index
                 for index, page in enumerate(GuideView.pages)
             },
         ),

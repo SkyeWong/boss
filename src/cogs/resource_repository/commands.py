@@ -791,7 +791,7 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         profile = await db.fetchrow(
             """
-            SELECT scrap_metal, copper, experience, health, hunger, commands_run
+            SELECT scrap_metal, copper, safe_scrap, experience, health, hunger, commands_run
             FROM players.players
             WHERE player_id = $1
             """,
@@ -825,13 +825,13 @@ class Resource(commands.Cog, name="Resource Repository"):
                 INNER JOIN players.players
                 ON inv.player_id = players.player_id
             WHERE inv.player_id = $1
-            GROUP BY players.scrap_metal
             """,
             user.id,
         )
         if item_worth is None:
             item_worth = 0
-        net_worth = item_worth + profile["scrap_metal"] + profile["copper"] * COPPER_SCRAP_RATE
+        money_worth = profile["scrap_metal"] + profile["copper"] * COPPER_SCRAP_RATE + profile["safe_scrap"]
+        net_worth = item_worth + money_worth
 
         # Fields row 1
         embed.add_field(
@@ -848,15 +848,22 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
         # Fields row 2
         embed.add_field(
-            name="Currency",
-            value=f"{SCRAP_METAL} `{numerize.numerize(profile['scrap_metal'])}`\n"
-            f"{COPPER} `{numerize.numerize(profile['copper'])}`\n",
+            name="Money",
+            value=f"Pocket: {SCRAP_METAL} `{numerize.numerize(profile['scrap_metal'], 1)}`\n"
+            f"Pocket: {COPPER} `{numerize.numerize(profile['copper'], 1)}`\n"
+            f"Safe: {SCRAP_METAL} `{numerize.numerize(profile['safe_scrap'], 1)}`\n",
         )
-        embed.add_field(name="Items", value=f"Unique: `{unique_items}`\nTotal: `{total_items}`\n")
         embed.add_field(
-            name="Net",
-            value=f"Item worth: {SCRAP_METAL} `{numerize.numerize(item_worth)}`\n"
-            f"**Net**: {SCRAP_METAL} `{numerize.numerize(net_worth)}`",
+            name="Items",
+            value=f"Unique: `{unique_items}`\n"
+            f"Total: `{total_items}`\n"
+            f"Worth: {SCRAP_METAL} `{numerize.numerize(item_worth, 1)}`\n",
+        )
+        embed.add_field(
+            name="Net Worth",
+            value=f"Money: {SCRAP_METAL} `{numerize.numerize(money_worth, 1)}`\n"
+            f"Item: {SCRAP_METAL} `{numerize.numerize(item_worth, 1)}`\n"
+            f"**Net**: {SCRAP_METAL} `{numerize.numerize(net_worth, 1)}`",
         )
         await interaction.send(embed=embed)
 
@@ -884,9 +891,9 @@ class Resource(commands.Cog, name="Resource Repository"):
             )
             return
 
-        scrap_metal, copper = await db.fetchrow(
+        scrap_metal, copper, safe_scrap = await db.fetchrow(
             """
-            SELECT scrap_metal, copper
+            SELECT scrap_metal, copper, safe_scrap
             FROM players.players
             WHERE player_id = $1
             """,
@@ -938,13 +945,14 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         embed.description = (
             f"**Scrap Metal**: {SCRAP_METAL} {scrap_metal:,}\n"
-            f"**Copper**: {COPPER} {copper:,}\n\n"
+            f"**Copper**: {COPPER} {copper:,}\n"
+            f"**Safe**: {SCRAP_METAL} {safe_scrap:,}\n\n"
             f"**Item worth**: {SCRAP_METAL} {item_worth:,}\n\n"
-            f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * 25:,}"
+            f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * COPPER_SCRAP_RATE + safe_scrap:,}"
         )
         embed.set_footer(
             text=f"{'You are' if user == interaction.user else f'{user.name} is'} ahead of {round(rank * 100, 1)}% of users!\n"
-            f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE} scrap metals."
+            f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE:,} scrap metals."
         )
 
         await interaction.send(embed=embed)
@@ -1219,6 +1227,125 @@ class Resource(commands.Cog, name="Resource Repository"):
         embed.description += f"\nQuantity in {constants.InventoryType(item_to)}: `{quantities_after['to']}`"
         embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
         await msg.edit(embed=embed)
+
+    async def _change_balance(self, interaction: Interaction, action: Literal["deposit", "withdraw"], amount: int):
+        """Deposit or withdraw a user's scrap metals. The `action` should be in past tense."""
+        async with interaction.client.db.pool.acquire() as conn:
+            async with conn.transaction():
+                new_scrap, new_safe = await conn.fetchrow(
+                    """
+                    UPDATE players.players
+                    SET 
+                        scrap_metal = scrap_metal - $2,
+                        safe_scrap = safe_scrap + $2
+                    WHERE player_id = $1
+                    RETURNING scrap_metal, safe_scrap
+                    """,
+                    interaction.user.id,
+                    amount if action == "deposit" else -amount,
+                )
+                if new_safe > new_scrap * 0.2:
+                    await interaction.send(
+                        embed=TextEmbed(
+                            "You already have a full safe!\n"
+                            "You can only store at most 20% of your scrap metals in your safe.",
+                            EmbedColour.WARNING,
+                        )
+                    )
+                    raise helpers.BossException()
+
+        embed = Embed(colour=EmbedColour.DEFAULT)
+        embed.description = f"**{'Deposited' if action == 'deposit' else 'Withdrew'}**\n {SCRAP_METAL} {amount:,}"
+        embed.add_field(name="Current Scrap Metals", value=f"{SCRAP_METAL} {new_scrap:,}")
+        embed.add_field(name="Current Safe Balance", value=f"{SCRAP_METAL} {new_safe:,}")
+        await interaction.send(embed=embed)
+
+    @nextcord.slash_command(description="Store your scrap metals in your safe where it'll be safe!")
+    async def deposit(
+        self,
+        interaction: Interaction,
+        amount: str = SlashOption(
+            description="A constant number (1234), shorthand (3k), or relative keyword (50%/all)"
+        ),
+    ):
+        scrap, safe = await interaction.client.db.fetchrow(
+            "SELECT scrap_metal, safe_scrap FROM players.players WHERE player_id = $1", interaction.user.id
+        )
+        # calculated by complicated math:
+        #   (safe + amt) / (scrap - amt) = 0.2  --> change subject
+        available_safe = (scrap - 5 * safe) / 6
+        amount = amount.strip().lower()
+
+        if amount.endswith("%"):
+            try:
+                amount = amount.removesuffix("%")
+                amount = float(amount) if "." in amount else int(amount)
+            except:
+                await interaction.send(embed=TextEmbed("That is not a valid relative keyword (eg 50%)."))
+                return
+            if amount > 100 or amount <= 0:
+                await interaction.send(embed=TextEmbed("The percentage must be within the range 0-100."))
+                return
+            amount = amount / 100 * available_safe
+        elif amount in ("all", "max"):
+            amount = available_safe
+        else:  # constant number/shorthand
+            try:
+                amount = helpers.text_to_num(amount)
+            except helpers.TextToNumException:
+                await interaction.send(embed=TextEmbed("That is not a valid amount."))
+                return
+            if amount > scrap:
+                await interaction.send(embed=TextEmbed("You don't have that much scrap metals."))
+                return
+
+        amount = math.floor(amount)
+        try:
+            await self._change_balance(interaction, "deposit", amount)
+        except helpers.BossException:
+            pass
+
+    @nextcord.slash_command(description="Withdraw money from your safe into your pocket.")
+    async def withdraw(
+        self,
+        interaction: Interaction,
+        amount: str = SlashOption(
+            description="A constant number (1234), shorthand (3k), or relative keyword (50%/all)"
+        ),
+    ):
+        safe = await interaction.client.db.fetchval(
+            "SELECT scrap_metal, safe_scrap FROM players.players WHERE player_id = $1", interaction.user.id
+        )
+        amount = amount.strip().lower()
+
+        if amount.endswith("%"):
+            try:
+                amount = amount.removesuffix("%")
+                amount = float(amount) if "." in amount else int(amount)
+            except:
+                await interaction.send(embed=TextEmbed("That is not a valid relative keyword (eg 50%)."))
+                return
+            if amount > 100 or amount <= 0:
+                await interaction.send(embed=TextEmbed("The percentage must be within the range 0-100."))
+                return
+            amount = amount / 100 * safe
+        elif amount in ("all", "max"):
+            amount = safe
+        else:  # constant number/shorthand
+            try:
+                amount = helpers.text_to_num(amount)
+            except helpers.TextToNumException:
+                await interaction.send(embed=TextEmbed("That is not a valid amount."))
+                return
+            if amount > safe:
+                await interaction.send(embed=TextEmbed("You don't have that much scrap metals in your safe."))
+                return
+
+        amount = math.floor(amount)
+        try:
+            await self._change_balance(interaction, "withdraw", amount)
+        except helpers.BossException:
+            pass
 
 
 def setup(bot: commands.Bot):
