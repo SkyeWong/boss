@@ -139,6 +139,7 @@ def work_in_progress(dev_guild_only: bool = True):
             app_cmd.original_callback = self.callback
 
             async def callback(*args, **kwargs):
+                # args[1] will be the `nextcord.Interaction` of the command
                 if args[1].guild_id == constants.DEVS_SERVER_ID and dev_guild_only:
                     await app_cmd.original_callback(*args, **kwargs)
                 else:
@@ -395,7 +396,7 @@ class BossItem:
         if self._name is None:
             self._name, self._emoji = await db.fetchrow(
                 """
-                SELECT name, CONCAT('<:', emoji_name, ':', emoji_id, '>') AS emoji
+                SELECT name, CONCAT('<:_:', emoji_id, '>') AS emoji
                 FROM utility.items
                 WHERE item_id = $1
                 """,
@@ -408,7 +409,7 @@ class BossItem:
         if self._emoji is None:
             self._name, self._emoji = await db.fetchrow(
                 """
-                SELECT name, CONCAT('<:', emoji_name, ':', emoji_id, '>') AS emoji
+                SELECT name, CONCAT('<:_:', emoji_id, '>') AS emoji
                 FROM utility.items
                 WHERE item_id = $1
                 """,

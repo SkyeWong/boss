@@ -1,8 +1,7 @@
 # nextcord
 import nextcord
-from nextcord.ext import commands
 from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import View, Modal, Button, button, Select, select, TextInput
+from nextcord.ui import Modal, Button, button, Select, select, TextInput
 
 # database
 from utils.postgres_db import Database
@@ -10,14 +9,13 @@ from asyncpg import Record
 
 # my modules and constants
 from utils import constants, helpers
-from utils.player import Player
 from utils.constants import EmbedColour
 from utils.helpers import TextEmbed
 
 from utils.template_views import BaseView, ConfirmView
 
 # default modules
-import random
+import math
 import json
 from typing import Optional
 
@@ -27,7 +25,7 @@ def _get_item_embed(item: Record):
 
     embed.add_field(
         name="Emoji",
-        value=f"` <:{item['emoji_name']}:{item['emoji_id']}> `",
+        value=f"` <:_:{item['emoji_id']}> `",
         inline=False,
     )
     embed.add_field(name="ID (cannot be edited)", value=item["item_id"], inline=False)
@@ -45,7 +43,7 @@ class EditItemView(BaseView):
     @button(label="Edit Names", style=ButtonStyle.blurple)
     async def edit_name(self, button: Button, interaction: Interaction):
         model = EditItemModal(self.interaction, self.item)
-        await model.popuplate_inputs(include=("name", "description", "emoji_name", "emoji_id"))
+        await model.popuplate_inputs(include=("name", "description", "emoji_id"))
         await interaction.response.send_modal(model)
 
     @button(label="Edit Prices")
@@ -71,7 +69,6 @@ class EditItemModal(Modal):
             "item_id",
             "name",
             "description",
-            "emoji_name",
             "emoji_id",
             "type",
             "rarity",
@@ -167,12 +164,6 @@ class EditItemModal(Modal):
 
             if column in ("name", "description"):
                 values[column] = inputted_value
-
-            if column == "emoji_name":
-                if len(inputted_value) > 30:
-                    errors.append("The emoji's name must not be more than 30 characters in length.")
-                else:
-                    values[column] = inputted_value
 
             if column == "emoji_id":
                 if not inputted_value.isnumeric():
@@ -315,252 +306,146 @@ class ConfirmItemDelete(ConfirmView):
         )
 
 
-class ConfirmChangelogSend(ConfirmView):
-    """Asks the user to confirm sending the message to changelog, then sends it (or not)."""
+class EmojiView(BaseView):
+    def __init__(self, interaction: Interaction, emojis: list[nextcord.Emoji]):
+        super().__init__(interaction=interaction, timeout=300)
+        self.emojis = emojis
 
-    def __init__(
-        self,
-        slash_interaction: Interaction,
-        embed: Embed,
-        ping_role: nextcord.Role = None,
-    ):
-        self.ping_role = ping_role
-        self.changelog_embed = embed
-        self.msg: nextcord.Message = None
+        self._page = 0
+        self.update_select_options()
 
-        embed = Embed(
-            title="Pending Confirmation",
-            description="Send the message to <#1020660847321808930>?",
+        self.emoji_index = 0
+
+    @classmethod
+    async def send(cls, interaction: Interaction, emojis: list[nextcord.Emoji]):
+        view = cls(interaction, emojis)
+        embed = view._get_embed()
+        view.disable_buttons()
+
+        await interaction.send(f"There are `{len(emojis)}` emojis.", embed=embed, view=view)
+
+    async def update(self, interaction: Interaction):
+        self.disable_buttons()
+        embed = self._get_embed()
+        await interaction.response.edit_message(view=self, embed=embed)
+
+    @property
+    def displayed_emojis(self):
+        return self.emojis[25 * self._page : 25 * (self._page + 1)]
+
+    @property
+    def page(self):
+        return self._page
+
+    @page.setter
+    def page(self, new_page):
+        self._page = new_page
+        self.update_select_options()
+        return self._page
+
+    def update_select_options(self):
+        emoji_select = [i for i in self.children if i.custom_id == "emoji_select"][0]
+        emoji_select.options = [
+            SelectOption(label=emoji.name, value=index, emoji=emoji)
+            for index, emoji in enumerate(self.displayed_emojis)
+        ]
+
+    def _get_embed(self):
+        embed = Embed()
+        embed.set_author(
+            name="Emoji Searcher:",
+            icon_url=self.interaction.client.user.display_avatar.url,
         )
-        if self.ping_role:
-            embed.add_field(
-                name="Role to ping",
-                value=f"{self.ping_role.name} ({self.ping_role.id})",
-            )
+
+        emojis = self.displayed_emojis
+        page = self.emoji_index
+
+        emoji: nextcord.Emoji = emojis[page]
+
+        embed.colour = EmbedColour.DEFAULT
+        embed.set_footer(
+            text=f"Page {page + 1}/{len(emojis)} • List {self.page + 1}/{math.ceil(len(self.emojis) / 25)}"
+        )  # + 1 because self.page uses zero-indexing
+        embed.set_thumbnail(url=emoji.url)
+
+        embed.title = f"`{page + 1}` - click for emoji"
+        embed.url = emoji.url
+        embed.description = str(emoji)
+
+        embed.add_field(
+            name=f"\:{emoji.name}:",
+            value=f">>> ➼ `Name` - \:{emoji.name}:"
+            f"\n➼ `Guild` - {emoji.guild.name}"
+            f"\n➼ `ID`    - {emoji.id}"
+            f"\n➼ `Url`   - {emoji.url}"
+            f"\n➼ `Mention syntax` - ` {str(emoji)} `",
+        )
+        return embed
+
+    def disable_buttons(self):
+        back_btn = [i for i in self.children if i.custom_id == "back"][0]
+        first_btn = [i for i in self.children if i.custom_id == "first"][0]
+        if self.emoji_index == 0:
+            back_btn.disabled = True
+            first_btn.disabled = True
         else:
-            embed.add_field(name="Role to ping", value="No roles will be pinged")
+            back_btn.disabled = False
+            first_btn.disabled = False
 
-        super().__init__(
-            slash_interaction=slash_interaction,
-            confirm_func=self.send_changelog,
-            embed=embed,
-        )
-
-    async def send_edit_changelog(self, interaction: Interaction):
-        client: nextcord.Client = interaction.client
-        cmds = client.get_all_application_commands()
-        changelog_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "changelog"][0]
-        edit_changelog_cmd = changelog_cmd.children["edit"]
-        await edit_changelog_cmd.invoke_callback(interaction, message_id=str(self.msg.id))
-
-    async def send_delete_changelog(self, interaction: Interaction):
-        client: nextcord.Client = interaction.client
-        cmds = client.get_all_application_commands()
-        changelog_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "changelog"][0]
-        delete_changelog_cmd = changelog_cmd.children["delete"]
-        await delete_changelog_cmd.invoke_callback(interaction, message_id=str(self.msg.id))
-
-    async def send_changelog(
-        self, button: Button, interaction: Interaction
-    ):  # the confirm button will perform this action
-        client: nextcord.Client = interaction.client
-        changelog_channel = await client.fetch_channel(constants.CHANGELOG_CHANNEL_ID)
-        # if content is set, it must not be empty (i.e. "")
-        # therefore we use if_else
-        if self.ping_role:
-            self.msg = await changelog_channel.send(self.ping_role.mention, embed=self.changelog_embed)
+        next_btn = [i for i in self.children if i.custom_id == "next"][0]
+        last_btn = [i for i in self.children if i.custom_id == "last"][0]
+        if self.emoji_index == len(self.displayed_emojis) - 1:
+            next_btn.disabled = True
+            last_btn.disabled = True
         else:
-            self.msg = await changelog_channel.send(embed=self.changelog_embed)
+            next_btn.disabled = False
+            last_btn.disabled = False
 
-        view = View(timeout=None)
-        jump_btn = Button(label="Jump", url=self.msg.jump_url)
-        view.add_item(jump_btn)
-        if client:
-            edit_btn = Button(label="Edit", style=ButtonStyle.blurple)
-            edit_btn.callback = self.send_edit_changelog
-            view.add_item(edit_btn)
-            delete_btn = Button(label="Delete", style=ButtonStyle.red)
-            delete_btn.callback = self.send_delete_changelog
-            view.add_item(delete_btn)
-        await interaction.send(f"Sent message, the ID is `{self.msg.id}`", view=view, ephemeral=True)
-
-    @button(label="View", row=1, style=ButtonStyle.grey)
-    async def view_new_embed(self, button: Button, interaction: Interaction):
-        await interaction.send("The message looks like this:", embed=self.changelog_embed, ephemeral=True)
-
-
-class ConfirmChangelogDelete(ConfirmView):
-    """Asks the user to confirm deleting the message to changelog, then deletes it (or not)."""
-
-    def __init__(self, slash_interaction: Interaction, message: nextcord.Message):
-        embed = Embed(title="Pending Confirmation", description="Delete the message?")
-        if message.edited_at:
-            embed.add_field(
-                name="Last edited at",
-                value=f"<t:{int(message.edited_at.timestamp())}:f>",
-            )
+        less_btn = [i for i in self.children if i.custom_id == "less"][0]
+        if self.page == 0:
+            less_btn.disabled = True
         else:
-            embed.add_field(name="Sent at", value=f"<t:{int(message.created_at.timestamp())}:f>")
+            less_btn.disabled = False
 
-        super().__init__(
-            slash_interaction=slash_interaction,
-            confirm_func=self.delete_changelog,
-            embed=embed,
-        )
-        self.message = message
-        self.changelog_embed = message.embeds[0]
-        jump_btn = Button(label="Jump", url=message.jump_url)
-        self.add_item(jump_btn)
-
-    async def delete_changelog(
-        self, button: Button, interaction: Interaction
-    ):  # the confirm button will perform this action
-        await self.message.delete()
-
-    @button(label="View Message", row=1, style=ButtonStyle.grey)
-    async def view_msg(self, button: Button, interaction: Interaction):
-        await interaction.send("The message looks like this:", embed=self.changelog_embed, ephemeral=True)
-
-
-class ConfirmChangelogEdit(ConfirmView):
-    """Asks the user to confirm sending the message to changelog, then sends it (or not).
-    Also allows users to change the embed content.
-    """
-
-    def __init__(
-        self,
-        slash_interaction: Interaction,
-        message: nextcord.Message,
-        new_embed: Embed,
-    ):
-        self.message = message
-        self.old_embed = message.embeds[0]
-        self.new_embed = new_embed
-
-        embed = Embed(title="Editing message...")
-        if self.message.edited_at:
-            embed.add_field(
-                name="Last edited at",
-                value=f"<t:{int(self.message.edited_at.timestamp())}:f>",
-            )
+        more_btn = [i for i in self.children if i.custom_id == "more"][0]
+        if self.page == math.ceil(len(self.emojis) / 25) - 1:
+            more_btn.disabled = True
         else:
-            embed.add_field(
-                name="Sent at",
-                value=f"<t:{int(self.message.created_at.timestamp())}:f>",
-            )
+            more_btn.disabled = False
 
-        embed.add_field(name="ID", value=f"`{self.message.id}`")
+    @select(placeholder="Choose an emoji...", custom_id="emoji_select")
+    async def choose_video(self, select: Select, interaction: Interaction):
+        self.emoji_index = int(select.values[0])  # the value is set to the index of the emoji
+        await self.update(interaction)
 
-        super().__init__(
-            slash_interaction=slash_interaction,
-            confirm_func=self.edit_changelog,
-            embed=embed,
-        )
+    @button(emoji="⏮️", style=ButtonStyle.blurple, custom_id="first", disabled=True)
+    async def first(self, button: Button, interaction: Interaction):
+        self.emoji_index = 0
+        await self.update(interaction)
 
-        jump_btn = Button(label="Jump", url=message.jump_url, row=1)
-        self.add_item(jump_btn)
+    @button(emoji="◀️", style=ButtonStyle.blurple, disabled=True, custom_id="back")
+    async def back(self, button: Button, interaction: Interaction):
+        self.emoji_index -= 1
+        await self.update(interaction)
 
-    async def send_edit_changelog(self, interaction: Interaction):
-        client: nextcord.Client = interaction.client
-        cmds = client.get_all_application_commands()
-        changelog_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "changelog"][0]
-        edit_changelog_cmd = changelog_cmd.children["edit"]
-        await edit_changelog_cmd.invoke_callback(interaction, message_id=str(self.message.id))
+    @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
+    async def next(self, button: Button, interaction: Interaction):
+        self.emoji_index += 1
+        await self.update(interaction)
 
-    async def edit_changelog(
-        self, button: Button, interaction: Interaction
-    ):  # the confirm button will perform this action
-        await self.message.edit(embed=self.new_embed)
+    @button(emoji="⏭️", style=ButtonStyle.blurple, custom_id="last")
+    async def last(self, button: Button, interaction: Interaction):
+        self.emoji_index = len(self.displayed_emojis) - 1
+        await self.update(interaction)
 
-        view = View(timeout=None)
-        jump_btn = Button(label="Jump", url=self.message.jump_url)
-        view.add_item(jump_btn)
+    @button(label="Previous list", style=ButtonStyle.gray, custom_id="less", row=2)
+    async def less(self, button: Button, interaction: Interaction):
+        self.page -= 1
+        self.emoji_index = 0  # reset the page because its a new page
+        await self.update(interaction)
 
-        edit_btn = Button(label="Edit again...", style=ButtonStyle.blurple)
-        edit_btn.callback = self.send_edit_changelog
-        view.add_item(edit_btn)
-
-        await interaction.send("The message has successfully been edited!", view=view, ephemeral=True)
-
-    @button(label="Edit", row=1, style=ButtonStyle.blurple)
-    async def edit_embed(self, button: Button, interaction: Interaction):
-        title = self.new_embed.title
-        description = self.new_embed.description
-        image_url = self.new_embed.image.url
-        modal = EditChangelogModal(self.interaction, self.message, title, description, image_url)
-        await interaction.response.send_modal(modal)
-
-    @button(label="Old", row=1, style=ButtonStyle.grey)
-    async def view_old_embed(self, button: Button, interaction: Interaction):
-        await interaction.send(
-            "The original message looks like this:",
-            embed=self.old_embed,
-            ephemeral=True,
-        )
-
-    @button(label="New", row=1, style=ButtonStyle.grey)
-    async def view_new_embed(self, button: Button, interaction: Interaction):
-        await interaction.send("The edited message looks like this:", embed=self.new_embed, ephemeral=True)
-
-
-class EditChangelogModal(Modal):
-    """Asks the user for the title and description, then sends it to a View and confirm."""
-
-    def __init__(
-        self,
-        slash_interaction: Interaction,
-        message: nextcord.Message,
-        embed_title: str = None,
-        embed_content: str = None,
-        embed_image: str = None,
-    ):
-        self.slash_interaction = slash_interaction
-        self.message = message
-        embed = message.embeds[0]
-
-        super().__init__(title=f"Editing Changelog Message", timeout=None)
-
-        self.embed_title = TextInput(
-            label="Title",
-            style=nextcord.TextInputStyle.short,
-            required=False,
-            default_value=embed.title if not embed_title else embed_title,
-            max_length=256,
-        )
-        self.add_item(self.embed_title)
-
-        self.embed_content = TextInput(
-            label="Content",
-            style=nextcord.TextInputStyle.paragraph,
-            required=True,
-            default_value=embed.description if not embed_content else embed_content,
-            max_length=4000,
-        )
-        self.add_item(self.embed_content)
-
-        self.embed_image = TextInput(
-            label="Image",
-            style=nextcord.TextInputStyle.short,
-            required=False,
-            default_value=embed.image.url if not embed_image else embed_image,
-        )
-
-        self.add_item(self.embed_image)
-
-    async def callback(self, interaction: Interaction):
-        await interaction.response.defer()
-        title = self.embed_title.value
-        content = self.embed_content.value
-        image = self.embed_image.value
-        new_embed = Embed()
-        new_embed.description = content
-        new_embed.colour = random.choice(constants.EMBED_COLOURS)
-        new_embed.set_footer(text="Bot Changelog")
-        if title:
-            new_embed.title = title
-        if image:
-            new_embed.set_image(url=image)
-
-        view = ConfirmChangelogEdit(self.slash_interaction, self.message, new_embed)
-        confirm_embed = view.embed
-        await self.slash_interaction.edit_original_message(embed=confirm_embed, view=view)
+    @button(label="Next list", style=ButtonStyle.gray, custom_id="more", row=2)
+    async def more(self, button: Button, interaction: Interaction):
+        self.page += 1
+        self.emoji_index = 0  # reset the page because its a new page
+        await self.update(interaction)

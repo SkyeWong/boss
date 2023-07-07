@@ -20,21 +20,14 @@ import parsedatetime as pdt
 from utils import constants, helpers
 from utils.player import Player
 from utils.constants import EmbedColour
-from utils.helpers import MoveItemException, TextEmbed
+from utils.helpers import MoveItemException, TextEmbed, command_info
 
 # views and modals
-from .views import (
-    EditItemView,
-    ConfirmItemDelete,
-    ConfirmChangelogSend,
-    ConfirmChangelogDelete,
-    ConfirmChangelogEdit,
-)
+from .views import EditItemView, ConfirmItemDelete, EmojiView
 
 # default modules
 from datetime import datetime
 import random
-from collections import defaultdict
 import json
 from typing import Union
 
@@ -384,15 +377,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             )
             return
         db: Database = self.bot.db
-        item = await db.fetchrow(
-            """
-            SELECT item_id, name, emoji_id
-            FROM utility.items
-            WHERE name ILIKE $1 or emoji_name ILIKE $1
-            LIMIT 1
-            """,
-            f"%{item_name}%",
-        )
+        item = await db.fetchrow(self.GET_ITEM_SQL, item_name)
         if item is None:
             await interaction.send(embed=TextEmbed("The item is not found"), ephemeral=True)
             return
@@ -421,26 +406,23 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                     )
                     if quantities["new"] < 0:
                         raise MoveItemException("Not enough items to remove!")
+                    if quantities["new"] == quantities["old"]:  # a new item is added
+                        inventory = await conn.fetchrow(
+                            """
+                            SELECT inv_type, COUNT(*) AS items
+                            FROM players.inventory
+                            WHERE player_id = $1
+                            GROUP BY inv_type
+                            """,
+                            player_id,
+                        )
 
-                    inv_items = await db.fetch(
-                        """
-                        SELECT inv_type, item_id
-                        FROM players.inventory
-                        WHERE player_id = $1
-                        """,
-                        player_id,
-                    )
-
-                    num_of_items_in_inv = defaultdict(set)
-                    for inv_item in inv_items:
-                        num_of_items_in_inv[inv_item["inv_type"]].add(item["item_id"])
-
-                    for i, items in num_of_items_in_inv.items():
-                        # transaction has not been committed, items are not updated
-                        if i == inv_type == 0 and len(items) >= 32 and item["item_id"] not in items:
-                            raise MoveItemException("Backpacks only have 32 slots!")
-                        if i == inv_type == 2 and len(items) >= 5 and item["item_id"] not in items:
-                            raise MoveItemException("Vaults only have 5 slots!")
+                        for i in inventory:
+                            # transaction has not been committed, items are not updated
+                            if i == inv_type == 0 and len(i["items"]) >= 32:
+                                raise MoveItemException("Backpacks only have 32 slots!")
+                            if i == inv_type == 2 and len(i["items"]) >= 5:
+                                raise MoveItemException("Vaults only have 5 slots!")
 
         except MoveItemException as e:
             await interaction.send(embed=TextEmbed(e.text), ephemeral=True)
@@ -469,14 +451,13 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         interaction: Interaction,
         name: str = SlashOption(required=True, min_length=2),
         description: str = SlashOption(required=True, min_length=2),
-        emoji_name: str = SlashOption(required=True),
         emoji_id: str = SlashOption(required=True),
         rarity: int = SlashOption(
             choices=constants.ItemRarity.to_dict(),
             required=False,
             default=0,
         ),
-        item_type: int = SlashOption(choices=constants.ItemType.to_dict(), required=False, default=0),
+        item_type: int = SlashOption(choices=constants.ItemType.to_dict(), required=False, default=1),
         buy_price: str = SlashOption(required=False, default="0", description="0 --> unable to be bought"),
         sell_price: str = SlashOption(required=False, default="0", description="0 --> unable to be sold"),
         trade_price: str = SlashOption(required=False, default="0", description="0 --> unknown value"),
@@ -536,11 +517,11 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
 
         try:
             sql = (
-                "INSERT INTO utility.items (name, description, emoji_name, emoji_id, buy_price, sell_price, trade_price, rarity, type"
+                "INSERT INTO utility.items (name, description, emoji_id, buy_price, sell_price, trade_price, rarity, type"
                 + (", " if other_attributes else "")
                 + ", ".join(other_attributes.keys())
                 + ") "
-                + "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9"
+                + "VALUES ($1, $2, $3, $4, $5, $6, $7, $8"
                 + (", " if other_attributes else "")
                 + ", ".join([f"${i + 10}" for i, column in enumerate(other_attributes)])
                 + ") "
@@ -550,7 +531,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 sql,
                 name,
                 description,
-                emoji_name,
                 emoji_id,
                 prices["buy"],
                 prices["sell"],
@@ -617,190 +597,12 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         ),
     ):
         db: Database = self.bot.db
-        item = await db.fetchrow(
-            """
-            SELECT item_id, name, description, emoji_name, emoji_id, buy_price, sell_price, trade_price, rarity, type
-            FROM utility.items
-            WHERE name ILIKE $1 or emoji_name ILIKE $1
-            ORDER BY name ASC
-            """,
-            f"%{item}%",
-        )
+        item = await db.fetchrow(self.GET_ITEM_SQL, item)
         if not item:
             await interaction.send("The item is not found!", ephemeral=True)
         else:
             view = ConfirmItemDelete(interaction, item)
             await interaction.send(embed=view.embed, view=view)
-
-    @nextcord.slash_command(name="changelog", guild_ids=[constants.DEVS_SERVER_ID])
-    async def changelog(self, interaction: Interaction):
-        """Send a new message, edit, or delete one in the BOSS changelog channel."""
-        pass
-
-    @changelog.subcommand(
-        name="send",
-        description="Notify users about a new change in the changelog.",
-    )
-    async def send_changelog(
-        self,
-        interaction: Interaction,
-        content: str = SlashOption(
-            description="The changes of the latest update",
-            required=True,
-            max_length=4096,
-        ),
-        title: str = SlashOption(description="Title of the changelog", required=False, max_length=256),
-        image: nextcord.Attachment = SlashOption(
-            description="Image of the changelog • will disappear after a few days",
-            required=False,
-        ),
-        image_link: str = SlashOption(
-            description="LINK of the changelog image • ignored if an image is uploaded • doesn't disappear",
-            required=False,
-        ),
-        ping_role_id: str = SlashOption(
-            name="ping-role-id",
-            description="The id of the role to ping. Defaults to @Bot Changelog Ping. Type 'none' to NOT ping a role.",
-            required=False,
-        ),
-        content_message_id: str = SlashOption(
-            name="content-message-id",
-            description="This passes the content of a message into the embed. This unsets the `content` parameter.",
-            required=False,
-        ),
-    ):
-        boss_server = await self.bot.fetch_guild(827537903634612235)
-        if not ping_role_id:
-            ping_role = boss_server.get_role(1020661085243719700)
-        else:
-            if ping_role_id.lower() == "none":
-                ping_role = None
-            else:
-                try:
-                    ping_role = boss_server.get_role(int(ping_role_id))
-                except ValueError:
-                    await interaction.send("Invalid role id! Try again.", ephemeral=True)
-                    return
-                if not ping_role:  # ping_role == None, the role isn't found
-                    await interaction.send("The role does not exist! Try again.", ephemeral=True)
-                    return
-        if content_message_id:
-            try:
-                if not content_message_id.isnumeric():
-                    await interaction.send("Invalid message id", ephemeral=True)
-                    return
-                message = await interaction.channel.fetch_message(int(content_message_id))
-                content = message.content
-                if not content:
-                    await interaction.send("The message is empty/ only consists of embeds.", ephemeral=True)
-            except (nextcord.NotFound, nextcord.Forbidden, nextcord.HTTPException) as e:
-                if isinstance(e, nextcord.NotFound):
-                    await interaction.send(
-                        f"The message is not found, or it is not in this channel: {interaction.channel.mention}",
-                    )
-                elif isinstance(e, nextcord.Forbidden):
-                    await interaction.send(
-                        "I do not have the correct permissions to get the message!",
-                    )
-                elif isinstance(e, nextcord.HTTPException):
-                    embed, view = helpers.get_error_message()
-                    await interaction.send(embed=embed, view=view, ephemeral=True)
-                return
-        log_embed = Embed()
-        log_embed.description = content
-        log_embed.colour = random.choice(constants.EMBED_COLOURS)
-        log_embed.set_footer(text="Bot Changelog")
-        if title:
-            log_embed.title = title
-        if image:
-            log_embed.set_image(url=image.url)
-        elif image_link:
-            log_embed.set_image(image_link)
-        view = ConfirmChangelogSend(interaction, log_embed, ping_role if ping_role else None)
-        await interaction.send(embed=view.embed, view=view)
-
-    @changelog.subcommand(name="delete", description="Deletes a changelog message")
-    async def delete_changelog(
-        self,
-        interaction: Interaction,
-        message_id: str = SlashOption(
-            name="message-id",
-            description="The id of the message to delete",
-            required=True,
-        ),
-    ):
-        boss_server = await self.bot.fetch_guild(827537903634612235)
-        try:
-            changelog_channel = await boss_server.fetch_channel(1020660847321808930)
-            if not message_id.isnumeric():
-                await interaction.send("Invalid message id", ephemeral=True)
-                return
-            message = await changelog_channel.fetch_message(int(message_id))
-            if message.author != self.bot.user:
-                await interaction.send("I did not send this message!", ephemeral=True)
-                return
-            embed = message.embeds[0]
-            if not embed.footer or embed.footer.text != "Bot Changelog":
-                await interaction.send("This is not a bot changelog message.", ephemeral=True)
-                return
-        except (nextcord.NotFound, nextcord.Forbidden, nextcord.HTTPException) as e:
-            if isinstance(e, nextcord.NotFound):
-                await interaction.send("The message is not found!", ephemeral=True)
-            elif isinstance(e, nextcord.Forbidden):
-                await interaction.send(
-                    "I do not have the correct permissions to get the message!",
-                )
-            elif isinstance(e, nextcord.HTTPException):
-                embed, view = helpers.get_error_message()
-                await interaction.send(embed=embed, view=view, ephemeral=True)
-            return
-        view = ConfirmChangelogDelete(interaction, message)
-        await interaction.send(embed=view.embed, view=view)
-
-    @changelog.subcommand(
-        name="edit",
-        description="Edit an existing message in the changelog",
-    )
-    async def edit_changelog(
-        self,
-        interaction: Interaction,
-        message_id: str = SlashOption(
-            name="message-id",
-            description="The id of the message to edit",
-            required=True,
-        ),
-    ):
-        client: nextcord.Client = interaction.client
-        boss_server = await client.fetch_guild(827537903634612235)
-        try:
-            changelog_channel = await boss_server.fetch_channel(1020660847321808930)
-            if not message_id.isnumeric():
-                await interaction.send("Invalid message id", ephemeral=True)
-                return
-            message = await changelog_channel.fetch_message(int(message_id))
-            if message.author != client.user:
-                await interaction.send("I did not send this message!", ephemeral=True)
-                return
-            if not message.embeds:
-                await interaction.send("This message doesn't have an embed", ephemeral=True)
-                return
-            embed = message.embeds[0]
-            if not embed.footer or embed.footer.text != "Bot Changelog":
-                await interaction.send("This is not a bot changelog message.", ephemeral=True)
-                return
-        except (nextcord.NotFound, nextcord.Forbidden, nextcord.HTTPException) as e:
-            if isinstance(e, nextcord.NotFound):
-                await interaction.send("The message is not found!", ephemeral=True)
-            elif isinstance(e, nextcord.Forbidden):
-                await interaction.send(
-                    "I do not have the correct permissions to get the message!",
-                )
-            elif isinstance(e, nextcord.HTTPException):
-                embed, view = helpers.get_error_message()
-                await interaction.send(embed=embed, view=view, ephemeral=True)
-            return
-        view = ConfirmChangelogEdit(interaction, message, embed)
-        await interaction.send(embed=view.embed, view=view)
 
     async def choose_base_commands_autocomplete(self, interaction: Interaction, data: str):
         client: nextcord.Client = interaction.client
@@ -1120,6 +922,72 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         cog = self.bot.get_cog("Resource Repository")
         await cog.update_villagers.__call__()
         await interaction.send(embed=TextEmbed("Reloaded villagers."))
+
+    async def emoji_autocomplete_callback(self, interaction: Interaction, data: str):
+        """Returns a list of autocompleted choices of emojis of a server's emoji."""
+        emojis = [emoji for guild in self.bot.guilds for emoji in guild.emojis]
+
+        if not data:
+            # return full list
+            await interaction.response.send_autocomplete(sorted([emoji.name for emoji in emojis])[:25])
+            return
+        # send a list of nearest matches from the list of item
+        near_emojis = sorted([emoji.name for emoji in emojis if data.lower() in emoji.name.lower()])
+        await interaction.response.send_autocomplete(near_emojis[:25])
+
+    @nextcord.slash_command(
+        name="emoji", description="Search for emojis in the server!", guild_ids=[constants.DEVS_SERVER_ID]
+    )
+    @command_info(
+        examples={
+            "emoji": "Displays the full list of the server's emoji",
+            "emoji emoji:<query>": "Search for emojis whose names match the query",
+        },
+    )
+    async def emoji(
+        self,
+        interaction: Interaction,
+        emoji_name: str = SlashOption(
+            name="emoji",
+            description="Emoji to search for, its id or name. If left empty, all emojis in this server will be shown.",
+            required=False,
+            autocomplete_callback=emoji_autocomplete_callback,
+        ),
+    ):
+        bot_emojis = [emoji for guild in self.bot.guilds for emoji in guild.emojis]
+        if not emoji_name:  # send full list
+            view = EmojiView(interaction, sorted(bot_emojis, key=lambda emoji: emoji.name))
+            embed = view._get_embed()
+            view.disable_buttons()
+
+            await interaction.send(
+                f"There are `{len(bot_emojis)}` emojis.",
+                embed=embed,
+                view=view,
+            )
+            return
+
+        if len(emoji_name) < 2:
+            await interaction.send(embed=TextEmbed("The search term must be longer than 2 characters."))
+        else:  # perform a search on emojis
+            emojis_found = [
+                emoji for emoji in bot_emojis if emoji_name.lower() in emoji.name.lower() or emoji_name == str(emoji.id)
+            ]
+
+            emojis_found.sort(key=lambda emoji: emoji.name)
+
+            if emojis_found:
+                view = EmojiView(interaction, emojis_found)
+                embed = view._get_embed()
+                view.disable_buttons()
+
+                await interaction.send(
+                    f"There are `{len(emojis_found)}` results for `{emoji_name}`.",
+                    embed=embed,
+                    view=view,
+                )
+            else:
+                await interaction.send(embed=TextEmbed(f"No emojis are found for `{emoji_name}`."))
 
 
 def setup(bot: commands.Bot):

@@ -132,7 +132,7 @@ class Player:
             # Choose a random item from the user's backpack
             lost_item = await self.db.fetchrow(
                 """
-                SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, inv.quantity
+                SELECT i.item_id, i.name, CONCAT('<:_:', i.emoji_id, '>') AS emoji, inv.quantity
                 FROM utility.items AS i
                     INNER JOIN players.inventory AS inv
                     ON i.item_id = inv.item_id
@@ -160,6 +160,7 @@ class Player:
                 """,
                 self.user.id,
             )
+        return new_health
 
     async def set_in_inter(self, value: bool):
         """Modify whether the player is running a command"""

@@ -265,7 +265,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                         NOT i.item_id = ANY($2::int[])
                     RETURNING 
                         i.name, 
-                        CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji,
+                        CONCAT('<:_:', i.emoji_id, '>') AS emoji,
                         i.sell_price,
                         (SELECT quantity As old_quantity 
                         FROM players.inventory 
@@ -283,7 +283,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         return total_price
 
     GET_SELLABLE_SQL = """
-        SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, i.sell_price, bp.quantity
+        SELECT i.item_id, i.name, CONCAT('<:_:', i.emoji_id, '>') AS emoji, i.sell_price, bp.quantity
             FROM utility.items AS i
             INNER JOIN utility.SearchItem($2) AS s
             ON i.item_id = s.item_id
@@ -348,7 +348,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         # get the remaining sellable items in the user's backpack where the item is not excluded
         sellable_items = await db.fetch(
             """
-                SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, inv.quantity, i.sell_price
+                SELECT i.item_id, i.name, CONCAT('<:_:', i.emoji_id, '>') AS emoji, inv.quantity, i.sell_price
                     FROM players.inventory AS inv
                     INNER JOIN utility.items AS i
                     ON inv.item_id = i.item_id
@@ -575,7 +575,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
 
     GET_BACKPACK_SQL = """
-        SELECT i.item_id, i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, i.type, bp.quantity
+        SELECT i.item_id, i.name, CONCAT('<:_:', i.emoji_id, '>') AS emoji, i.type, bp.quantity
         FROM utility.items AS i
         INNER JOIN utility.SearchItem($2) AS s
         ON i.item_id = s.item_id
@@ -1231,11 +1231,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         await msg.edit(embed=embed)
 
     async def _change_balance(self, interaction: Interaction, action: Literal["deposit", "withdraw"], amount: int):
-        """Deposit or withdraw a user's scrap metals. The `action` should be in past tense."""
-        if amount == 0 and action == "deposit":
-            await interaction.send(embed=TextEmbed("You already have a full safe!"))
-            return
-
+        """Deposit or withdraw a user's scrap metals."""
         async with interaction.client.db.pool.acquire() as conn:
             async with conn.transaction():
                 new_scrap, new_safe = await conn.fetchrow(
@@ -1309,6 +1305,9 @@ class Resource(commands.Cog, name="Resource Repository"):
                 return
 
         amount = math.floor(amount)
+        if amount == 0:
+            await interaction.send(embed=TextEmbed("You already have a full safe!"))
+            return
         try:
             await self._change_balance(interaction, "deposit", amount)
         except helpers.BossException:

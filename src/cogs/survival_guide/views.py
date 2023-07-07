@@ -10,7 +10,7 @@ from utils.helpers import TextEmbed
 from utils.template_views import BaseView
 
 # default modules
-from typing import Optional
+from typing import Optional, Union
 from dataclasses import dataclass
 import math
 
@@ -64,7 +64,7 @@ class HelpView(BaseView):
         # Set the number of commands per page to 6.
         self.cmd_per_page = 6
 
-    def _get_cogs_options(self) -> list[SelectOption] | None:
+    def _get_cogs_options(self) -> Union[list[SelectOption], None]:
         """Gets a list of SelectOption objects for the cogs.
 
         Returns:
@@ -72,7 +72,7 @@ class HelpView(BaseView):
         """
 
         if not self.mapping:
-            return
+            return None
 
         # Create a list of SelectOption objects for the cogs.
         options = []

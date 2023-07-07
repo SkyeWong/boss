@@ -248,7 +248,7 @@ class FarmView(BaseView):
     async def progress(self, button: Button, interaction: Interaction):
         crop_types = await self.player.db.fetch(
             """
-            SELECT crop_type_id AS id, name, growth_period, CONCAT('<:', grown_emoji_name, ':', grown_emoji_id, '>') AS emoji
+            SELECT crop_type_id AS id, name, growth_period, CONCAT('<:_:', grown_emoji_id, '>') AS emoji
             FROM utility.crop_types
             """
         )
@@ -412,7 +412,7 @@ class PlantView(BaseView):
 
         crop_types = await self.player.db.fetch(
             """
-            SELECT crop_type_id AS id, name, growth_period, grown_emoji_name AS emoji_name, grown_emoji_id AS emoji_id
+            SELECT crop_type_id AS id, name, growth_period, grown_emoji_id AS emoji
             FROM utility.crop_types
             """
         )
@@ -422,7 +422,7 @@ class PlantView(BaseView):
                 SelectOption(
                     label=f"{crop_type['name'].capitalize()} ({crop_type['growth_period']})",
                     value=crop_type["id"],
-                    emoji=f"<:{crop_type['emoji_name']}:{crop_type['emoji_id']}>",
+                    emoji=f"<:_:{crop_type['emoji_id']}>",
                     default=crop_type["id"] == self.type_to_plant,
                 )
             )
@@ -796,7 +796,7 @@ class HarvestView(BaseView):
 
         crop_types = await self.player.db.fetch(
             """
-            SELECT crop_type_id AS id, name, growth_period, CONCAT('<:', grown_emoji_name, ':', grown_emoji_id, '>') AS emoji, grown_item_id AS item
+            SELECT crop_type_id AS id, name, growth_period, CONCAT('<:_:', grown_emoji_id, '>') AS emoji, grown_item_id AS item
             FROM utility.crop_types
             """
         )
@@ -921,7 +921,7 @@ class InventoryView(BaseView):
         db: Database = self.interaction.client.db
         self.inv = await db.fetch(
             """
-            SELECT i.name, CONCAT('<:', i.emoji_name, ':', i.emoji_id, '>') AS emoji, i.rarity, i.type, inv.quantity
+            SELECT i.name, CONCAT('<:_:', i.emoji_id, '>') AS emoji, i.rarity, i.type, inv.quantity
                 FROM players.inventory AS inv
                 INNER JOIN utility.items AS i
                 ON inv.item_id = i.item_id

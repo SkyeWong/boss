@@ -16,7 +16,6 @@ from utils.constants import EmbedColour
 
 # command views
 from .views import (
-    EmojiView,
     WeatherView,
     PersistentWeatherView,
     VideoView,
@@ -259,77 +258,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         image.save(output, format="PNG")
         output.seek(0)
         return output
-
-    async def emoji_autocomplete_callback(self, interaction: Interaction, data: str):
-        """Returns a list of autocompleted choices of emojis of a server's emoji."""
-        emojis = interaction.guild.emojis
-
-        if not data:
-            # return full list
-            await interaction.response.send_autocomplete(sorted([emoji.name for emoji in emojis])[:25])
-        # send a list of nearest matches from the list of item
-        near_emojis = sorted([emoji.name for emoji in emojis if data.lower() in emoji.name.lower()])
-        await interaction.response.send_autocomplete(near_emojis[:25])
-
-    @nextcord.slash_command(name="emoji", description="Search for emojis in the server!")
-    @command_info(
-        examples={
-            "emoji": "Displays the full list of the server's emoji",
-            "emoji emoji:<query>": "Search for emojis whose names match the query",
-        },
-    )
-    @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
-    async def emoji(
-        self,
-        interaction: Interaction,
-        emoji_name: str = SlashOption(
-            name="emoji",
-            description="Emoji to search for, its id or name. If left empty, all emojis in this server will be shown.",
-            required=False,
-            autocomplete_callback=emoji_autocomplete_callback,
-        ),
-    ):
-        if not emoji_name:  # send full list
-            guild_emojis = sorted(interaction.guild.emojis, key=lambda emoji: emoji.name)
-
-            if guild_emojis:  # guild has no emojis
-                view = EmojiView(interaction, guild_emojis)
-                embed = view.get_embed()
-                view.disable_buttons()
-
-                await interaction.send(
-                    f"There are `{len(guild_emojis)}` emojis in `{interaction.guild.name}`.",
-                    embed=embed,
-                    view=view,
-                )
-            else:
-                await interaction.send(embed=TextEmbed("This server has no emojis!"))
-
-            return
-
-        if len(emoji_name) < 2:
-            await interaction.send(embed=TextEmbed("The search term must be longer than 2 characters."))
-        else:  # perform a search on emojis
-            emojis_found = [
-                emoji
-                for emoji in interaction.guild.emojis
-                if emoji_name.lower() in emoji.name.lower() or emoji_name == str(emoji.id)
-            ]
-
-            emojis_found.sort(key=lambda emoji: emoji.name)
-
-            if emojis_found:
-                view = EmojiView(interaction, emojis_found)
-                embed = view.get_embed()
-                view.disable_buttons()
-
-                await interaction.send(
-                    f"There are `{len(emojis_found)}` results for `{emoji_name}`.",
-                    embed=embed,
-                    view=view,
-                )
-            else:
-                await interaction.send(embed=TextEmbed(f"No emojis are found for `{emoji_name}`."))
 
     @nextcord.slash_command(name="encrypt", description="Send (truly) private messages with your friend using AES!")
     @command_info(

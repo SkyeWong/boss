@@ -5,6 +5,8 @@
 
 > ⚠️ BOSS is at its infancy, **none of the commands are guaranteed to work 100%**. However, if you do find a bug, ***please do not hesitate to report it on our [server](https://discord.gg/pWBntSX3bh)***. The help will be appreciated.
 
+> ⚠️Some of the arts used in this bot is originated from the Internet. If you have any problems with the copyright issues, please email me.
+
 BOSS is a slash-based currency Discord bot designed for a post-apocalyptic world after World War III. In this new world, resources are scarce and a variety of items have become valuable currency, including scrap metal, ammunition, and other essential resources. BOSS provides a unique currency system that allows users to earn, spend, and trade these valuable items, which they can use to purchase goods and services.
 
 ## Features
