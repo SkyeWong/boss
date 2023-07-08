@@ -576,7 +576,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         )
 
     GET_BACKPACK_SQL = """
-        SELECT i.item_id, i.name, CONCAT('<:_:', i.emoji_id, '>') AS emoji, i.type, bp.quantity
+        SELECT i.*, CONCAT('<:_:', i.emoji_id, '>') AS emoji, bp.quantity
         FROM utility.items AS i
         INNER JOIN utility.SearchItem($2) AS s
         ON i.item_id = s.item_id

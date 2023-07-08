@@ -95,28 +95,6 @@ class WeatherView(View):
         await msg.edit(view=self)
 
 
-class PersistentWeatherView(View):
-    """#### A `persistent` view for displaying weather information daily."""
-
-    def __init__(self, forecast):
-        super().__init__(timeout=None)
-        self.forecast = forecast
-
-    @button(
-        label="Current Situation",
-        custom_id=f"weather_current_situation_{datetime.datetime.now().strftime('%m-%d')}",
-    )
-    async def send_situation(self, button: Button, interaction: Interaction):
-        await send_situation(interaction, self.forecast)
-
-    @button(
-        label="Future Outlook",
-        custom_id=f"weather_future_outlook{datetime.datetime.now().strftime('%m-%d')}",
-    )
-    async def send_outlook(self, button: Button, interaction: Interaction):
-        await send_outlook(interaction, self.forecast)
-
-
 class Video:
 
     """A helper class that is designed to represent a Youtube video and be displayed in VideoView."""

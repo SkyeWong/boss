@@ -65,13 +65,15 @@ class BossBot(commands.Bot):
             *args,
             **kwargs,
         )
-        self.persistent_views_added = False
 
         # dicts showing all macro views at the time
         # it maps the user id to his/her `RunMacroView` / `RecordMacroView`
         self.running_macro_views = {}
         self.recording_macro_views = {}
         self.villagers = None
+
+        self.persistent_views_added = False
+
         self.db = Database()
         self.pool = self.db.pool
 
@@ -85,7 +87,8 @@ class BossBot(commands.Bot):
         if not self.persistent_views_added:
             # Register the persistent view for listening here.
             # This does not send the view to any message.
-            self.add_view(PersistentWeatherView((datetime.now(), "", "")))
+            # self.add_view(PersistentWeatherView((datetime.now(), "", "")))
+            # currently we do not have any persistent weather views, but I'll keep it here for future reference
             self.persistent_views_added = True
 
         # Connect to the bot database

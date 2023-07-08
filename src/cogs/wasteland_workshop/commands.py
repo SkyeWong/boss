@@ -17,7 +17,6 @@ from utils.constants import EmbedColour
 # command views
 from .views import (
     WeatherView,
-    PersistentWeatherView,
     VideoView,
     ChannelVideoView,
     Video,
@@ -64,20 +63,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        response = requests.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json")
-        response = response.json().get("DYN_DAT_MINDS_RHRREAD")
-
-        self.location_list = {}
-        for k, v in response.items():
-            if "LocationName" in k:
-                if not v["Val_Eng"] or not v["Val_Chi"]:
-                    self.location_list[k.replace("LocationName", "")] = k.replace("LocationName", "")
-                else:
-                    self.location_list[html.unescape(f"{v['Val_Eng']} - {v['Val_Chi']}")] = k.replace(
-                        "LocationName", ""
-                    )
-        self.location_list = dict(sorted(self.location_list.items()))
-        self.announce_temp.start()
         self.AES_KEY = os.urandom(32)
 
     @nextcord.slash_command(name="generate-maze", description="Generate a maze using the Mazelib Python library")
@@ -712,7 +697,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             "\n".join(messages),
         )
 
-    async def get_hko_weather_forecast(self, language="Val_Eng"):
+    async def _get_hko_weather_forecast(self, language="Val_Eng"):
         async with aiohttp.ClientSession() as session:
             async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json") as response:
                 html = await response.json()
@@ -731,7 +716,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
         return forecast_time, situation, outlook
 
-    def get_hko_weather_embed(self, temp):
+    def _get_hko_weather_embed(self, temp):
         embed = Embed()
         embed.set_author(
             name=f"Information fetched from HK Observatory",
@@ -790,28 +775,12 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
             return
 
         temp = await self.get_temperature(location, language)
-        forecast = await self.get_hko_weather_forecast(language)
+        forecast = await self._get_hko_weather_forecast(language)
 
-        embed = self.get_hko_weather_embed(temp)
+        embed = self._get_hko_weather_embed(temp)
         view = WeatherView(forecast)
 
         view.msg = await interaction.send(embed=embed, view=view)
-
-    @tasks.loop(time=datetime.time(23, 5))  # 07:05 am
-    async def announce_temp(self):
-        guild: nextcord.Guild = await self.bot.fetch_guild(827537903634612235)
-        channel = await guild.fetch_channel(1056236722654031903)
-
-        temp = await self.get_temperature("TseungKwanO", "Val_Eng")
-        forecast = await self.get_hko_weather_forecast("Val_Eng")
-
-        embed = self.get_hko_weather_embed(temp)
-        view = PersistentWeatherView(forecast)
-
-        await channel.send(embed=embed, view=view)
-        utc = pytz.timezone("UTC")
-        now = datetime.datetime.now(tz=utc).strftime("%y-%#m-%#d %#H:%#M %Z")
-        print(f"\033[1;30mAnnounced temperature at {now}.\033[0m")
 
     async def search_yt_autocomplete(self, interaction: Interaction, data):
         if not data:
