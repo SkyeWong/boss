@@ -23,8 +23,10 @@ class RunMacroView(BaseView):
         super().__init__(interaction, timeout=120)  # 2 minutes
         self.db: Database = interaction.client.db
         self.bot: commands.Bot = interaction.client
+
         self.macro_cmds = []  # a list of commands to run in the macro
-        self.cmd_index = 0
+        self.macro_id: str = ""  # the id of the currently running macro
+        self.cmd_index = 0  # the index of the current command in the macro
 
         # stores the last message sent, if the "run" button is clicked but the message is not equal to the last message, the command will not be run.
         self.latest_msg: nextcord.Message = None
@@ -54,22 +56,19 @@ class RunMacroView(BaseView):
             await interaction.send(embed=TextEmbed("Enter a valid macro name.", EmbedColour.WARNING))
             return
 
-        running_macro_id, recording_macro_id = await interaction.client.db.fetchrow(
-            "SELECT running_macro_id, recording_macro_id FROM players.players WHERE player_id = $1", interaction.user.id
-        )
         # if the user is already running a macro, we do not restart it.
         # instead, we send a message to them telling them
-        if running_macro_id:
+        if interaction.client.running_macro_views.get(interaction.user.id):
             # check whether the user is running a macro previously
             await interaction.send(embed=TextEmbed("You are already running a macro!"))
             return
         # if the user is recording a macro, we halt the execution and tell the user that they can't run a macro while recording one.
-        if recording_macro_id is not None:
+        if interaction.client.recording_macro_views.get(interaction.user.id):
             await interaction.send(embed=TextEmbed("You cannot run a macro while recording one.", EmbedColour.WARNING))
             return
 
         # create the view
-        run_macro_view = cls(interaction)
+        view = cls(interaction)
         # update the list of commands in the macro with data from the database
         # `macro_commands` will then the following structure:
         #   [
@@ -78,15 +77,10 @@ class RunMacroView(BaseView):
         #   ]
         # cmd["command"] stores the full name of the command ([parent names] + cmd name)
         # cmd["options"] stores the options passed into the command (which may be optional)
-        run_macro_view.macro_cmds = [{"command": i["command_name"], "options": json.loads(i["options"])} for i in res]
+        view.macro_cmds = [{"command": i["command_name"], "options": json.loads(i["options"])} for i in res]
+        view.macro_id = res[0]["macro_id"]
         # update the list of all `RunMacroView` views
-        running_macro_views[interaction.user.id] = run_macro_view
-        # set the running macro of the user to the current one
-        await run_macro_view.db.execute(
-            "UPDATE players.players SET running_macro_id = $2 WHERE player_id = $1",
-            interaction.user.id,
-            res[0]["macro_id"],
-        )
+        interaction.client.running_macro_views[interaction.user.id] = view
         await interaction.send(embed=TextEmbed(f"Started the macro **{res[0]['name']}**."))
 
     async def send_msg(self, interaction: Interaction):
@@ -207,11 +201,8 @@ class RunMacroView(BaseView):
     @button(label="End", style=ButtonStyle.grey, custom_id="end")
     async def end_macro(self, button: Button, interaction: Interaction):
         """End the current macro."""
-        await self.db.execute(
-            "UPDATE players.players SET running_macro_id = NULL WHERE player_id = $1", interaction.user.id
-        )
+        interaction.client.running_macro_views.pop(interaction.user.id, None)
         await interaction.send(embed=TextEmbed("Successfully ended the current macro!"), ephemeral=True)
-        running_macro_views.pop(interaction.user.id, None)
 
     async def on_timeout(self) -> None:
         """Delete the last message, suppressing message not found error."""
@@ -220,12 +211,7 @@ class RunMacroView(BaseView):
 
     async def interaction_check(self, interaction: Interaction) -> bool:
         # If the user is not running a macro, halt the execution
-        running_macro_id = await self.db.fetchval(
-            "SELECT running_macro_id FROM players.players WHERE player_id = $1", interaction.user.id
-        )
-        if (
-            not running_macro_views.get(interaction.user.id) or running_macro_id is None
-        ):  # check whether the user is running a macro
+        if not interaction.client.running_macro_views.get(interaction.user.id):
             await interaction.send(embed=TextEmbed("You are not running a macro."), ephemeral=True)
             return False
 
@@ -237,8 +223,3 @@ class RunMacroView(BaseView):
             )
             return False
         return await super().interaction_check(interaction)
-
-
-# a dict showing all macro views at the time
-# it maps the user id to his/her `RunMacroView`
-running_macro_views = {}

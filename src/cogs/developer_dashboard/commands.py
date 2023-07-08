@@ -482,13 +482,13 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         # load the other attributes json text into dict
         if other_attributes:
             try:
-                other_attributes = json.loads(other_attributes)
+                _ = json.loads(other_attributes)
             except json.JSONDecodeError:
                 errors.append("The format of `other attributes` are invalid.")
-            if not isinstance(other_attributes, dict):
+            if not isinstance(_, dict):
                 errors.append("`Other attributes should be in a dictionary format.")
         else:
-            other_attributes = {}
+            other_attributes = None
 
         # if an error occured send a message and return the function
         if len(errors) > 0:
@@ -516,19 +516,12 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             return
 
         try:
-            sql = (
-                "INSERT INTO utility.items (name, description, emoji_id, buy_price, sell_price, trade_price, rarity, type"
-                + (", " if other_attributes else "")
-                + ", ".join(other_attributes.keys())
-                + ") "
-                + "VALUES ($1, $2, $3, $4, $5, $6, $7, $8"
-                + (", " if other_attributes else "")
-                + ", ".join([f"${i + 10}" for i, column in enumerate(other_attributes)])
-                + ") "
-                + "RETURNING *"
-            )
             item = await db.fetchrow(
-                sql,
+                """
+                INSERT INTO utility.items (name, description, emoji_id, buy_price, sell_price, trade_price, rarity, type, other_attributes)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                RETURNING *
+                """,
                 name,
                 description,
                 emoji_id,
@@ -537,7 +530,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 prices["trade"],
                 rarity,
                 item_type,
-                *other_attributes.values(),
+                other_attributes,
             )
         except Exception as e:
             await interaction.send(embed=TextEmbed(f"{e.__class__.__name__}: {e}", EmbedColour.WARNING))
@@ -920,7 +913,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     async def reload_villagers(self, interaction: Interaction):
         """Reload the villagers used in /trade."""
         cog = self.bot.get_cog("Resource Repository")
-        await cog.update_villagers.__call__()
+        await cog.update_villagers()
         await interaction.send(embed=TextEmbed("Reloaded villagers."))
 
     async def emoji_autocomplete_callback(self, interaction: Interaction, data: str):

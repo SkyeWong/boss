@@ -1,16 +1,13 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands
-from nextcord import Embed, Interaction, ButtonStyle
-from nextcord.ui import Button
+from nextcord import Embed, Interaction
 
 # nextcord cooldowns
 from cooldowns import CallableOnCooldown
 
 # nested asyncio --> perform multiple asyncs at once
 import nest_asyncio
-
-import pytz
 
 # creates a flask app, which
 #   lets uptimerobot ping the app to make it stay up, and
@@ -21,10 +18,7 @@ from keep_alive import keep_alive
 from utils import constants, helpers
 from utils.constants import EmbedColour
 from utils.helpers import TextEmbed, CommandCheckException
-from utils.player import Player
 from utils.postgres_db import Database
-from modules.macro.run_macro import RunMacroView
-from cogs.wasteland_workshop.views import PersistentWeatherView
 
 # default modules
 import os
@@ -73,6 +67,10 @@ class BossBot(commands.Bot):
         )
         self.persistent_views_added = False
 
+        # dicts showing all macro views at the time
+        # it maps the user id to his/her `RunMacroView` / `RecordMacroView`
+        self.running_macro_views = {}
+        self.recording_macro_views = {}
         self.villagers = None
         self.db = Database()
         self.pool = self.db.pool

@@ -6,8 +6,6 @@ from utils import constants, helpers
 from utils.player import Player
 from utils.helpers import TextEmbed
 from utils.constants import EmbedColour
-from modules.macro.record_macro import recording_macro_views
-from modules.macro.run_macro import running_macro_views
 
 import pytz
 from datetime import datetime
@@ -121,11 +119,11 @@ async def after_invoke(interaction: Interaction):
         return
 
     # Running a macro
-    if run_macro_view := running_macro_views.get(interaction.user.id):
+    if run_macro_view := interaction.client.running_macro_views.get(interaction.user.id):
         await run_macro_view.send_msg(interaction)
 
     # Recording a macro
-    if record_macro_view := recording_macro_views.get(interaction.user.id):
+    if record_macro_view := interaction.client.recording_macro_views.get(interaction.user.id):
         await record_macro_view.record(interaction)
         # if the max number of commands has reached,
         # `view.record()` will stop recording and set `view.recording` to False.

@@ -28,10 +28,11 @@ class RecordMacroView(BaseView):
     )
     MAX_NUMBER_OF_COMMANDS = 25
 
-    def __init__(self, interaction: Interaction):
+    def __init__(self, interaction: Interaction, recording_macro_id: str):
         super().__init__(interaction, timeout=500)
         self.db: Database = interaction.client.db
         self.bot: commands.Bot = interaction.client
+        self.recording_macro_id = recording_macro_id
         self.recorded_cmds = []
         self.latest_msg: nextcord.Message = None
         self.saved_macro = False  # flag variable to show if the user has saved the currently recording macro
@@ -52,24 +53,16 @@ class RecordMacroView(BaseView):
 
         # Check if the user is running a macro.
         # Since they should not record a macro while running one, we halt the execution
-        running_macro_id = await db.fetchval(
-            "SELECT running_macro_id FROM players.players WHERE player_id = $1", interaction.user.id
-        )
-        if running_macro_id is not None:
+        if interaction.client.running_macro_views.get(interaction.user.id):
             await interaction.send(embed=TextEmbed("You cannot record a macro while running one.", EmbedColour.WARNING))
             return
 
-        # create the view
-        record_macro_view = cls(interaction)
         # fetch the macro id that the user is recording and set it as the recording_macro_id of the user
         macro_id = await db.fetchval("INSERT INTO players.macros DEFAULT VALUES RETURNING macro_id")
-        await db.execute(
-            "UPDATE players.players SET recording_macro_id = $2 WHERE player_id = $1",
-            interaction.user.id,
-            macro_id,
-        )
+        # create the view
+        record_macro_view = cls(interaction, macro_id)
         # update the list of all `RecordMacroView` views
-        recording_macro_views[interaction.user.id] = record_macro_view
+        interaction.client.recording_macro_views[interaction.user.id] = record_macro_view
         # send a message with the instructions on how to record commands
         await interaction.send(
             embed=Embed(
@@ -202,23 +195,11 @@ class RecordMacroView(BaseView):
                 or when the modal has timed out,
                 or when there are no commands recorded
             """
-            await self.db.execute("DELETE FROM players.macros WHERE macro_id = $1", recording_macro_id)
+            await self.db.execute("DELETE FROM players.macros WHERE macro_id = $1", self.recording_macro_id)
 
         self.recording = False
-        # set the `recording_macro_id` of the user to null since recording is finished,
-        # also fetch the id of the macro that the user had been recording
-        recording_macro_id = await self.db.fetchval(
-            """
-                UPDATE players.players 
-                SET recording_macro_id = NULL
-                WHERE player_id = $1
-                RETURNING 
-                    (SELECT recording_macro_id FROM players.players WHERE player_id = $1) AS recording_macro_id
-            """,
-            interaction.user.id,
-        )
         # remove the player from the list of all `RecordMacroViews`
-        recording_macro_views.pop(interaction.user.id, None)
+        interaction.client.recording_macro_views.pop(interaction.user.id, None)
         # delete the last message sent (contains a list of recorded commands, if any)
         await self.latest_msg.delete()
         # no commands are recorded, delete the macro and notify the users
@@ -242,7 +223,7 @@ class RecordMacroView(BaseView):
                     """,
                     # the `sequence` column is the order in which commands will be run, stored in an ascending order.
                     [
-                        (recording_macro_id, index, cmd["command"], json.dumps(cmd["options"]))
+                        (self.recording_macro_id, index, cmd["command"], json.dumps(cmd["options"]))
                         for index, cmd in enumerate(self.recorded_cmds)
                     ],
                 )
@@ -252,7 +233,7 @@ class RecordMacroView(BaseView):
                     INSERT INTO players.macro_players (macro_id, player_id)
                     VALUES ($1, $2)
                     """,
-                    recording_macro_id,
+                    self.recording_macro_id,
                     btn_inter.user.id,
                 )
                 # update the name of the macro
@@ -264,12 +245,12 @@ class RecordMacroView(BaseView):
                     WHERE macro_id = $2
                     """,
                     name,
-                    recording_macro_id,
+                    self.recording_macro_id,
                 )
                 # update the confirmation message and notify the users that the macro has been saved
                 embed = msg.embeds[0]
                 embed.title = f"Saved the macro: {name}"
-                embed.set_footer(text=f"ID: {recording_macro_id.upper()}")
+                embed.set_footer(text=f"ID: {self.recording_macro_id.upper()}")
                 await msg.edit(embed=embed)
                 self.saved_macro = True
                 await modal_inter.response.defer()  # defer the response since the interaction is not used
@@ -316,14 +297,10 @@ class RecordMacroView(BaseView):
                 ephemeral=True,
             )
             return False
-        if not recording_macro_views.get(interaction.user.id):
+        if not interaction.client.recording_macro_views.get(interaction.user.id):
             await interaction.send(
                 embed=TextEmbed("You are not recording a macro! Use </macro record:1124712041307979827>"),
                 ephemeral=True,
             )
             return False
         return await super().interaction_check(interaction)
-
-
-# a dict mapping the user to his/her view to record a macro
-recording_macro_views = {}

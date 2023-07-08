@@ -19,7 +19,7 @@ from utils.constants import EmbedColour
 from utils.helpers import TextEmbed, command_info
 from modules.macro.run_macro import RunMacroView
 from modules.macro.show_macro import ShowMacrosView
-from modules.macro.record_macro import RecordMacroView, recording_macro_views
+from modules.macro.record_macro import RecordMacroView
 
 from .views import HelpView, GuideView
 
@@ -254,7 +254,7 @@ class Utility(commands.Cog, name="Survival Guide"):
     async def record(self, interaction: Interaction):
         # if the user is recording a macro, stop recording
         # otherwise, start the recording
-        if record_macro_view := recording_macro_views.get(interaction.user.id):
+        if record_macro_view := interaction.client.recording_macro_views.get(interaction.user.id):
             btn: Button = record_macro_view.stop_recording
             await btn.callback(interaction)
         else:

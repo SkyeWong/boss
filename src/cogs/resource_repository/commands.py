@@ -42,6 +42,7 @@ import pytz
 import operator
 import math
 import asyncio
+import json
 
 
 class Resource(commands.Cog, name="Resource Repository"):
@@ -52,7 +53,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     cooldowns.define_shared_cooldown(1, 8, SlashBucket.author, cooldown_id="sell_items", check=check_if_not_dev_guild)
     cooldowns.define_shared_cooldown(1, 6, SlashBucket.author, cooldown_id="check_inv", check=check_if_not_dev_guild)
 
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.update_villagers.start()
         self.update_villagers.add_exception_type(
@@ -640,14 +641,14 @@ class Resource(commands.Cog, name="Resource Repository"):
         match item:
             case {"type": constants.ItemType.FOOD.value}:
                 # the mininum and maximum hunger value that 1 unit of the food replenishes
-                food_min, food_max = await db.fetchrow(
-                    """
-                        SELECT food_value_min, food_value_max
-                        FROM utility.items
-                        WHERE item_id = $1
-                    """,
-                    item["item_id"],
-                )
+                other_attributes = json.loads(item["other_attributes"])
+                food_min, food_max = other_attributes.get("food_value_min"), other_attributes.get("food_value_max")
+                if not food_min or not food_max:
+                    await interaction.send(
+                        embed=TextEmbed("This particular piece of food cannot be consumed, somehow.")
+                    )
+                    return
+
                 food_value = random.randint(food_min, food_max) * quantity
                 old_hunger = await db.fetchval(
                     """
@@ -663,9 +664,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                     interaction.user.id,
                 )
                 if old_hunger >= 100:
-                    await interaction.send(
-                        embed=TextEmbed("Your hunger is already full, why are you even eating???", EmbedColour.WARNING)
-                    )
+                    await interaction.send(embed=TextEmbed("Your hunger is already full, why are you even eating???"))
                     return
 
                 # perform another query because we need to wait for the trigger function to occur
@@ -714,8 +713,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 if quantity > 1:
                     await interaction.send(
                         embed=TextEmbed(
-                            f"{item['emoji']} **{item['name']}** could not be used for multiple times at once.",
-                            EmbedColour.WARNING,
+                            f"{item['emoji']} **{item['name']}** could not be used for multiple times at once."
                         )
                     )
                     return
@@ -883,79 +881,63 @@ class Resource(commands.Cog, name="Resource Repository"):
         if user is None:
             user = interaction.user
         db: Database = self.bot.db
-
         player = Player(db, user)
         if not await player.is_present():
             await interaction.send(
                 embed=TextEmbed("The user hasn't started playing BOSS yet! Maybe invite them over?"),
-                ephemeral=True,
             )
             return
 
-        scrap_metal, copper, safe_scrap = await db.fetchrow(
+        scrap_metal, copper, safe_scrap, item_worth = await db.fetchrow(
             """
-            SELECT scrap_metal, copper, safe_scrap
-            FROM players.players
-            WHERE player_id = $1
-            """,
-            user.id,
-        )
-
-        embed = Embed(title=f"{user.name}'s Balance", colour=EmbedColour.INFO)
-
-        item_worth = await db.fetchval(
-            """
-            SELECT SUM(items.trade_price * inv.quantity)::bigint As item_worth
+            SELECT scrap_metal, copper, safe_scrap, SUM(items.trade_price * inv.quantity)::bigint As item_worth
                 FROM players.inventory As inv
-
                 INNER JOIN utility.items
                 ON inv.item_id = items.item_id
-                
                 INNER JOIN players.players
                 ON inv.player_id = players.player_id
             WHERE inv.player_id = $1
+            GROUP BY scrap_metal, copper, safe_scrap
             """,
             user.id,
         )
+        safe_space = round(scrap_metal * 0.2)
+        used_safe = round(safe_scrap / safe_space * 100)
+
         if item_worth is None:
             item_worth = 0
 
+        net_worth = item_worth + scrap_metal + copper * COPPER_SCRAP_RATE + safe_scrap
+
         rank = await db.fetchval(
             """
-            WITH item_worths AS (
-                SELECT inv.player_id, SUM(i.trade_price * inv.quantity) AS item_worth
-                FROM players.inventory AS inv
-                INNER JOIN utility.items AS i
-                ON inv.item_id = i.item_id
-                WHERE player_id = $1
-                GROUP BY inv.player_id
-            ),
-            percent_ranks AS (
+            SELECT rank 
+            FROM (
                 SELECT 
                     p.player_id, 
-                    PERCENT_RANK() OVER (ORDER BY (p.scrap_metal + COALESCE(i.item_worth, 0))) AS rank
+                    PERCENT_RANK() OVER (ORDER BY (p.scrap_metal + $2)) AS rank
                 FROM players.players AS p
-                LEFT JOIN item_worths AS i
-                ON p.player_id = i.player_id
-            )
-            SELECT rank FROM percent_ranks
+            ) AS ranks
             WHERE player_id = $1
             """,
             user.id,
+            item_worth,
         )
 
-        embed.description = (
-            f"**Scrap Metal**: {SCRAP_METAL} {scrap_metal:,}\n"
-            f"**Copper**: {COPPER} {copper:,}\n"
-            f"**Safe**: {SCRAP_METAL} {safe_scrap:,}\n\n"
-            f"**Item worth**: {SCRAP_METAL} {item_worth:,}\n\n"
-            f"**Net worth**: {SCRAP_METAL} {item_worth + scrap_metal + copper * COPPER_SCRAP_RATE + safe_scrap:,}"
-        )
+        embed = Embed(title=f"{user.name}'s Balance", colour=EmbedColour.INFO)
+        # row 1
+        embed.add_field(name="Scrap Metal", value=f"{SCRAP_METAL} {scrap_metal:,}")
+        embed.add_field(name="Safe", value=f"{SCRAP_METAL} {safe_scrap:,}")
+        embed.add_field(name="Safe space", value=f"{SCRAP_METAL} {safe_space:,} ({used_safe}% full)")
+        # row 2
+        embed.add_field(name="Copper", value=f"{COPPER} {copper:,}")
+        embed.add_field(name="Item worth", value=f"{SCRAP_METAL} {item_worth:,}")
+        embed.add_field(name="Net worth", value=f"{SCRAP_METAL} {net_worth:,}")
+
         embed.set_footer(
             text=f"{'You are' if user == interaction.user else f'{user.name} is'} ahead of {round(rank * 100, 1)}% of users!\n"
             f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE:,} scrap metals."
         )
-
         await interaction.send(embed=embed)
 
     @nextcord.slash_command(description="See the richest men in the (BOSS) world, who is probably not Elon Musk.")
@@ -976,7 +958,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             """,
             COPPER_SCRAP_RATE,
         )
-        embed = Embed(title="Net Worth Leaderboard", description="")
+        embed = Embed(title="Net Worth Leaderboard", description="", colour=EmbedColour.INFO)
         medal_emojis = {
             1: "🥇",
             2: "🥈",
@@ -1305,7 +1287,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 return
 
         amount = math.floor(amount)
-        if amount == 0:
+        if amount <= 0:
             await interaction.send(embed=TextEmbed("You already have a full safe!"))
             return
         try:

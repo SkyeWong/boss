@@ -1,7 +1,7 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands
-from nextcord import Interaction, Embed, SlashOption
+from nextcord import Interaction, Embed
 from nextcord.ui import Button
 
 # slash command cooldowns
@@ -14,20 +14,19 @@ from utils.postgres_db import Database
 # my modules and constants
 from utils import constants, helpers
 from utils.constants import CURRENCY_EMOJIS, EmbedColour
-from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, send
+from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, send, command_info, work_in_progress
 from utils.player import Player
-from utils.template_views import ConfirmView, BaseView
+from utils.template_views import BaseView
 
 from .views import ScoutView
 
-# maze
-from modules.maze.maze import Maze
 
 # default modules
 import random
 import asyncio
 import json
 import datetime
+from contextlib import suppress
 
 
 class Survival(commands.Cog, name="Apocalyptic Adventures"):
@@ -480,7 +479,8 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             return interaction.message.id == view.msg.id
 
         # halt the execution, so that `after_invoke` is performed after the user has finished scouting
-        await self.bot.wait_for("interaction", check=check, timeout=view.timeout)
+        with suppress(asyncio.TimeoutError):
+            await self.bot.wait_for("interaction", check=check, timeout=view.timeout)
         # the timeout should be equal to the timeout of the view, so that even when the user does nothing it will time out
 
     async def claim_missions(self, user: nextcord.User):

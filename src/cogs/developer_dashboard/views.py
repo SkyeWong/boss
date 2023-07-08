@@ -55,7 +55,7 @@ class EditItemView(BaseView):
     @button(label="Edit Other Attributes")
     async def edit_rarities_types(self, button: Button, interaction: Interaction):
         model = EditItemModal(self.interaction, self.item)
-        await model.popuplate_inputs(include=("rarity", "type"), other_attributes=True)
+        await model.popuplate_inputs(include=("rarity", "type", "other_attributes"))
         await interaction.response.send_modal(model)
 
 
@@ -63,21 +63,6 @@ class EditItemModal(Modal):
     def __init__(self, slash_interaction: Interaction, item: Record):
         self.slash_interaction = slash_interaction
         self.item = item
-        item_dict = dict(item)
-        # remove the "normal" attributes
-        for i in (
-            "item_id",
-            "name",
-            "description",
-            "emoji_id",
-            "type",
-            "rarity",
-            "buy_price",
-            "sell_price",
-            "trade_price",
-        ):
-            item_dict.pop(i, None)  # ignore if key does not exists
-        self.item_other_attr = item_dict
 
         super().__init__(
             title=f"Editing {self.item['name']}",
@@ -89,7 +74,6 @@ class EditItemModal(Modal):
         *,
         include: Optional[tuple] = None,
         exclude: Optional[tuple] = None,
-        other_attributes: Optional[bool] = False,
     ):
         """Populate the modal's list of input, and include/exclude any columns that have been provided."""
         # typecast the tuples
@@ -98,53 +82,29 @@ class EditItemModal(Modal):
         if exclude is None:
             exclude = tuple()
 
-        db: Database = self.slash_interaction.client.db
-        # fetch the list of columns in `utility.items` table.
-        res = await db.fetch(
-            """
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_schema = 'utility' AND table_name = 'items' AND column_name <> 'item_id';
-        """
-        )
-        for column in res:
-            column_name = column[0]
+        for field, value in self.item.items():
             # check if the column is included, and not excluded
             if (
-                not include or column_name in include
-            ) and column_name not in exclude:  # if no `include` list is provided, ignore that it is not included
-                if column_name == "rarity":
-                    value = constants.ItemRarity(self.item["rarity"])
-                elif column_name == "type":
-                    value = constants.ItemType(self.item["type"])
-                else:
-                    value = self.item[column_name]
+                not include or field in include
+            ) and field not in exclude:  # if no `include` list is provided, ignore that it is not included
+                if field == "rarity":
+                    value = constants.ItemRarity(value)
+                elif field == "type":
+                    value = constants.ItemType(value)
                 value = str(value)
 
                 text_input = TextInput(
-                    label=column_name,
+                    label=field,
                     # if the column is description set the style to `paragraph`
                     style=nextcord.TextInputStyle.paragraph
-                    if column_name == "description"
+                    if field in ("description", "other_attributes")
                     else nextcord.TextInputStyle.short,
                     default_value=value,
                 )
 
                 # add the input to list of children of `nextcord.ui.Modal`
-                self.inputs[column_name] = text_input
+                self.inputs[field] = text_input
                 self.add_item(text_input)
-        if other_attributes:
-            # add the "other_attributes" input
-            text_input = TextInput(
-                label="Other attributes (in JSON format)",
-                # if the column is description set the style to `paragraph`
-                style=nextcord.TextInputStyle.paragraph,
-                default_value=json.dumps(self.item_other_attr),
-                required=False,
-            )
-            # add the input to list of children of `nextcord.ui.Modal`
-            self.inputs["other_attributes"] = text_input
-            self.add_item(text_input)
 
     async def callback(self, interaction: Interaction):
         errors = []
@@ -206,15 +166,18 @@ class EditItemModal(Modal):
                             "The type must be one of these:\n" + ", ".join([str(i) for i in constants.ItemType])
                         )
 
-            other_attributes = {}
+            values["other_attributes"] = {}
             if column == "other_attributes" and inputted_value != "":
+                # we simply verify that the json is valid, we will not store the loaded json object.
                 try:
-                    other_attributes = json.loads(inputted_value)
+                    _ = json.loads(inputted_value)
                 except json.JSONDecodeError:
                     errors.append("The format of other attributes are invalid")
                 else:
-                    if not isinstance(other_attributes, dict):
+                    if not isinstance(_, dict):
                         errors.append("The other attributes should be in a dictionary format.")
+                    else:
+                        values["other_attributes"] = inputted_value
 
         # if it is an invalid value send a message and return the function
         if len(errors) > 0:
@@ -227,20 +190,10 @@ class EditItemModal(Modal):
             return
 
         changed_values = {column: value for column, value in values.items() if value != self.item[column]}
-        # add the other_attributes into inputted values
-        changed_other_attr = {
-            column: new_value
-            for column, old_value in self.item_other_attr.items()
-            if old_value != (new_value := other_attributes.get(column))
-        }
-        changed_values.update(**changed_other_attr)
 
         if not changed_values:
             await interaction.send(
-                embed=TextEmbed(
-                    "No values are updated!"
-                    + ("\nCheck if the attribute exists in `other_attributes`" if column == "other_attributes" else "")
-                ),
+                embed=TextEmbed("No values are updated!"),
                 ephemeral=True,
             )
             return

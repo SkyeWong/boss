@@ -337,12 +337,9 @@ async def send(
 ):
     """
     Sends a message with the given `interaction`, and modifies embed if the user is running a macro.
-    Only use this in grinding commands, since it fetches values from the database every time it is run.
     """
-    running_macro_id = await interaction.client.db.fetchval(
-        "SELECT running_macro_id FROM players.players WHERE player_id = $1", interaction.user.id
-    )
-    if running_macro_id and embed:  # check whether the user is running a macro
+    macro_view = interaction.client.running_macro_views.get(interaction.user.id)
+    if macro_view and embed:  # check whether the user is running a macro
         footer = f"{interaction.user.name} is running a /macro"
         if embed.footer.text:
             footer += f" | {embed.footer.text}"
