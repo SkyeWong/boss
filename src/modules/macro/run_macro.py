@@ -5,7 +5,7 @@ from nextcord import Embed, Interaction, ButtonStyle, ApplicationCommandOptionTy
 from nextcord.ui import Button, button
 
 # my modules
-from utils import constants, helpers
+from utils import helpers
 from utils.constants import EmbedColour
 from utils.helpers import TextEmbed, send
 from utils.postgres_db import Database

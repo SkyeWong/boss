@@ -7,7 +7,7 @@ from nextcord.ui import Button, button, TextInput
 # my modules
 from utils import constants, helpers
 from utils.constants import EmbedColour
-from utils.helpers import TextEmbed, send
+from utils.helpers import TextEmbed
 from utils.postgres_db import Database
 from utils.template_views import BaseView, ConfirmView, BaseModal
 

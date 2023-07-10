@@ -7,9 +7,8 @@ from nextcord.ui import Button
 from utils.postgres_db import Database
 
 # my modules and constants
-from utils import constants, helpers
 from utils.constants import EmbedColour, CURRENCY_EMOJIS
-from utils.helpers import TextEmbed, BossItem
+from utils.helpers import TextEmbed, BossItem, send
 from utils.player import Player
 from utils.template_views import BaseView
 
@@ -102,7 +101,7 @@ class ScoutView(BaseView):
             view.add_item(ScoutButton(i))
 
         embed = TextEmbed("**Where do you want to scout?**\n_Click a button to start scouting at the location!_")
-        view.msg = await interaction.send(embed=embed, view=view)
+        view.msg = await send(interaction, embed=embed, view=view)
         await view.player.set_in_inter(True)
 
         return view

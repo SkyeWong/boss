@@ -1,7 +1,7 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands
-from nextcord import Embed, Interaction, SlashOption
+from nextcord import Interaction, SlashOption, Embed
 
 # command cooldowns
 import cooldowns
@@ -9,13 +9,12 @@ from cooldowns import SlashBucket
 
 # my modules and constants
 from utils import constants, helpers
-from utils.postgres_db import Database
 from utils.helpers import check_if_not_dev_guild, TextEmbed, command_info
 
 # command views
 from .views import (
-    FightPlayer,
-    FightView,
+    # FightPlayer,
+    # FightView,
     TriviaQuestion,
     TriviaView,
 )
@@ -148,30 +147,30 @@ class Fun(commands.Cog, name="Survivor's Playground"):
         embed.add_field(name=f"_{question}_", value=f"\n```ansi\n{response}\n[0m\n```")
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command(name="fight", description="Fight with another user!")
-    @cooldowns.cooldown(1, 60, SlashBucket.author, check=check_if_not_dev_guild)
-    async def fight(
-        self,
-        interaction: Interaction,
-        user: nextcord.User = SlashOption(
-            description="The user to fight with",
-        ),
-    ):
-        if interaction.user == user:
-            await interaction.send("Who are you fighting with, not... yourself? 😂", ephemeral=True)
-            return
-        if user.bot:
-            await interaction.send(
-                "Why are you fighting with a bot?! ||We might be implementing an AI soon tho...||",
-                ephemeral=True,
-            )
-            return
+    # @nextcord.slash_command(name="fight", description="Fight with another user!")
+    # @cooldowns.cooldown(1, 60, SlashBucket.author, check=check_if_not_dev_guild)
+    # async def fight(
+    #     self,
+    #     interaction: Interaction,
+    #     user: nextcord.User = SlashOption(
+    #         description="The user to fight with",
+    #     ),
+    # ):
+    #     if interaction.user == user:
+    #         await interaction.send("Who are you fighting with, not... yourself? 😂", ephemeral=True)
+    #         return
+    #     if user.bot:
+    #         await interaction.send(
+    #             "Why are you fighting with a bot?! ||We might be implementing an AI soon tho...||",
+    #             ephemeral=True,
+    #         )
+    #         return
 
-        players = [FightPlayer(interaction.user), FightPlayer(user)]
-        view = FightView(interaction, *players)
-        embed = view.get_embed()
-        await interaction.send(embed=embed, view=view)
-        view.msg = await interaction.original_message()
+    #     players = [FightPlayer(interaction.user), FightPlayer(user)]
+    #     view = FightView(interaction, *players)
+    #     embed = view.get_embed()
+    #     await interaction.send(embed=embed, view=view)
+    #     view.msg = await interaction.original_message()
 
     @nextcord.slash_command(name="trivia", description="Test your knowledge with a random trivia question!")
     @command_info(

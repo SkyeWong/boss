@@ -1,11 +1,11 @@
 # nextcord
 import nextcord
-from nextcord import Embed, Interaction, ButtonStyle
+from nextcord import Interaction, ButtonStyle
 from nextcord.ui import Button, button
 
 # my modules
-from utils import constants, helpers
-from utils.helpers import TextEmbed, EmbedColour
+from utils import helpers
+from utils.helpers import TextEmbed, EmbedColour, Embed
 from utils.template_views import BaseView
 
 # default modules
@@ -14,62 +14,62 @@ import random
 from dataclasses import dataclass
 
 
-class FightPlayer:
-    def __init__(self, user: nextcord.User, hp=100):
-        self.user = user
-        self.hp = hp
+# class FightPlayer:
+#     def __init__(self, user: nextcord.User, hp=100):
+#         self.user = user
+#         self.hp = hp
 
 
-class FightView(BaseView):
-    def __init__(self, slash_interaction: Interaction, player1: FightPlayer, player2: FightPlayer):
-        super().__init__(interaction=slash_interaction)
-        self.players = [player1, player2]
-        self._round = 0
+# class FightView(BaseView):
+#     def __init__(self, slash_interaction: Interaction, player1: FightPlayer, player2: FightPlayer):
+#         super().__init__(interaction=slash_interaction)
+#         self.players = [player1, player2]
+#         self._round = 0
 
-    def _next_round(self):
-        self._round += 1
+#     def _next_round(self):
+#         self._round += 1
 
-    def get_turn(self):
-        return self._round % 2
+#     def get_turn(self):
+#         return self._round % 2
 
-    def get_embed(self):
-        embed = Embed()
-        embed.set_author(name="Fight ⚔️")
+#     def get_embed(self):
+#         embed = Embed()
+#         embed.set_author(name="Fight ⚔️")
 
-        embed.description = f"`{self.players[self.get_turn()].user.name}`'s round"
-        for player in self.players:
-            embed.add_field(name=player.user.name, value=player.hp)
-        return embed
+#         embed.description = f"`{self.players[self.get_turn()].user.name}`'s round"
+#         for player in self.players:
+#             embed.add_field(name=player.user.name, value=player.hp)
+#         return embed
 
-    @button(emoji="👊🏻", style=nextcord.ButtonStyle.blurple)
-    async def hit(self, button: Button, interaction: Interaction):
-        turn = self.get_turn()
-        enemy = self.players[turn - 1]
-        enemy.hp -= random.randint(25, 50)
+#     @button(emoji="👊🏻", style=nextcord.ButtonStyle.blurple)
+#     async def hit(self, button: Button, interaction: Interaction):
+#         turn = self.get_turn()
+#         enemy = self.players[turn - 1]
+#         enemy.hp -= random.randint(25, 50)
 
-        msg: nextcord.Message = self.msg
-        if enemy.hp <= 0:
-            enemy.hp = 0
-            button.disabled = True
-            await msg.edit(
-                content=f"{self.players[turn].user.name} won!",
-                embed=self.get_embed(),
-                view=self,
-            )
-            return
+#         msg: nextcord.Message = self.msg
+#         if enemy.hp <= 0:
+#             enemy.hp = 0
+#             button.disabled = True
+#             await msg.edit(
+#                 content=f"{self.players[turn].user.name} won!",
+#                 embed=self.get_embed(),
+#                 view=self,
+#             )
+#             return
 
-        self._next_round()
-        await msg.edit(embed=self.get_embed())
+#         self._next_round()
+#         await msg.edit(embed=self.get_embed())
 
-    async def interaction_check(self, interaction: Interaction) -> bool:
-        if interaction.user == self.players[self.get_turn()].user:
-            return True
-        elif [player for player in self.players if player.user == interaction.user]:
-            await interaction.send("It is not your round yet!", ephemeral=True)
-            return False
-        else:
-            await interaction.send("This is not for you", ephemeral=True)
-            return False
+#     async def interaction_check(self, interaction: Interaction) -> bool:
+#         if interaction.user == self.players[self.get_turn()].user:
+#             return True
+#         elif [player for player in self.players if player.user == interaction.user]:
+#             await interaction.send("It is not your round yet!", ephemeral=True)
+#             return False
+#         else:
+#             await interaction.send("This is not for you", ephemeral=True)
+#             return False
 
 
 @dataclass
