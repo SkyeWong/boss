@@ -1,28 +1,19 @@
 # nextcord
 from nextcord.ext import commands
-from nextcord.utils import MISSING
 from nextcord import Embed, Interaction, BaseApplicationCommand, CallbackWrapper
 from nextcord.ui import View, Button
 import nextcord
 
 # constants
 from utils import constants
-from utils.constants import SCRAP_METAL, COPPER, EmbedColour
+from utils.constants import SCRAP_METAL, EmbedColour
 from utils.postgres_db import Database
 
 # inbuilt modules
 import math
 import random
 from datetime import datetime
-from typing import Literal, Optional, Union, List
-
-
-def roundup(number: int, round_to: int) -> int:
-    return number if number % round_to == 0 else number + round_to - number % round_to
-
-
-def rounddown(number: int, round_to: int) -> int:
-    return number if number % round_to == 0 else number - number % round_to
+from typing import Literal, Optional, Union, Any, Self
 
 
 def check_if_not_dev_guild(*args, **_) -> bool:
@@ -41,7 +32,7 @@ def text_to_num(text: str) -> int:
         text (str): The text to convert
 
     Raises:
-        TextToNumException: a invalid number is passed.
+        ValueError: a invalid number is passed.
 
     Returns:
         res: The converted number.
@@ -63,7 +54,7 @@ def text_to_num(text: str) -> int:
         i = i.lower()
         if not isinstance(i, str):
             # Non-strings are bad are missing data in poster's submission
-            raise TextToNumException(f"text_to_num() must be passed str, not {i.__class__.__qualname__}")
+            raise ValueError(f"text_to_num() must be passed str, not {i.__class__.__qualname__}")
         elif i.isnumeric():
             res += int(i)
         elif i[-1] in d:
@@ -73,10 +64,10 @@ def text_to_num(text: str) -> int:
                 # if this succeeds, you have your (first) float
                 num = float(num)
             except ValueError:
-                raise TextToNumException(f"text_to_num() received a non-number prefix before {magnitude}")
+                raise ValueError(f"text_to_num() received a non-number prefix before {magnitude}")
             res += num * d[magnitude]
         else:
-            raise TextToNumException(f"text_to_num() is passed an incorrect magnitude.")
+            raise ValueError(f"text_to_num() is passed an incorrect magnitude.")
     return math.floor(res)
 
 
@@ -139,14 +130,12 @@ def work_in_progress(dev_guild_only: bool = True):
             app_cmd.original_callback = self.callback
 
             async def callback(*args, **kwargs):
-                # args[1] will be the `nextcord.Interaction` of the command
-                if args[1].guild_id == constants.DEVS_SERVER_ID and dev_guild_only:
+                interaction: BossInteraction = args[1]
+                if interaction.guild_id == constants.DEVS_SERVER_ID and dev_guild_only:
                     await app_cmd.original_callback(*args, **kwargs)
                 else:
-                    await args[1].send(
-                        embed=TextEmbed(
-                            "The developement of this command is in progress.\nYou can't use it now, but keep checking for updates!"
-                        )
+                    await interaction.send_text(
+                        "The developement of this command is in progress.\nYou can't use it now, but keep checking for updates!"
                     )
 
             app_cmd.callback = callback
@@ -155,43 +144,6 @@ def work_in_progress(dev_guild_only: bool = True):
         return WorkInProgressCommand(func)
 
     return wrapper
-
-
-def get_mapping(interaction: Interaction, bot: commands.Bot = None) -> dict:
-    """
-    Returns a dictionary mapping each cog in the bot to its associated application commands.
-
-    Args:
-        `interaction`: A `nextcord.Interaction` object representing the user interaction.
-        `bot`: A `commands.Bot` object representing the Discord bot, which defaults to `interaction.client`.
-
-    Returns:
-        A `dict` mapping each cog in the bot to a tuple containing the cog object
-        and a list of application commands associated with that cog.
-
-        >>> {
-        ...     cog_name: (cog, cog_commands)
-        ... }
-
-        The application commands are filtered based on whether they are global or
-        specific to the server where the interaction occurred.
-    """
-    mapping = {}
-    cmd_in_server = lambda cmd: cmd.is_global or interaction.guild_id in cmd.guild_ids
-    if bot is None:
-        bot = interaction.client
-    for cog_name, cog in bot.cogs.items():
-        commands = []
-        for cmd in cog.application_commands:
-            if isinstance(cmd, nextcord.BaseApplicationCommand):
-                if cmd_in_server(cmd):
-                    commands.append(cmd)
-            elif isinstance(cmd, nextcord.SlashApplicationSubcommand):
-                if cmd_in_server(cmd.parent_cmd):
-                    commands.append(cmd)
-        if len(commands) != 0:
-            mapping[cog_name] = (cog, commands)
-    return mapping
 
 
 def get_error_message():
@@ -312,55 +264,6 @@ def create_pb(percentage: int):
     return pb
 
 
-class TextEmbed(Embed):
-    """A `nextcord.Embed` with the description set as `text`."""
-
-    def __init__(self, text: str, colour: int = EmbedColour.DEFAULT):
-        super().__init__(description=text, colour=colour)
-
-
-async def send(
-    interaction: Interaction,
-    content: Optional[str] = None,
-    *,
-    embed: Embed = MISSING,
-    embeds: List[Embed] = MISSING,
-    file: nextcord.File = MISSING,
-    files: List[nextcord.File] = MISSING,
-    view: View = MISSING,
-    tts: bool = False,
-    delete_after: Optional[float] = None,
-    allowed_mentions: nextcord.AllowedMentions = MISSING,
-    flags: Optional[nextcord.MessageFlags] = None,
-    ephemeral: Optional[bool] = None,
-    suppress_embeds: Optional[bool] = None,
-):
-    """
-    Sends a message with the given `interaction`, and modifies embed if the user is running a macro.
-    """
-    macro_view = interaction.client.running_macro_views.get(interaction.user.id)
-    if macro_view and embed:  # check whether the user is running a macro
-        footer = f"{interaction.user.name} is running a /macro"
-        if embed.footer.text:
-            footer += f" | {embed.footer.text}"
-        embed.set_footer(text=footer)
-
-    return await interaction.send(
-        content=content,
-        embed=embed,
-        embeds=embeds,
-        file=file,
-        files=files,
-        view=view,
-        tts=tts,
-        ephemeral=ephemeral,
-        delete_after=delete_after,
-        allowed_mentions=allowed_mentions,
-        flags=flags,
-        suppress_embeds=suppress_embeds,
-    )
-
-
 def find_command(
     client: Union[commands.Bot, nextcord.Client], command_name: str
 ) -> Union[nextcord.SlashApplicationCommand, nextcord.SlashApplicationSubcommand]:
@@ -373,6 +276,67 @@ def find_command(
         slash_cmd = slash_cmd.children[command_name.split()[split_index]]
         split_index += 1
     return slash_cmd
+
+
+class BossEmbed(Embed):
+    def __init__(
+        self,
+        interaction: Optional[Interaction] = None,
+        *,
+        colour: Optional[Union[int, nextcord.Colour, EmbedColour]] = EmbedColour.DEFAULT,
+        title: Optional[Any] = None,
+        url: Optional[Any] = None,
+        description: Optional[Any] = None,
+        timestamp: Optional[datetime] = None,
+    ) -> None:
+        self.interaction = interaction
+        super().__init__(colour=colour, title=title, url=url, description=description, timestamp=timestamp)
+        if interaction and interaction.client.running_macro_views.get(interaction.user.id):
+            # check whether the user is running a macro
+            super().set_footer(text=f"{self.interaction.user.name} is running a /macro")
+
+    def set_footer(self, *, text: Optional[Any] = None, icon_url: Optional[Any] = None) -> Self:
+        if self.interaction and self.interaction.client.running_macro_views.get(self.interaction.user.id):
+            # check whether the user is running a macro
+            msg = f"{self.interaction.user.name} is running a /macro"
+            if "\n" in text:
+                text = f"{text}\n{msg}"
+            else:
+                text = f"{text} | {msg}"
+        return super().set_footer(text=text, icon_url=icon_url)
+
+
+class TextEmbed(BossEmbed):
+    """A `nextcord.Embed` with the description set as `text`."""
+
+    def __init__(
+        self,
+        text: Optional[str] = None,
+        colour: Union[int, nextcord.Colour, EmbedColour] = EmbedColour.DEFAULT,
+        interaction: Optional[Interaction] = None,
+    ):
+        super().__init__(interaction, description=text, colour=colour)
+
+
+class BossInteraction(Interaction):
+    def Embed(
+        self,
+        *,
+        colour: Optional[Union[int, nextcord.Colour, EmbedColour]] = EmbedColour.DEFAULT,
+        title: Optional[Any] = None,
+        url: Optional[Any] = None,
+        description: Optional[Any] = None,
+        timestamp: Optional[datetime] = None,
+    ) -> BossEmbed:
+        return BossEmbed(self, colour=colour, title=title, url=url, description=description, timestamp=timestamp)
+
+    def TextEmbed(self, text: str, colour: Union[int, EmbedColour] = EmbedColour.DEFAULT) -> TextEmbed:
+        return TextEmbed(text, colour, self)
+
+    async def send_text(
+        self, text: str, colour: Union[int, EmbedColour] = EmbedColour.DEFAULT, **kwargs
+    ) -> Union[nextcord.PartialInteractionMessage, nextcord.WebhookMessage]:
+        return await self.send(embed=self.TextEmbed(text, colour), **kwargs)
 
 
 class BossItem:
@@ -534,66 +498,3 @@ class BossCurrency:
 
     def __repr__(self):
         return f"BossCurrency(price={self.price}, type='{self.currency_type}')"
-
-
-class BossException(Exception):
-    """Boss raises this exception when it is misused, or a user-input is incorrect."""
-
-    def __init__(self, text=None, *args: object) -> None:
-        super().__init__(*args)
-        self.text = text
-
-
-class CommandNotFound(BossException):
-    pass
-
-
-class MoveItemException(BossException):
-    pass
-
-
-class TextToNumException(BossException):
-    pass
-
-
-class CommandCheckException(BossException):
-    """
-    Boss raises this exception as an internal error (will be caught) that is found in the command_check function.
-    This happens due to unusual activities that the user has been doing.
-    """
-
-    pass
-
-
-class DatabaseReconnect(CommandCheckException):
-    pass
-
-
-class NewPlayer(CommandCheckException):
-    pass
-
-
-class DisabledCommand(CommandCheckException):
-    pass
-
-
-class PlayerNotExist(BossException):
-    pass
-
-
-class ComponentLabelTooLong(BossException):
-    pass
-
-
-class NegativeBalance(BossException):
-    pass
-
-
-class NegativeInvQuantity(BossException):
-    pass
-
-
-class BossWarning(Warning):
-    def __init__(self, text=None, *args: object) -> None:
-        super().__init__(*args)
-        self.text = text

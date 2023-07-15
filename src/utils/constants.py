@@ -1,31 +1,6 @@
 import os
 import enum
-
-
-EMBED_COLOURS = [
-    # blues (deep -> light)
-    0x00001B,
-    0x001034,
-    0x00294D,
-    0x194266,
-    0x325B7F,
-    # yellows (deep -> light)
-    0xAA7300,
-    0xC38C08,
-    0xDCA521,
-    0xF5BE3A,
-    0xFFD753,
-]
-
-
-class EmbedColour:
-    """A list of preset colours to be used in embeds"""
-
-    INFO = BLUE = 0x7FB2F0  # light blue
-    SUCCESS = GREEN = 0x88E08C  # light green
-    FAIL = RED = 0xFF8F8F  # light red
-    WARNING = YELLOW = 0xFFC87D  # light orange
-    DEFAULT = GREY = 0x282B30  # light grey
+from nextcord import Colour
 
 
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -55,7 +30,7 @@ class Enum(enum.Enum):
         return {i.name.lower(): i.value for i in cls}
 
 
-class IntEnum(Enum):
+class IntEnum(Enum, enum.IntEnum):
     """An enum that supports comparing and hashing as an int."""
 
     def __int__(self) -> int:
@@ -63,6 +38,16 @@ class IntEnum(Enum):
 
     def __str__(self) -> str:
         return self.name.lower()
+
+
+class EmbedColour(IntEnum):
+    """A list of preset colours to be used in embeds"""
+
+    INFO = 0x7FB2F0  # light blue
+    SUCCESS = 0x88E08C  # light green
+    FAIL = 0xFF8F8F  # light red
+    WARNING = 0xFFC87D  # light orange
+    DEFAULT = 0x282B30  # light grey
 
 
 class InventoryType(IntEnum):

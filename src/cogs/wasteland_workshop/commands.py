@@ -505,7 +505,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         qc.width = 600
         qc.height = 360
         qc.background_color = "#282B30"
-        y_min = helpers.rounddown(min(data["hourly"]["apparent_temperature"] + data["hourly"]["temperature_2m"]), 8)
 
         FONT_FAMILY = "Noto Sans"
         qc.config = {
@@ -599,7 +598,6 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                             },
                             "beginAtZero": False,
                         },
-                        "min": y_min,
                     },
                     "y_humidity": {
                         "position": "right",
@@ -880,7 +878,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
                     youtube.playlistItems().list(part="contentDetails", playlistId=playlist_id, maxResults=25).execute()
                 )
 
-                # fetch the the details of each video in the playlist
+                # fetch the details of each video in the playlist
                 videos_response = (
                     youtube.videos()
                     .list(

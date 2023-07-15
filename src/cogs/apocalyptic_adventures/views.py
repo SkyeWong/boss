@@ -1,6 +1,6 @@
 # nextcord
 import nextcord
-from nextcord import Embed, Interaction, ButtonStyle
+from nextcord import ButtonStyle
 from nextcord.ui import Button
 
 # database
@@ -8,7 +8,7 @@ from utils.postgres_db import Database
 
 # my modules and constants
 from utils.constants import EmbedColour, CURRENCY_EMOJIS
-from utils.helpers import TextEmbed, BossItem, send
+from utils.helpers import BossInteraction, BossItem
 from utils.player import Player
 from utils.template_views import BaseView
 
@@ -21,7 +21,7 @@ class ScoutButton(Button["ScoutView"]):
         super().__init__(label=location["name"], style=ButtonStyle.blurple)
         self.location = location
 
-    async def callback(self, interaction: Interaction) -> None:
+    async def callback(self, interaction: BossInteraction) -> None:
         assert self.view is not None
         view: ScoutView = self.view
 
@@ -31,7 +31,7 @@ class ScoutButton(Button["ScoutView"]):
             if i.label != self.label:
                 i.style = ButtonStyle.grey
 
-        embed = Embed(description="", colour=EmbedColour.DEFAULT)
+        embed = interaction.Embed(description="", colour=EmbedColour.DEFAULT)
         embed.set_author(name=f"{interaction.user.name} scouted the {self.label}")
 
         # Choose a result based on the chances defined by `location`
@@ -87,21 +87,23 @@ class ScoutButton(Button["ScoutView"]):
 
 
 class ScoutView(BaseView):
-    def __init__(self, interaction: Interaction) -> None:
+    def __init__(self, interaction: BossInteraction) -> None:
         super().__init__(interaction, timeout=12)
         self.player = Player(interaction.client.db, interaction.user)
         self.msg: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = None
         self.scouting_finished = False
 
     @classmethod
-    async def send(cls, interaction: Interaction, loot_table):
+    async def send(cls, interaction: BossInteraction, loot_table):
         view = cls(interaction)
         locations = random.sample(loot_table, 3)
         for i in locations:
             view.add_item(ScoutButton(i))
 
-        embed = TextEmbed("**Where do you want to scout?**\n_Click a button to start scouting at the location!_")
-        view.msg = await send(interaction, embed=embed, view=view)
+        embed = interaction.TextEmbed(
+            "**Where do you want to scout?**\n_Click a button to start scouting at the location!_"
+        )
+        view.msg = await interaction.send(embed=embed, view=view)
         await view.player.set_in_inter(True)
 
         return view
@@ -110,6 +112,8 @@ class ScoutView(BaseView):
         if not self.scouting_finished:
             for i in self.children:
                 i.disabled = True
-            await self.msg.edit(embed=TextEmbed("Guess you didn't want to search anywhere after all?"), view=self)
+            await self.msg.edit(
+                embed=self.interaction.TextEmbed("Guess you didn't want to search anywhere after all?"), view=self
+            )
             self.scouting_finished = True
             await self.player.set_in_inter(False)

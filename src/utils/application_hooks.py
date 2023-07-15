@@ -1,10 +1,9 @@
-import nextcord
-from nextcord import Interaction, Embed
+from nextcord import Embed
 from nextcord.ext import commands
 
-from utils import constants, helpers
+from utils import helpers
 from utils.player import Player
-from utils.helpers import TextEmbed
+from utils.helpers import BossInteraction
 from utils.constants import EmbedColour
 
 import pytz
@@ -12,24 +11,25 @@ from datetime import datetime
 import random
 
 
-async def cmd_check(interaction: Interaction):
+async def cmd_check(interaction: BossInteraction):
     """
     Check whether the user can use a command.
     If not, `CommandCheckException` will be raised, which will be caught in `bot.on_application_command_error`.
     """
     cmd = interaction.application_command
     bot: commands.Bot = interaction.client
+    interaction.attached["handled"] = True
 
     # Reconnect to the database if it is not
     if bot.db.reconnecting or not bot.db.connected:
-        msg = await interaction.send(
-            embed=TextEmbed("We are reconnecting to the database, please be patient and wait for a few seconds."),
+        msg = await interaction.send_text(
+            "We are reconnecting to the database, please be patient and wait for a few seconds.",
             ephemeral=True,
         )
         await bot.db.connect()
 
         await msg.edit(
-            embed=TextEmbed(
+            embed=interaction.TextEmbed(
                 f"We have successfully connected to the database! Use {cmd.get_mention(interaction.guild)} again.",
                 EmbedColour.SUCCESS,
             )
@@ -71,6 +71,7 @@ async def cmd_check(interaction: Interaction):
                     """,
                     cmd.qualified_name,
                 )
+        return False
 
     # Add player to database if he/she is new
     player = Player(bot.db, interaction.user)
@@ -79,8 +80,8 @@ async def cmd_check(interaction: Interaction):
 
         await interaction.send(
             embeds=[
-                TextEmbed(
-                    "> Welcome to BOSS, the Discord bot for a post-apocalyptic world after World War III. "
+                helpers.TextEmbed(
+                    text="> Welcome to BOSS, the Discord bot for a post-apocalyptic world after World War III. "
                     "\n\n> In this world, everything is tarnished and resources are scarce. "
                     "The currency system is based on a variety of items that have value in this new world, "
                     "including scrap metal, ammunition, and other valuable resources that can be traded or used to purchase goods and services."
@@ -89,31 +90,29 @@ async def cmd_check(interaction: Interaction):
                     "Whether you're scavenging for resources, completing missions, or participating in events, BOSS is here to help you earn currency and build your wealth in this new world. "
                     "So, join us in the post-apocalyptic wasteland and let BOSS be your guide to survival and prosperity."
                 ),
-                TextEmbed(f"Use {cmd.get_mention(interaction.guild)} again to continue"),
+                helpers.TextEmbed(text=f"Use {cmd.get_mention(interaction.guild)} again to continue"),
             ]
-        )  # TODO: add a greet message to this
-        raise helpers.NewPlayer()
+        )
+        return False
 
     if await player.check_in_inter():
         # The user is running a command
-        await interaction.send(
-            embed=TextEmbed(
-                "You are locked from running any commands until all active commands are completed. Complete all ongoing ones or try again later.",
-                EmbedColour.WARNING,
-            ),
+        await interaction.send_text(
+            "You are locked from running any commands until all active commands are completed. Complete all ongoing ones or try again later.",
+            EmbedColour.WARNING,
             ephemeral=True,
         )
-        raise helpers.CommandCheckException()
+        return False
 
     return True
 
 
-async def before_invoke(interaction: Interaction):
+async def before_invoke(interaction: BossInteraction):
     if not interaction.response.is_done():
         await interaction.response.defer()
 
 
-async def after_invoke(interaction: Interaction):
+async def after_invoke(interaction: BossInteraction):
     # The user is in cooldown, we do not perform any of the after_invoke actions
     if interaction.attached.get("in_cooldown"):
         return
@@ -152,8 +151,8 @@ async def after_invoke(interaction: Interaction):
         await interaction.user.send(
             embed=Embed(
                 title="Level up!",
-                description=f"Poggers! You levelled up from level **{old_level}** to level **{new_level}**!",
-                timestamp=datetime.now(),
+                description=f"Nice! You levelled up from level **{old_level}** to level **{new_level}**!",
+                timestamp=datetime.datetime.now(),
                 colour=EmbedColour.INFO,
             )
         )

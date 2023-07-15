@@ -17,7 +17,7 @@ from keep_alive import keep_alive
 # my modules
 from utils import constants, helpers
 from utils.constants import EmbedColour
-from utils.helpers import TextEmbed, CommandCheckException
+from utils.helpers import BossInteraction
 from utils.postgres_db import Database
 
 # default modules
@@ -26,7 +26,7 @@ import random
 import sys
 import logging
 from typing import Union, Optional
-from datetime import datetime, timezone
+from datetime import timezone
 
 
 nest_asyncio.apply()
@@ -44,7 +44,7 @@ handler = logging.StreamHandler(sys.stderr)
 handler.setLevel(logging.INFO)
 handler.setFormatter(
     logging.Formatter(
-        "\033[1;30m{asctime} ({name}, {levelname}) - \033[0m{message}", datefmt="%d %B %Y %H:%M", style="{"
+        "\033[1;30m{asctime} ({name}, {levelname}) - \033[0m{message}", datefmt="%d/%m/%y %H:%M", style="{"
     )
 )
 nextcord_logger.addHandler(handler)
@@ -107,25 +107,28 @@ class BossBot(commands.Bot):
         await self.db.disconnect()
         logging.info("Bot closed, event loop closing...")
 
-    async def on_application_command_error(self, interaction: Interaction, error: Exception):
+    def get_interaction(self, data, *, cls=nextcord.Interaction):
+        # tell the bot to use `BossInteraction`s instead of normal `nextcord.Interaction`s
+        return super().get_interaction(data, cls=BossInteraction)
+
+    async def on_application_command_error(self, interaction: BossInteraction, error: Exception):
         error = getattr(error, "original", error)
 
         # don't meet application check requirement
         if isinstance(error, nextcord.ApplicationCheckFailure):
-            await interaction.send(
-                embed=TextEmbed("You do not have the necessary permissions to use this command.", EmbedColour.WARNING),
-                ephemeral=True,
-            )
-            return
-
-        # should be handled in cmd_check, and the command execution is halted
-        if isinstance(error, CommandCheckException):
+            # If an error is caught in `utils.application_hooks.cmd_check`, the interaction is "handled"
+            if not interaction.attached.get("handled"):
+                await interaction.send_text(
+                    "You do not have the necessary permissions to use this command.",
+                    EmbedColour.WARNING,
+                    ephemeral=True,
+                )
             return
 
         # is in cooldown
         if isinstance(error, CallableOnCooldown):
             interaction.attached["in_cooldown"] = True
-            await interaction.send(embed=cd_embed(interaction, error))
+            await interaction.send(embed=get_cooldown_embed(interaction, error))
             return
 
         embed, view = helpers.get_error_message()
@@ -181,8 +184,9 @@ class BossBot(commands.Bot):
 bot = BossBot()
 
 
-def cd_embed(interaction: Interaction, error: CallableOnCooldown):
-    cd_ui = Embed()
+def get_cooldown_embed(interaction: Interaction, error: CallableOnCooldown) -> Embed:
+    """Returns an embed showing the command in cooldown and the time that the cooldown resets."""
+    embed = Embed()
     titles = [
         "Woah, chill.",
         "Spamming ain't good bro",
@@ -191,14 +195,14 @@ def cd_embed(interaction: Interaction, error: CallableOnCooldown):
         "It's better if you pause.",
         "Touch grass, my man.",
     ]
-    cd_ui.title = random.choice(titles)
+    embed.title = random.choice(titles)
     command = interaction.application_command
     resets_at = error.resets_at.replace(tzinfo=timezone.utc).astimezone()
-    cd_ui.description = (
+    embed.description = (
         f"You can use {command.get_mention(interaction.guild)} again <t:{int(resets_at.timestamp())}:R>!"
     )
-    cd_ui.colour = random.choice(constants.EMBED_COLOURS)
-    return cd_ui
+    embed.colour = EmbedColour.WARNING
+    return embed
 
 
 keep_alive()

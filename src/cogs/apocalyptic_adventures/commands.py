@@ -1,7 +1,6 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands
-from nextcord import Interaction, Embed
 from nextcord.ui import Button
 
 # slash command cooldowns
@@ -12,9 +11,9 @@ from cooldowns import SlashBucket
 from utils.postgres_db import Database
 
 # my modules and constants
-from utils import constants, helpers
+from utils import helpers
 from utils.constants import CURRENCY_EMOJIS, EmbedColour
-from utils.helpers import TextEmbed, check_if_not_dev_guild, BossItem, send, command_info, work_in_progress
+from utils.helpers import check_if_not_dev_guild, BossItem, BossInteraction, command_info, work_in_progress
 from utils.player import Player
 from utils.template_views import BaseView
 
@@ -37,7 +36,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    async def cog_application_command_before_invoke(self, interaction: Interaction) -> None:
+    async def cog_application_command_before_invoke(self, interaction: BossInteraction) -> None:
         hunger = await self.bot.db.fetchval(
             """
             SELECT hunger
@@ -48,15 +47,13 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         )
         # if the hunger is smaller than 30, wait for 3 seconds before continuing
         if hunger < 30:
-            await interaction.send(
-                embed=TextEmbed(
-                    "You are too hungry! Consume some food before running commands again.\nContinuing after 3 seconds...",
-                    EmbedColour.WARNING,
-                )
+            await interaction.send_text(
+                "You are too hungry! Consume some food before running commands again.\nContinuing after 3 seconds...",
+                EmbedColour.WARNING,
             )
             await asyncio.sleep(3)
 
-    async def cog_application_command_after_invoke(self, interaction: Interaction) -> None:
+    async def cog_application_command_after_invoke(self, interaction: BossInteraction) -> None:
         # decrease the player's hunger
         old_hunger, new_hunger = await self.bot.db.fetchrow(
             """
@@ -73,7 +70,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             interaction.user.id,
         )
         if old_hunger >= 30 and new_hunger < 30:
-            embed = TextEmbed(
+            embed = interaction.TextEmbed(
                 "Your hunger is smaller than 30! Commands running from now on will have a slight delay.\nConsume some food before continuing.",
                 EmbedColour.WARNING,
             )
@@ -82,7 +79,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
     async def _handle_grind_cmd(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         loot_table: dict,
         fail_messages: list[str],
         success_message: str,
@@ -91,7 +88,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         """Handles a grind command, which accepts no parameters and choose a random reward for the user.
 
         Args:
-            interaction (Interaction): The interaction of the slash command
+            interaction (BossInteraction): The interaction of the slash command
             loot_table (dict): The loot table, which should be initalised in `Survival.__init__()`
             fail_messages (list[str]): A list of messages to show the user when they get nothing, then a random one will be chosen to shown
             success_message (str): The message to show when they succeed. It must include "{reward}", which will be used to format the reward item
@@ -101,7 +98,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         reward_category = random.choices(list(loot_table.keys()), [i["chance"] for i in loot_table.values()])[0]
 
         if reward_category == "fail":
-            await send(interaction, embed=TextEmbed(random.choice(fail_messages)))
+            await interaction.send_text(random.choice(fail_messages))
             return
 
         player = Player(db, interaction.user)
@@ -115,18 +112,16 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             quantity = random.randint(reward["min"], reward["max"])
             await player.add_item(reward["id"], quantity)
             item = BossItem(reward["id"], quantity)
-            embed = TextEmbed(
-                success_message.format(reward=f"{quantity} **{await item.get_name(db)}** {await item.get_emoji(db)}")
-            )
+            reward = f"{quantity} **{await item.get_name(db)}** {await item.get_emoji(db)}"
         else:
             # reward["type"] will be "scrap_metal" or "copper"
             value = random.randint(reward["min"], reward["max"])
             await player.modify_currency(reward["type"], value)
-            embed = TextEmbed(success_message.format(reward=f"{CURRENCY_EMOJIS[reward['type']]} **{value}**"))
-        await send(interaction, embed=embed)
+            reward = f"{CURRENCY_EMOJIS[reward['type']]} **{value}**"
+        await interaction.send_text(success_message.format(reward=reward))
 
         # if the user has a mission of the type of the command, update its progress
-        if mission_id:
+        if mission_id is not None:
             await player.update_missions(interaction, mission_id)
 
     HUNT_LOOT = {
@@ -153,7 +148,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
-    async def hunt(self, interaction: Interaction):
+    async def hunt(self, interaction: BossInteraction):
         """Go hunting and bring back some animals if you are lucky!"""
         await self._handle_grind_cmd(
             interaction,
@@ -198,7 +193,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
-    async def dig(self, interaction: Interaction):
+    async def dig(self, interaction: BossInteraction):
         """Dig in the ground and find some buried treasure."""
         await self._handle_grind_cmd(
             interaction,
@@ -228,7 +223,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
-    async def mine(self, interaction: Interaction):
+    async def mine(self, interaction: BossInteraction):
         """Go mining in the caves!"""
         await self._handle_grind_cmd(
             interaction,
@@ -260,7 +255,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
-    async def scavenge(self, interaction: Interaction):
+    async def scavenge(self, interaction: BossInteraction):
         """Scavenge for resources in post-apocalyptic world, maybe you'll actually found something!"""
         await self._handle_grind_cmd(
             interaction,
@@ -469,11 +464,11 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
-    async def scout(self, interaction: Interaction):
+    async def scout(self, interaction: BossInteraction):
         """Explore the wasteland and uncover hidden resources to add to your currency stash."""
         view = await ScoutView.send(interaction, self.SCOUT_LOOT)
 
-        def check(interaction: Interaction):
+        def check(interaction: BossInteraction):
             if not interaction.message:
                 return False  # a slash command is invoked, so we ignore the interaction
             return interaction.message.id == view.msg.id
@@ -520,7 +515,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         )
 
     @nextcord.slash_command(description="Check your missions and complete them for some rewards!")
-    async def missions(self, interaction: Interaction):
+    async def missions(self, interaction: BossInteraction):
         db: Database = self.bot.db
 
         async def fetch_missions():
@@ -543,10 +538,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 await self.claim_missions(interaction.user)
                 missions = await fetch_missions()  # update the list of missions in order to show them
 
-            embed = Embed(
-                description=f"### {interaction.user.name}'s Daily Missions\n\n",
-                colour=EmbedColour.DEFAULT,
-            )
+            embed = interaction.Embed(description=f"### {interaction.user.name}'s Daily Missions\n\n")
             for i in missions:
                 embed.description += "✅" if i["finished"] else "❎"
                 embed.description += f" **{i['description'].format(quantity=i['total_amount'])}**\n"
@@ -571,7 +563,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
         view = BaseView(interaction, timeout=300)  # timeout is 5 minutes
         button = Button(emoji="🔄")
 
-        async def reload_missions(btn_inter: Interaction):
+        async def reload_missions(btn_inter: BossInteraction):
             await btn_inter.response.edit_message(embed=await get_embed())
 
         button.callback = reload_missions

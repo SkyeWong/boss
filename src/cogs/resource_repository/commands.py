@@ -2,7 +2,7 @@
 import nextcord
 from nextcord.ext import commands, tasks
 from nextcord.ui import View, Button
-from nextcord import Interaction, Embed, SlashOption, ButtonStyle
+from nextcord import Interaction, SlashOption, ButtonStyle
 
 # slash command cooldowns
 import cooldowns
@@ -17,7 +17,15 @@ import asyncpg
 # my modules and constants
 from utils import constants, helpers
 from utils.constants import SCRAP_METAL, COPPER, COPPER_SCRAP_RATE, EmbedColour
-from utils.helpers import MoveItemException, TextEmbed, check_if_not_dev_guild, command_info, BossItem, BossCurrency
+from utils.helpers import (
+    check_if_not_dev_guild,
+    command_info,
+    BossItem,
+    BossCurrency,
+    BossInteraction,
+    TextEmbed,
+    BossEmbed,
+)
 from utils.player import Player
 
 # command views
@@ -43,6 +51,7 @@ import operator
 import math
 import asyncio
 import json
+import logging
 
 
 class Resource(commands.Cog, name="Resource Repository"):
@@ -76,7 +85,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @nextcord.slash_command(name="item", description="Get information of an item.")
     async def item(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         itemname: str = SlashOption(
             name="item",
             description="The item to search for",
@@ -86,7 +95,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         db: Database = self.bot.db
         item = await db.fetchrow(self.GET_ITEM_SQL, itemname)
         if not item:
-            await interaction.send(embed=TextEmbed("The item is not found!"))
+            await interaction.send_text("The item is not found!")
         else:
             res = await db.fetch(
                 """
@@ -134,14 +143,14 @@ class Resource(commands.Cog, name="Resource Repository"):
                     """
                     TRUNCATE table trades.villagers;
                     TRUNCATE table trades.villager_remaining_trades;
-                """
+                    """
                 )
                 # insert the villagers and their trades
                 await conn.executemany(
                     """
                     INSERT INTO trades.villagers (id, name, job_title, demands, supplies, num_trades)
                     VALUES ($1, $2, $3, $4, $5, $6)
-                """,
+                    """,
                     [
                         (
                             i + 1,
@@ -173,11 +182,11 @@ class Resource(commands.Cog, name="Resource Repository"):
                 )
         utc = pytz.timezone("UTC")
         now = datetime.datetime.now(tz=utc).strftime("%y-%#m-%#d %#H:%#M %Z")
-        print(f"\033[1;30mUpdated villagers at {now}.\033[0m")
         await db.execute(f"COMMENT ON TABLE trades.villagers IS '{now}'")
         await self.bot.get_guild(919223073054539858).get_channel(1120926567930007582).send(
             embed=TextEmbed(f"villagers updated at {now}")
         )
+        logging.info("Updated villagers.")
 
     @update_villagers.before_loop
     async def before_update_villagers(self):
@@ -188,13 +197,13 @@ class Resource(commands.Cog, name="Resource Repository"):
         await nextcord.utils.sleep_until(start_of_next_hour)
 
     @nextcord.slash_command(name="farm")
-    async def farm(self, interaction: Interaction):
+    async def farm(self, interaction: BossInteraction):
         """Engage yourself in a virtual farm - plant, harvest, and discover new crops!"""
         pass
 
     @farm.before_invoke
     @staticmethod
-    async def create_farm(interaction: Interaction):
+    async def create_farm(interaction: BossInteraction):
         # if the user hasn't started his/her farm, then we need to insert his/her record into the table
         # if the user has already started farming, then do nothing (ON CONFLICT DO NOTHING)
         await interaction.client.db.execute(
@@ -210,7 +219,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @farm.subcommand(name="view", inherit_hooks=True)
     async def farm_view(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         user: nextcord.User = SlashOption(description="The user to view the farm of", required=False, default=None),
     ):
         """Check your crops' progress."""
@@ -223,7 +232,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         await view.send_message(interaction, with_view=True if user == interaction.user else False)
 
     def get_sell_item_embed(self, sold_items: tuple, total_price):
-        embed = Embed()
+        embed = BossEmbed()
         embed.title = "BOSS Cash Receipt"
         embed.description = "─" * (len(embed.title) + 5)
         embed.description += "\n"
@@ -249,7 +258,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         embed.description += f"\n**`Total`**: {SCRAP_METAL} __{total_price:,}__"
         return embed
 
-    async def sell_all_player_items(self, button, interaction: Interaction):
+    async def sell_all_player_items(self, button, interaction: BossInteraction):
         async with self.bot.db.pool.acquire() as conn:
             async with conn.transaction():
                 sold_items = await conn.fetch(
@@ -296,7 +305,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         WHERE i.sell_price > 0;
     """
 
-    async def choose_backpack_sellable_autocomplete(self, interaction: Interaction, data: str):
+    async def choose_backpack_sellable_autocomplete(self, interaction: BossInteraction, data: str):
         """Returns a list of autocompleted choices of the sellable items in a user's backpack"""
         db: Database = self.bot.db
         items = await db.fetch(self.GET_SELLABLE_SQL, interaction.user.id, data)
@@ -311,7 +320,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @cooldowns.shared_cooldown("sell_items")
     async def sell_all(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         exclude_item_names: str = SlashOption(
             name="exclude-items",
             description="The items to exclude in your inventory. Seperate them with '/'",
@@ -334,13 +343,12 @@ class Resource(commands.Cog, name="Resource Repository"):
                 )
                 # the item is not found, or the user does not own any
                 if item is None:
-                    await interaction.send(
-                        embed=TextEmbed(f"The item `{item_name}` doesn't exist.", EmbedColour.WARNING)
-                    )
+                    await interaction.send_text(f"The item `{item_name}` doesn't exist.", EmbedColour.WARNING)
+
                     return
                 if item["quantity"] is None:
-                    await interaction.send(
-                        embed=TextEmbed(f"You don't own any {item['emoji']} **{item['name']}**", EmbedColour.WARNING)
+                    await interaction.send_text(
+                        f"You don't own any {item['emoji']} **{item['name']}**", EmbedColour.WARNING
                     )
                     return
 
@@ -363,7 +371,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             exclude_items,
         )
         if not sellable_items:
-            await interaction.send(embed=TextEmbed("You sold nothing! What a shame..."))
+            await interaction.send_text("You sold nothing! What a shame...")
             return
 
         # calculate the total price of the sold items
@@ -385,7 +393,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @cooldowns.shared_cooldown("sell_items")
     async def sell_item(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         item_name: str = SlashOption(
             name="item",
             description="The item to sell",
@@ -406,29 +414,25 @@ class Resource(commands.Cog, name="Resource Repository"):
             item_name,
         )
         if not item:
-            await interaction.send(
-                embed=TextEmbed("The item does not exist.", EmbedColour.WARNING),
-            )
+            await interaction.send_text("The item does not exist.", EmbedColour.WARNING)
             return
 
         if not item["sell_price"]:
-            await interaction.send(embed=TextEmbed("The item can't be sold! Try trading them.", EmbedColour.WARNING))
+            await interaction.send_text("The item can't be sold! Try trading them.", EmbedColour.WARNING)
             return
 
         if not item["quantity"]:
-            await interaction.send(embed=TextEmbed("You don't own any of the item.", EmbedColour.WARNING))
+            await interaction.send_text("You don't own any of the item.", EmbedColour.WARNING)
             return
 
         inv_quantity = item["quantity"]
         if quantity is None:
             quantity = inv_quantity
         if inv_quantity < quantity:
-            embed = Embed()
-            embed.description = (
+            await interaction.send_text(
                 f"You only have {inv_quantity}x {item['emoji']} {item['name']}, which is {quantity - inv_quantity} short."
                 "Don't imagine yourself as such a rich person, please."
             )
-            await interaction.send(embed=embed)
             return
 
         item = dict(item)  # convert the item into a dictionary so that we can modify it
@@ -457,13 +461,13 @@ class Resource(commands.Cog, name="Resource Repository"):
             await interaction.send(embed=embed)
 
     @nextcord.slash_command(name="exchange")
-    async def exchange_currency_cmd(self, interaction: Interaction):
+    async def exchange_currency_cmd(self, interaction: BossInteraction):
         """Exchange your currency between scrap metals and coppers."""
         pass
 
     async def exchange_currencies(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         from_currency: Literal["scrap_metal", "copper"],
         to_currency: Literal["scrap_metal", "copper"],
         amount: str,
@@ -474,16 +478,16 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         try:
             amount = helpers.text_to_num(amount)
-        except helpers.TextToNumException:
-            await interaction.send(embed=TextEmbed("The amount is invalid."))
+        except ValueError:
+            await interaction.send_text("The amount is invalid.")
             return
 
         from_currency_msg = from_currency.replace("_", " ")
         to_currency_msg = to_currency.replace("_", " ")
 
         if amount <= 0:
-            await interaction.send(
-                embed=TextEmbed(f"Enter a positive amount of {from_currency_msg} to exchange into {to_currency_msg}.")
+            await interaction.send_text(
+                f"Enter a positive amount of {from_currency_msg} to exchange into {to_currency_msg}."
             )
             return
 
@@ -499,9 +503,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         exchanged_amount = round(op(amount, exchange_rate))
 
         if exchanged_amount <= 0:  # The user has not exchanged enough scrap metal to have 1 copper
-            await interaction.send(
-                embed=TextEmbed(f"{amount} {from_currency_msg} is not enough to make 1 {to_currency_msg}.")
-            )
+            await interaction.send_text(f"{amount} {from_currency_msg} is not enough to make 1 {to_currency_msg}.")
             return
 
         db: Database = interaction.client.db
@@ -515,12 +517,10 @@ class Resource(commands.Cog, name="Resource Repository"):
                     from_amount = await player.modify_currency(from_currency, -amount)
                     to_amount = await player.modify_currency(to_currency, exchanged_amount)
                 except helpers.NegativeBalance:
-                    await interaction.send(
-                        embed=TextEmbed(f"You don't have enough {from_currency_msg} to make this exchange.")
-                    )
+                    await interaction.send_text(f"You don't have enough {from_currency_msg} to make this exchange.")
                     return
 
-        embed = Embed()
+        embed = interaction.Embed()
         embed.description = (
             f"The current exchange rate is **{exchange_rate}** {to_currency_msg} for 1 {from_currency_msg}.\n"
             f"You got **{exchanged_amount:,} {constants.CURRENCY_EMOJIS[to_currency]}**."
@@ -542,7 +542,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     )
     async def exchange_to_copper(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         scrap_metal: str = SlashOption(name="scrap-metal", description="Amount of scrap metal to exchange"),
     ):
         """Convert your scrap metals to coppers."""
@@ -563,7 +563,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     )
     async def exchange_to_scrap(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         copper: str = SlashOption(description="Amount of copper to exchange"),
     ):
         """Convert your coppers to scrap metals."""
@@ -587,7 +587,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         ON bp.item_id = i.item_id
     """
 
-    async def choose_backpack_autocomplete(self, interaction: Interaction, data: str):
+    async def choose_backpack_autocomplete(self, interaction: BossInteraction, data: str):
         """Returns a list of autocompleted choices of all the items in a user's backpack"""
         db: Database = self.bot.db
         items = await db.fetch(
@@ -604,7 +604,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @cooldowns.cooldown(1, 12, SlashBucket.author, check=check_if_not_dev_guild)
     async def use(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         item_name: str = SlashOption(
             name="item", description="The item to use", autocomplete_callback=choose_backpack_autocomplete
         ),
@@ -619,19 +619,17 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         # perform some checks to see if the user can use their items
         if item is None:
-            await interaction.send(embed=TextEmbed("The item does not exist.", EmbedColour.WARNING))
+            await interaction.send_text("The item does not exist.", EmbedColour.WARNING)
             return
         if item["quantity"] is None:
-            await interaction.send(
-                embed=TextEmbed(
-                    f"You don't have any of the {item['emoji']} **{item['name']}** in your backpack, and therefore can't use it.",
-                    EmbedColour.WARNING,
-                )
+            await interaction.send_text(
+                f"You don't have any of the {item['emoji']} **{item['name']}** in your backpack, and therefore can't use it.",
+                EmbedColour.WARNING,
             )
             return
         if item["quantity"] < quantity:
-            await interaction.send(
-                embed=TextEmbed(f"You don't have enough {item['emoji']} **{item['name']}**!", EmbedColour.WARNING)
+            await interaction.send_text(
+                f"You don't have enough {item['emoji']} **{item['name']}**!", EmbedColour.WARNING
             )
             return
 
@@ -644,9 +642,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 other_attributes = json.loads(item["other_attributes"])
                 food_min, food_max = other_attributes.get("food_value_min"), other_attributes.get("food_value_max")
                 if not food_min or not food_max:
-                    await interaction.send(
-                        embed=TextEmbed("This particular piece of food cannot be consumed, somehow.")
-                    )
+                    await interaction.send_text("This particular piece of food cannot be consumed, somehow.")
                     return
 
                 food_value = random.randint(food_min, food_max) * quantity
@@ -664,7 +660,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                     interaction.user.id,
                 )
                 if old_hunger >= 100:
-                    await interaction.send(embed=TextEmbed("Your hunger is already full, why are you even eating???"))
+                    await interaction.send_text("Your hunger is already full, why are you even eating???")
                     return
 
                 # perform another query because we need to wait for the trigger function to occur
@@ -679,46 +675,41 @@ class Resource(commands.Cog, name="Resource Repository"):
                     """,
                     interaction.user.id,
                 )
-                embed = TextEmbed(
+                msg = (
                     f"You ate {quantity} {item['emoji']} **{item['name']}**.\n"
-                    f"Your hunger is now {new_hunger}, increased by {new_hunger - old_hunger}.",
-                    EmbedColour.SUCCESS,
+                    f"Your hunger is now {new_hunger}, increased by {new_hunger - old_hunger}."
                 )
 
             case {"item_id": 61}:  # health potion
                 # add 60-80 points of health to the player
                 value = random.randint(60, 80)
                 new_health = await player.modify_health(value)
-                embed = TextEmbed(
+                msg = (
                     f"You drank {quantity} {item['emoji']} **{item['name']}**.\n"
-                    f"Your health is now {new_health}, increased by {value}.",
-                    EmbedColour.SUCCESS,
+                    f"Your health is now {new_health}, increased by {value}."
                 )
 
             case {"type": constants.ItemType.ANIMAL.value}:
                 # convert the animal to "food" item
                 await player.add_item(55, quantity)
                 food_item = BossItem(55, quantity)
-                embed = TextEmbed(
+                msg = (
                     f"You roasted {quantity} {item['emoji']} **{item['name']}** over the fire and "
-                    f"got {quantity} {await food_item.get_emoji(db)} **{await food_item.get_name(db)}**!",
-                    EmbedColour.SUCCESS,
+                    f"got {quantity} {await food_item.get_emoji(db)} **{await food_item.get_name(db)}**!"
                 )
 
             case {"item_id": 44}:  # Iron ore
                 await player.add_item(50, quantity)
-                embed = TextEmbed(f"Converted {quantity} iron ore into ingots!", EmbedColour.SUCCESS)
+                msg = f"Converted {quantity} iron ore into ingots!"
 
             case {"item_id": 57}:  # jungle explorer map
                 if quantity > 1:
-                    await interaction.send(
-                        embed=TextEmbed(
-                            f"{item['emoji']} **{item['name']}** could not be used for multiple times at once."
-                        )
+                    await interaction.send_text(
+                        f"{item['emoji']} **{item['name']}** could not be used for multiple times at once."
                     )
                     return
 
-                async def confirm_func(button, btn_interaction: Interaction):
+                async def confirm_func(button, btn_interaction: BossInteraction):
                     maze_size = (random.randint(25, 30), random.randint(25, 30))
                     view = Maze(
                         btn_interaction,
@@ -749,7 +740,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 return
 
             case _:
-                await interaction.send(embed=TextEmbed("You can't use this item", colour=EmbedColour.WARNING))
+                await interaction.send_text("You can't use this item", EmbedColour.WARNING)
                 return
         # do something universal of all items able to be used
         new_quantity = await player.add_item(item["item_id"], -quantity)
@@ -761,14 +752,14 @@ class Resource(commands.Cog, name="Resource Repository"):
             disabled=True,
         )
         view.add_item(button)
-        await interaction.send(embed=embed, view=view)
+        await interaction.send(embed=interaction.TextEmbed(msg), view=view)
 
     @nextcord.slash_command(name="profile", description="Check the profile of a user.")
     @command_info(notes="If you leave the `user` parameter empty, you can view your own profile.")
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
     async def profile(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         user: nextcord.User = SlashOption(
             name="user",
             description="The user to check the profile. Leave the option empty to view yours.",
@@ -782,10 +773,7 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         player = Player(db, user)
         if not await player.is_present():
-            await interaction.send(
-                embed=TextEmbed("The user hasn't started playing BOSS yet! Maybe invite them over?"),
-                ephemeral=True,
-            )
+            await interaction.send_text("The user hasn't started playing BOSS yet! Maybe invite them over?")
             return
 
         profile = await db.fetchrow(
@@ -797,7 +785,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             user.id,
         )
 
-        embed = Embed()
+        embed = interaction.Embed()
         embed.colour = EmbedColour.DEFAULT
         embed.set_thumbnail(url=user.display_avatar.url)
         embed.set_author(name=f"{user.name}'s Profile")
@@ -870,7 +858,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
     async def balance(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         user: nextcord.User = SlashOption(
             name="user",
             description="The user to check the balance. Leave the option empty to view yours.",
@@ -883,9 +871,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         db: Database = self.bot.db
         player = Player(db, user)
         if not await player.is_present():
-            await interaction.send(
-                embed=TextEmbed("The user hasn't started playing BOSS yet! Maybe invite them over?"),
-            )
+            await interaction.send_text("The user hasn't started playing BOSS yet! Maybe invite them over?")
             return
 
         scrap_metal, copper, safe_scrap, item_worth = await db.fetchrow(
@@ -924,7 +910,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             item_worth,
         )
 
-        embed = Embed(title=f"{user.name}'s Balance", colour=EmbedColour.INFO)
+        embed = interaction.Embed(title=f"{user.name}'s Balance", colour=EmbedColour.INFO)
         # row 1
         embed.add_field(name="Scrap Metal", value=f"{SCRAP_METAL} {scrap_metal:,}")
         embed.add_field(name="Safe", value=f"{SCRAP_METAL} {safe_scrap:,}")
@@ -935,15 +921,14 @@ class Resource(commands.Cog, name="Resource Repository"):
         embed.add_field(name="Net worth", value=f"{SCRAP_METAL} {net_worth:,}")
 
         embed.set_footer(
-            text=f"{'You are' if user == interaction.user else f'{user.name} is'} ahead of {round(rank * 100, 1)}% of users!\n"
-            f"Items are valued with scrap metals. 1 copper is worth {constants.COPPER_SCRAP_RATE:,} scrap metals."
+            text=f"{'You are' if user == interaction.user else f'{user.name} is'} ahead of {round(rank * 100, 1)}% of users!"
         )
         await interaction.send(embed=embed)
 
     @nextcord.slash_command(description="See the richest men in the (BOSS) world, who is probably not Elon Musk.")
     @command_info(notes="This command is global. We will add a server-specific scope soon.")
     @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
-    async def leaderboard(self, interaction: Interaction):
+    async def leaderboard(self, interaction: BossInteraction):
         lb = await self.bot.db.fetch(
             """
             SELECT players.player_id, COALESCE(SUM(items.trade_price * inv.quantity)::bigint, 0) + players.scrap_metal + players.copper * $1 As net_worth
@@ -958,7 +943,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             """,
             COPPER_SCRAP_RATE,
         )
-        embed = Embed(title="Net Worth Leaderboard", description="", colour=EmbedColour.INFO)
+        embed = interaction.Embed(title="Net Worth Leaderboard", description="", colour=EmbedColour.INFO)
         medal_emojis = {
             1: "🥇",
             2: "🥈",
@@ -974,7 +959,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @cooldowns.shared_cooldown("check_inv")
     async def backpack(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         user: nextcord.Member = SlashOption(
             name="user",
             description="The user to check the backpack of",
@@ -994,7 +979,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @cooldowns.shared_cooldown("check_inv")
     async def chest(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         user: nextcord.Member = SlashOption(
             name="user",
             description="The user to check the chest of",
@@ -1012,7 +997,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @cooldowns.shared_cooldown("check_inv")
     async def vault(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         page: int = SlashOption(description="The page to start in", required=False, min_value=1, default=1),
     ):
         """Check the vault of your own."""
@@ -1022,10 +1007,10 @@ class Resource(commands.Cog, name="Resource Repository"):
 
     @vault.before_invoke
     @staticmethod
-    async def vault_before_invoke(interaction: Interaction):
+    async def vault_before_invoke(interaction: BossInteraction):
         await interaction.response.defer(ephemeral=True)
 
-    async def choose_inv_autocomplete(self, interaction: Interaction, data: str):
+    async def choose_inv_autocomplete(self, interaction: BossInteraction, data: str):
         """Returns a list of autocompleted choices of a user's inventory"""
         db: Database = self.bot.db
         items = await db.fetch(
@@ -1145,7 +1130,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @cooldowns.cooldown(1, 18, SlashBucket.author, check=check_if_not_dev_guild)
     async def move_item_command(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         item_name: str = SlashOption(
             name="item",
             description="The item to move",
@@ -1173,15 +1158,13 @@ class Resource(commands.Cog, name="Resource Repository"):
         """Moves items from one place to other."""
 
         if item_from == item_to:
-            await interaction.send(
-                embed=TextEmbed("Choose different locations to move to!"),
-            )
+            await interaction.send_text("Choose different locations to move to!")
             return
 
         db: Database = self.bot.db
         item = await db.fetchrow(self.GET_ITEM_SQL, item_name)
         if not item:
-            await interaction.send(embed=TextEmbed("The item is not found!"))
+            await interaction.send_text("The item is not found!")
             return
 
         try:
@@ -1194,14 +1177,13 @@ class Resource(commands.Cog, name="Resource Repository"):
             )
 
         except MoveItemException as e:
-            await interaction.send(embed=TextEmbed(e.text, EmbedColour.FAIL), ephemeral=True)
+            await interaction.send_embed(e.text, EmbedColour.FAIL)
             return
 
-        embed = TextEmbed("Moving your items...", EmbedColour.DEFAULT)
-        msg = await interaction.send(embed=embed)
-        await asyncio.sleep(random.uniform(2, 5))
+        msg = await interaction.send_text("Moving your items...\n||* intentional wait *||")
+        await asyncio.sleep(random.uniform(3, 8))
 
-        embed = Embed(colour=EmbedColour.SUCCESS)
+        embed = interaction.Embed(colour=EmbedColour.SUCCESS)
         embed.set_author(
             name=f"Updated {interaction.user.name}'s inventory!",
             icon_url=interaction.user.display_avatar.url,
@@ -1212,7 +1194,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
         await msg.edit(embed=embed)
 
-    async def _change_balance(self, interaction: Interaction, action: Literal["deposit", "withdraw"], amount: int):
+    async def _change_balance(self, interaction: BossInteraction, action: Literal["deposit", "withdraw"], amount: int):
         """Deposit or withdraw a user's scrap metals."""
         async with interaction.client.db.pool.acquire() as conn:
             async with conn.transaction():
@@ -1229,16 +1211,14 @@ class Resource(commands.Cog, name="Resource Repository"):
                     amount if action == "deposit" else -amount,
                 )
                 if new_safe > new_scrap * 0.2:
-                    await interaction.send(
-                        embed=TextEmbed(
-                            "You already have a full safe!\n"
-                            "You can only store at most 20% of your scrap metals in your safe.",
-                            EmbedColour.WARNING,
-                        )
+                    await interaction.send_text(
+                        "You already have a full safe!\n"
+                        "You can only store at most 20% of your scrap metals in your safe.",
+                        EmbedColour.WARNING,
                     )
                     raise helpers.BossException()
 
-        embed = Embed(colour=EmbedColour.DEFAULT)
+        embed = interaction.Embed(colour=EmbedColour.DEFAULT)
         embed.description = f"**{'Deposited' if action == 'deposit' else 'Withdrew'}**\n {SCRAP_METAL} {amount:,}"
         embed.add_field(name="Current Scrap Metals", value=f"{SCRAP_METAL} {new_scrap:,}")
         embed.add_field(name="Current Safe Balance", value=f"{SCRAP_METAL} {new_safe:,}")
@@ -1247,7 +1227,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @nextcord.slash_command(description="Store your scrap metals in your safe where it'll be safe!")
     async def deposit(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         amount: str = SlashOption(
             description="A constant number (1234), shorthand (3k), or relative keyword (50%/all)"
         ),
@@ -1265,10 +1245,10 @@ class Resource(commands.Cog, name="Resource Repository"):
                 amount = amount.removesuffix("%")
                 amount = float(amount) if "." in amount else int(amount)
             except ValueError:
-                await interaction.send(embed=TextEmbed("That is not a valid relative keyword (eg 50%)."))
+                await interaction.send_text("That is not a valid relative keyword (eg 50%).")
                 return
             if amount > 100 or amount <= 0:
-                await interaction.send(embed=TextEmbed("The percentage must be within the range 0-100."))
+                await interaction.send_text("The percentage must be within the range 0-100.")
                 return
             amount = amount / 100 * available_safe
         elif amount in ("all", "max"):
@@ -1276,19 +1256,19 @@ class Resource(commands.Cog, name="Resource Repository"):
         else:  # constant number/shorthand
             try:
                 amount = helpers.text_to_num(amount)
-            except helpers.TextToNumException:
-                await interaction.send(embed=TextEmbed("That is not a valid amount."))
+            except ValueError:
+                await interaction.send_text("That is not a valid amount.")
                 return
             if amount > scrap:
-                await interaction.send(embed=TextEmbed("You don't have that much scrap metals."))
+                await interaction.send_text("You don't have that much scrap metals.")
                 return
             if amount <= 0:
-                await interaction.send(embed=TextEmbed("Enter a positive amount of scrap metals."))
+                await interaction.send_text("Enter a positive amount of scrap metals.")
                 return
 
         amount = math.floor(amount)
         if amount <= 0:
-            await interaction.send(embed=TextEmbed("You already have a full safe!"))
+            await interaction.send_text("You already have a full safe!")
             return
         try:
             await self._change_balance(interaction, "deposit", amount)
@@ -1298,7 +1278,7 @@ class Resource(commands.Cog, name="Resource Repository"):
     @nextcord.slash_command(description="Withdraw money from your safe into your pocket.")
     async def withdraw(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         amount: str = SlashOption(
             description="A constant number (1234), shorthand (3k), or relative keyword (50%/all)"
         ),
@@ -1313,10 +1293,10 @@ class Resource(commands.Cog, name="Resource Repository"):
                 amount = amount.removesuffix("%")
                 amount = float(amount) if "." in amount else int(amount)
             except ValueError:
-                await interaction.send(embed=TextEmbed("That is not a valid relative keyword (eg 50%)."))
+                await interaction.send_text("That is not a valid relative keyword (eg 50%).")
                 return
             if amount > 100 or amount <= 0:
-                await interaction.send(embed=TextEmbed("The percentage must be within the range 0-100."))
+                await interaction.send_text("The percentage must be within the range 0-100.")
                 return
             amount = amount / 100 * safe
         elif amount in ("all", "max"):
@@ -1324,14 +1304,14 @@ class Resource(commands.Cog, name="Resource Repository"):
         else:  # constant number/shorthand
             try:
                 amount = helpers.text_to_num(amount)
-            except helpers.TextToNumException:
-                await interaction.send(embed=TextEmbed("That is not a valid amount."))
+            except ValueError:
+                await interaction.send_text("That is not a valid amount.")
                 return
             if amount > safe:
-                await interaction.send(embed=TextEmbed("You don't have that much scrap metals in your safe."))
+                await interaction.send_text("You don't have that much scrap metals in your safe.")
                 return
             if amount <= 0:
-                await interaction.send(embed=TextEmbed("Enter a positive amount of scrap metals."))
+                await interaction.send_text("Enter a positive amount of scrap metals.")
                 return
 
         amount = math.floor(amount)
@@ -1339,6 +1319,11 @@ class Resource(commands.Cog, name="Resource Repository"):
             await self._change_balance(interaction, "withdraw", amount)
         except helpers.BossException:
             pass
+
+
+class MoveItemException(Exception):
+    def __init__(self, text) -> None:
+        self.text = text
 
 
 def setup(bot: commands.Bot):

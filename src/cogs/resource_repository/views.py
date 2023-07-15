@@ -524,7 +524,7 @@ class PlantView(BaseView):
 
     @button(label="Go Back", row=3)
     async def return_to_main_view(self, button: Button, interaction: Interaction):
-        """Return the the main `FarmView` page."""
+        """Return to the main `FarmView` page."""
         view = FarmView(interaction, self.player)
         await view.set_up()
 
@@ -773,7 +773,7 @@ class HarvestView(BaseView):
 
     @button(label="Go Back", row=3)
     async def return_to_main_view(self, button: Button, interaction: Interaction):
-        """Return the the main `FarmView` page."""
+        """Return to the main `FarmView` page."""
         view = FarmView(interaction, self.player)
         await view.set_up()
 

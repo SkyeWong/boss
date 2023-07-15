@@ -117,7 +117,7 @@ class EditItemModal(Modal):
             if column in ("buy_price", "sell_price", "trade_price"):
                 try:
                     values[column] = helpers.text_to_num(inputted_value)
-                except helpers.TextToNumException:
+                except ValueError:
                     errors.append(
                         f"The `{column}` is not a valid number. Tip: use `2k` for _2,000_, `5m 4k` for _5,004,000_"
                     )
@@ -210,6 +210,7 @@ class EditItemModal(Modal):
             new_item = await db.fetchrow(sql, self.item["item_id"], *changed_values.values())
 
         except Exception as e:
+            # since only devs use this command, we can send them the whole error message
             await interaction.send(embed=TextEmbed(f"{e.__class__.__name__}: {e}", EmbedColour.WARNING), ephemeral=True)
             return
 

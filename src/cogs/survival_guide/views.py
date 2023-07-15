@@ -39,10 +39,17 @@ class HelpView(BaseView):
 
         # Set the mapping of cog names to lists of commands.
         if cmd_list is None:
-            self.mapping = helpers.get_mapping(interaction, interaction.client)
-            self.cmd_list = []
-            for cog_name, (cog, commands) in self.mapping.items():
-                self.cmd_list.extend(commands)
+            self.mapping = {}
+
+            for cog_name, cog in interaction.client.cogs.items():
+                cog_commands = []
+                for cmd in cog.application_commands:
+                    if cmd.is_global or interaction.guild_id in cmd.guild_ids:
+                        cog_commands.append(cmd)
+                if cog_commands:
+                    self.mapping[cog_name] = (cog, cog_commands)
+
+            self.cmd_list = [cmd for (cog, commands) in self.mapping.values() for cmd in commands]
         else:
             self.cmd_list = cmd_list
             self.mapping = None
@@ -80,12 +87,11 @@ class HelpView(BaseView):
         # Add an "All" option to select every cog
         options.append(SelectOption(label="All", emoji="🌐", default=True))
         # Add an option for every cog in the mapping
-        for cog_name in self.mapping:
-            cog = self.mapping[cog_name][0]
+        for cog, commands in self.mapping.values():
             emoji = getattr(cog, "COG_EMOJI", None)
             options.append(
                 SelectOption(
-                    label=cog_name,
+                    label=cog.qualified_name,
                     description=cog.description[:100] if cog.description else None,
                     emoji=emoji,
                     default=False,
@@ -97,33 +103,14 @@ class HelpView(BaseView):
 
         return options
 
-    def help_embed(
-        self,
-        description: Optional[str] = None,
-        set_author: bool = True,
-        author_name: str = "Commands",
-    ) -> Embed:
-        """Creates an embed with a list of all the commands in the bot.
-
-        Args:
-            description: Optional description to add to the embed.
-            set_author: Whether to set the author of the embed.
-            author_name: The name of the author of the embed.
-
-        Returns:
-            The created embed.
-        """
+    def help_embed(self) -> Embed:
+        """Creates an embed with a list of all the commands in the bot."""
 
         embed = Embed(description="", colour=EmbedColour.INFO)
 
-        # If a description is provided, add it to the embed.
-        if description:
-            embed.description = description
-
-        # If the author should be set, set the author of the embed to the bot's user.
-        if set_author:
-            avatar = self.interaction.client.user.avatar or self.interaction.client.user.default_avatar
-            embed.set_author(name=author_name, icon_url=avatar.url)
+        # Set the author of the embed to the bot's user.
+        avatar = self.interaction.client.user.avatar
+        embed.set_author(name="Commands", icon_url=avatar.url)
 
         # Get a list of all the commands in the bot.
         command_list = sorted(self.cmd_list, key=lambda x: x.qualified_name)
@@ -142,10 +129,10 @@ class HelpView(BaseView):
             )
 
             # Get the command's name.
-            name = f"**</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}>**"
+            name = f"**{cmd.get_mention(self.interaction.guild)}**"
 
             # If the command has subcommands, add a `has subcommands` suffix to the name.
-            if len(cmd.children) > 0:
+            if cmd.children:
                 name += " `has subcommands`"
 
             # Add the command (name and description) to the embed description
@@ -187,8 +174,8 @@ class HelpView(BaseView):
         Updates the state of the buttons to disable the previous, current, and next buttons
         if they are not applicable.
 
-        # - For example, if the first page is being shown, then the previous and back buttons will be disabled.
-        # - If the last page is being shown, then the next and last buttons will be disabled.
+        - For example, if the first page is being shown, then the previous and back buttons will be disabled.
+        - If the last page is being shown, then the next and last buttons will be disabled.
         """
 
         back_btn = [i for i in self.children if i.custom_id == "back"][0]
@@ -208,7 +195,7 @@ class HelpView(BaseView):
             next_btn.disabled = False
             last_btn.disabled = False
 
-    async def get_embed_update_msg(self, interaction: Interaction, **kwargs):
+    async def update_msg(self, interaction: Interaction, **kwargs):
         """
         Updates the embed with the current page of commands.
 
@@ -216,6 +203,7 @@ class HelpView(BaseView):
         """
 
         embed = self.help_embed(**kwargs)
+        self.btn_disable()
         await interaction.response.edit_message(embed=embed, view=self)
 
     @select(
@@ -234,57 +222,48 @@ class HelpView(BaseView):
 
         selected_values = select.values
         if "All" in [i for i in selected_values if i not in self.old_selected_values]:
+            # If the user selected some cogs then chose "all", keep only "all"
             selected_values = ["All"]
         elif "All" in [i for i in self.old_selected_values if i in selected_values]:
+            # If the user selected "all" then chose other cogs, remove "all"
             selected_values.remove("All")
 
-        cmd_list = []
         if "All" in selected_values:
-            for cog_name, (cog, commands) in self.mapping.items():
-                cmd_list.extend(commands)
+            self.cmd_list = [cmd for cog, commands in self.mapping.values() for cmd in commands]
         else:
-            for value in selected_values:
-                cmd_list.extend(self.mapping[value][1])
+            self.cmd_list = [cmd for value in selected_values for cmd in self.mapping[value][1]]
 
-        self.cmd_list = cmd_list
         self.page = 1
         # disable the buttons, and make the select menu "sticky"
-        self.btn_disable()
         for option in select.options:
-            option.default = False
-            if option.label in selected_values:
-                option.default = True
+            option.default = option.label in selected_values
 
-        await self.get_embed_update_msg(interaction)
+        await self.update_msg(interaction)
         self.old_selected_values = selected_values
 
     @button(emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True)
     async def first(self, button: Button, interaction: Interaction):
         """Displays the first page of commands"""
         self.page = 1
-        self.btn_disable()
-        await self.get_embed_update_msg(interaction)
+        await self.update_msg(interaction)
 
     @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, disabled=True, custom_id="back")
     async def back(self, button: Button, interaction: Interaction):
         """Displays the previous page of commands."""
         self.page -= 1
-        self.btn_disable()
-        await self.get_embed_update_msg(interaction)
+        await self.update_msg(interaction)
 
     @button(emoji="▶️", style=nextcord.ButtonStyle.blurple, custom_id="next")
     async def next(self, button: Button, interaction: Interaction):
         """Displays the next page of commands."""
         self.page += 1
-        self.btn_disable()
-        await self.get_embed_update_msg(interaction)
+        await self.update_msg(interaction)
 
     @button(emoji="⏭️", style=nextcord.ButtonStyle.blurple, custom_id="last")
     async def last(self, button: Button, interaction: Interaction):
         """Displays the last page of commands."""
         self.page = math.ceil(len(self.cmd_list) / self.cmd_per_page)
-        self.btn_disable()
-        await self.get_embed_update_msg(interaction)
+        await self.update_msg(interaction)
 
 
 @dataclass

@@ -1,13 +1,13 @@
 # nextcord
 import nextcord
 from nextcord.ext import commands
-from nextcord import Embed, Interaction, ButtonStyle, ApplicationCommandOptionType as OptionType
+from nextcord import ButtonStyle, ApplicationCommandOptionType as OptionType
 from nextcord.ui import Button, button, TextInput
 
 # my modules
 from utils import constants, helpers
 from utils.constants import EmbedColour
-from utils.helpers import TextEmbed
+from utils.helpers import BossInteraction
 from utils.postgres_db import Database
 from utils.template_views import BaseView, ConfirmView, BaseModal
 
@@ -28,7 +28,7 @@ class RecordMacroView(BaseView):
     )
     MAX_NUMBER_OF_COMMANDS = 25
 
-    def __init__(self, interaction: Interaction, recording_macro_id: str):
+    def __init__(self, interaction: BossInteraction, recording_macro_id: str):
         super().__init__(interaction, timeout=500)
         self.db: Database = interaction.client.db
         self.bot: commands.Bot = interaction.client
@@ -39,7 +39,7 @@ class RecordMacroView(BaseView):
         self.recording = True  # flag variable to show if the user is currently recording
 
     @classmethod
-    async def start(cls, interaction: Interaction):
+    async def start(cls, interaction: BossInteraction):
         """Start recording commands."""
         db: Database = interaction.client.db
         # check if the user already had 5 macros before running /macro record
@@ -48,13 +48,13 @@ class RecordMacroView(BaseView):
             "SELECT COUNT(*) FROM players.macro_players WHERE player_id = $1", interaction.user.id
         )
         if owned_macros == 5:
-            await interaction.send(embed=TextEmbed("You can only have up to 5 macros at 1 time.", EmbedColour.WARNING))
+            await interaction.send_text("You can only have up to 5 macros at 1 time.", EmbedColour.WARNING)
             return
 
         # Check if the user is running a macro.
         # Since they should not record a macro while running one, we halt the execution
         if interaction.client.running_macro_views.get(interaction.user.id):
-            await interaction.send(embed=TextEmbed("You cannot record a macro while running one.", EmbedColour.WARNING))
+            await interaction.send_text("You cannot record a macro while running one.", EmbedColour.WARNING)
             return
 
         # fetch the macro id that the user is recording and set it as the recording_macro_id of the user
@@ -65,7 +65,7 @@ class RecordMacroView(BaseView):
         interaction.client.recording_macro_views[interaction.user.id] = record_macro_view
         # send a message with the instructions on how to record commands
         await interaction.send(
-            embed=Embed(
+            embed=interaction.Embed(
                 title="Macro recording started",
                 description="Use commands as usual and they will be recorded!\n"
                 "After you have finished, click the ⏹️ button or run </macro record:1124712041307979827> again.\n\n"
@@ -75,9 +75,9 @@ class RecordMacroView(BaseView):
             )
         )
 
-    async def _get_embed(self, interaction: Interaction):
+    async def _get_embed(self, interaction: BossInteraction):
         """Returns an embed showing the recorded commands currently"""
-        embed = Embed(description="**Recorded commands:**", colour=EmbedColour.DEFAULT)
+        embed = interaction.Embed(description="**Recorded commands:**", colour=EmbedColour.DEFAULT)
 
         cmds_msg = ""
         for index, i in enumerate(self.recorded_cmds):
@@ -104,7 +104,7 @@ class RecordMacroView(BaseView):
 
         return embed
 
-    async def send_msg(self, interaction: Interaction):
+    async def send_msg(self, interaction: BossInteraction):
         """Updates the `latest_msg` attr of the view by sending a message containing the view and an embed."""
         if self.recorded_cmds:
             self.delete_cmd_btn.label = f"Delete /{self.recorded_cmds[-1]['command']}"
@@ -114,7 +114,7 @@ class RecordMacroView(BaseView):
             self.delete_cmd_btn.disabled = True
         self.latest_msg = await interaction.send(embed=await self._get_embed(interaction), view=self, ephemeral=True)
 
-    async def record(self, interaction: Interaction):
+    async def record(self, interaction: BossInteraction):
         cmd = interaction.application_command
         if cmd.qualified_name == "macro record":
             # this is because the user only started to record the macro,
@@ -135,11 +135,9 @@ class RecordMacroView(BaseView):
 
             if any(i.get("type") not in self.SUPPORTED_OPTION_TYPES for i in option_data):
                 # the commands have at least 1 option that is not supported
-                await interaction.send(
-                    embed=TextEmbed(
-                        "Adding commands with those options are not supported yet. The command is not recorded.",
-                        EmbedColour.WARNING,
-                    )
+                await interaction.send_text(
+                    "Adding commands with those options are not supported yet. The command is not recorded.",
+                    EmbedColour.WARNING,
                 )
                 await self.latest_msg.delete()
                 return
@@ -161,19 +159,19 @@ class RecordMacroView(BaseView):
                 await self.latest_msg.delete()
 
     @button(label="", style=ButtonStyle.grey, custom_id="delete")
-    async def delete_cmd_btn(self, button: Button, interaction: Interaction):
+    async def delete_cmd_btn(self, button: Button, interaction: BossInteraction):
         """Deletes the last recorded command"""
         if len(self.recorded_cmds) == 0:
             # should not be run since if there are no commands the button should be disabled,
             # but still added nevertheless as a precaution
-            await interaction.send(embed=TextEmbed("There are no recorded commands."), ephemeral=True, delete_after=5)
+            await interaction.send_text("There are no recorded commands.", ephemeral=True, delete_after=5)
             return
 
         # pop the last command and notify the user that it has been deleted
         cmd = self.recorded_cmds.pop()
         cmd = helpers.find_command(interaction.client, cmd["command"])
-        await interaction.send(
-            embed=TextEmbed(f"Successfully deleted {cmd.get_mention(interaction.guild)}"),
+        await interaction.send_text(
+            f"Successfully deleted {cmd.get_mention(interaction.guild)}",
             ephemeral=True,
             delete_after=5,
         )
@@ -181,7 +179,7 @@ class RecordMacroView(BaseView):
         await self.send_msg(interaction)
 
     @button(emoji="⏹", style=ButtonStyle.blurple, custom_id="stop")
-    async def stop_recording(self, button: Button = None, interaction: Interaction = None):
+    async def stop_recording(self, button: Button = None, interaction: BossInteraction = None):
         """
         Stop responding to the player's command, and let the user confirm whether to save or discard the macro.
         If the user wants to save the macro, ask them to input a name for it.
@@ -204,16 +202,16 @@ class RecordMacroView(BaseView):
         await self.latest_msg.delete()
         # no commands are recorded, delete the macro and notify the users
         if not self.recorded_cmds:
-            await interaction.send(embed=TextEmbed("There are no commands recorded!", EmbedColour.FAIL))
+            await interaction.send_text("There are no commands recorded!", EmbedColour.FAIL)
             await delete_macro()
             return
 
-        await interaction.send(embed=TextEmbed("Successfully ended the recording!"), ephemeral=True)
+        await interaction.send_text("Successfully ended the recording!", ephemeral=True)
 
-        async def send_modal(button: Button, btn_inter: Interaction):
+        async def send_modal(button: Button, btn_inter: BossInteraction):
             """Sends a modal to the user asking them for the name of the macro"""
 
-            async def modal_callback(modal_inter: Interaction):
+            async def modal_callback(modal_inter: BossInteraction):
                 """Update the list of macros in the database with the name the user provided."""
                 # insert the recorded commands into the table `players.macro_commands`
                 await self.db.executemany(
@@ -290,16 +288,16 @@ class RecordMacroView(BaseView):
         with suppress(nextcord.errors.NotFound):
             await self.latest_msg.delete()
 
-    async def interaction_check(self, interaction: Interaction) -> bool:
+    async def interaction_check(self, interaction: BossInteraction) -> bool:
         if self.latest_msg.id != interaction.message.id:
-            await interaction.send(
-                embed=TextEmbed("The macro message is outdated. Check the most recent one."),
+            await interaction.send_text(
+                "The macro message is outdated. Check the most recent one.",
                 ephemeral=True,
             )
             return False
         if not interaction.client.recording_macro_views.get(interaction.user.id):
-            await interaction.send(
-                embed=TextEmbed("You are not recording a macro! Use </macro record:1124712041307979827>"),
+            await interaction.send_text(
+                "You are not recording a macro! Use </macro record:1124712041307979827>",
                 ephemeral=True,
             )
             return False
