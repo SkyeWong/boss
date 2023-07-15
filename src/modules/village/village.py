@@ -367,7 +367,7 @@ class TradeView(BaseView):
         )
 
         # update the player's missions
-        await player.update_missions(interaction, mission_id=5, amount=trade_quantity)
+        await player.update_missions(interaction, mission_id=2, amount=trade_quantity)
 
         # update the view to show the newest remaining trades in the select menu
         await self.update_message()

@@ -6,8 +6,7 @@ from utils.player import Player
 from utils.helpers import BossInteraction
 from utils.constants import EmbedColour
 
-import pytz
-from datetime import datetime
+import datetime
 import random
 
 
@@ -34,43 +33,6 @@ async def cmd_check(interaction: BossInteraction):
                 EmbedColour.SUCCESS,
             )
         )
-        raise helpers.DatabaseReconnect()
-
-    # Pause execution if command is disabled
-    if interaction.guild_id != constants.DEVS_SERVER_ID:  # only check for disabled commands if its not the dev server.
-        db = bot.db
-        res = await db.fetchrow(
-            """
-            SELECT until, reason, extra_info
-            FROM utility.disabled_commands
-            WHERE $1 LIKE command_name
-            """,
-            cmd.qualified_name,
-        )
-
-        if res is not None:
-            until = res[0]
-
-            utc = pytz.UTC
-
-            if until is None or until > datetime.now(tz=utc):  # until is None --> permanently disabled
-                embed = Embed()
-                embed.title = f"</{cmd.qualified_name}:{list(cmd.command_ids.values())[0]}> is disabled!"
-
-                embed.add_field(name="Reason", value=res[1], inline=False)
-                embed.add_field(name="Extra info", value=res[2], inline=False)
-
-                await interaction.send(embed=embed, ephemeral=True)
-                raise helpers.DisabledCommand()
-
-            if until <= datetime.now(tz=utc):
-                await db.execute(
-                    """
-                    DELETE FROM utility.disabled_commands 
-                    WHERE command_name = $1
-                    """,
-                    cmd.qualified_name,
-                )
         return False
 
     # Add player to database if he/she is new
@@ -110,6 +72,12 @@ async def cmd_check(interaction: BossInteraction):
 async def before_invoke(interaction: BossInteraction):
     if not interaction.response.is_done():
         await interaction.response.defer()
+    cog = interaction.client.get_cog("Apocalyptic Adventures")
+    missions = await cog.fetch_missions(interaction.user)
+    # if the date of missions are not equal to today (daily missions --> update every day),
+    # update the list of missions
+    if not missions or missions[0]["date"] != datetime.date.today():
+        await cog.claim_missions(interaction.user)
 
 
 async def after_invoke(interaction: BossInteraction):

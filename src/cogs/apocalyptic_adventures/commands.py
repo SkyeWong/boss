@@ -164,7 +164,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 "Don't worry, there's always next time. Maybe try using a bigger gun?",
             ],
             success_message="You went hunting and found {reward}!",
-            mission_id=2,
+            mission_id=0,
         )
 
     DIG_LOOT = {
@@ -205,7 +205,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 "Wait... what's that? Aww, it's just another worm.",
             ],
             success_message="You dug in the ground and unearthed {reward}!",
-            mission_id=3,
+            mission_id=1,
         )
 
     MINE_LOOT = {
@@ -238,6 +238,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 "Breaking rocks all day, yet nothing to show for it. You're a real master at mining for disappointment.",
             ],
             success_message="You went to the quarries and mined out {reward}!",
+            mission_id=3,
         )
 
     SCAVENGE_LOOT = {
@@ -478,70 +479,101 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             await self.bot.wait_for("interaction", check=check, timeout=view.timeout)
         # the timeout should be equal to the timeout of the view, so that even when the user does nothing it will time out
 
+    MISSION_TYPES = [
+        {
+            "description": "Successfully </hunt:1079601533215330415> for {quantity} times",
+            "min": 20,
+            "max": 30,
+            "rewards": [
+                {"type": "item", "id": 18, "max": 15, "min": 10},
+                {"type": "item", "id": 20, "max": 5, "min": 3},
+                {"type": "scrap_metal", "max": 1200, "min": 800},
+            ],
+        },
+        {
+            "description": "Successfully </dig:1079644728921948230> for {quantity} times",
+            "min": 20,
+            "max": 30,
+            "rewards": [
+                {"type": "item", "id": 27, "max": 10, "min": 5},
+                {"type": "item", "id": 46, "max": 15, "min": 10},
+                {"type": "scrap_metal", "max": 1200, "min": 800},
+            ],
+        },
+        {
+            "description": "</trade:1102561137893056563> with villages for {quantity} times",
+            "min": 30,
+            "max": 50,
+            "rewards": [{"type": "copper", "max": 8, "min": 6}],
+        },
+        {
+            "description": "Successfully </mine:1102561135988838410> for {quantity} times",
+            "min": 20,
+            "max": 30,
+            "rewards": [
+                {"type": "scrap_metal", "max": 1200, "min": 800},
+            ],
+        },
+    ]
+
     async def claim_missions(self, user: nextcord.User):
-        db: Database = self.bot.db
-
-        mission_types = await db.fetch("SELECT * FROM utility.mission_types ORDER BY random() LIMIT 3")
-
         new_missions = []
-        for i in mission_types:
-            rewards = json.loads(i["rewards"])
-            reward: dict = random.choice(rewards)
-            # choose a random amount of the reward, update the reward and remove "min" and "max" items
-            reward.update(amount=random.randint(reward["min"], reward["max"]))
-            reward.pop("min")
-            reward.pop("max")
-
+        for index, mission in random.sample(list(enumerate(self.MISSION_TYPES)), 3):
+            reward: dict = random.choice(mission["rewards"]).copy()
+            reward["amount"] = random.randint(reward["min"], reward["max"])
             # append the mission to the list of new_missions
             new_missions.append(
                 (
                     user.id,
-                    i["id"],
-                    0,
-                    random.randint(i["min_amount"], i["max_amount"]),
+                    index,
+                    random.randint(mission["min"], mission["max"]),
                     json.dumps(reward),
                 )
             )
 
-        # delete any "old" missions
-        await db.execute("DELETE FROM players.missions WHERE player_id = $1", user.id)
-        # insert the missions into the database table
-        await db.executemany(
+        db: Database = self.bot.db
+        async with db.pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM players.missions WHERE player_id = $1", user.id)
+                # insert the missions into the database table
+                await conn.executemany(
+                    """
+                    INSERT INTO players.missions (player_id, mission_id, total_amount, reward)
+                    VALUES ($1, $2, $3, $4)
+                    """,
+                    new_missions,
+                )
+
+    async def fetch_missions(self, user: nextcord.User):
+        """Fetch the player's missions, and claim if they haven't already."""
+        return await self.bot.db.fetch(
             """
-            INSERT INTO players.missions (player_id, mission_type_id, finished_amount, total_amount, reward)
-            VALUES ($1, $2, $3, $4, $5)
+            SELECT mission_id, date, finished_amount, total_amount, reward, finished
+            FROM players.missions
+            WHERE player_id = $1
+            ORDER BY finished DESC, mission_id ASC
             """,
-            new_missions,
+            user.id,
         )
 
     @nextcord.slash_command(description="Check your missions and complete them for some rewards!")
     async def missions(self, interaction: BossInteraction):
         db: Database = self.bot.db
 
-        async def fetch_missions():
-            return await db.fetch(
-                """
-                    SELECT t.description, m.finished_amount, m.total_amount, m.reward, m.finished, m.date
-                        FROM players.missions AS m
-                        INNER JOIN utility.mission_types AS t
-                        ON m.mission_type_id = t.id
-                    WHERE m.player_id = $1
-                    ORDER BY m.finished DESC, t.description ASC
-                """,
-                interaction.user.id,
-            )
-
         async def get_embed():
-            missions = await fetch_missions()
-            # if the user does not have any missions previously, or the date of them are not equal to today (daily missions --> update every day)
-            if not missions or any(i["date"] != datetime.date.today() for i in missions):
+            missions = await self.fetch_missions(interaction.user)
+            # if the date of missions are not equal to today (daily missions --> update every day),
+            # update the list of missions
+            # check only the first mission since they should all be updated at the same time
+            if not missions or missions[0]["date"] != datetime.date.today():
                 await self.claim_missions(interaction.user)
-                missions = await fetch_missions()  # update the list of missions in order to show them
+                missions = await self.fetch_missions(interaction.user)
 
             embed = interaction.Embed(description=f"### {interaction.user.name}'s Daily Missions\n\n")
             for i in missions:
+                mission = self.MISSION_TYPES[i["mission_id"]]
                 embed.description += "✅" if i["finished"] else "❎"
-                embed.description += f" **{i['description'].format(quantity=i['total_amount'])}**\n"
+                embed.description += f" **{mission['description'].format(quantity=i['total_amount'])}**\n"
 
                 # generate the "reward" string
                 reward = json.loads(i["reward"])
