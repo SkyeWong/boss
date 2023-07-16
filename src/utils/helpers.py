@@ -13,7 +13,7 @@ from utils.postgres_db import Database
 import math
 import random
 from datetime import datetime
-from typing import Literal, Optional, Union, Any, Self
+from typing import Literal, Optional, Union, Self
 
 
 def check_if_not_dev_guild(*args, **_) -> bool:
@@ -147,22 +147,19 @@ def work_in_progress(dev_guild_only: bool = True):
 
 
 def get_error_message():
-    embed = Embed()
-    embed.title = "An error occurred. Try again in a few seconds."
-    embed.description = (
-        "If this continues to happen, please report it in our [server](https://discord.gg/SPtMSrCTAS 'BOSS Server')."
+    embed = BossEmbed(
+        title="An error occurred. Try again in a few seconds.",
+        description="If this continues to happen, please report it in our [server](https://discord.gg/EshzsTUtHe 'BOSS Server').",
+        colour=EmbedColour.FAIL,
     )
-    embed.colour = constants.EmbedColour.FAIL
     view = View()
-    button = Button(label="Join server", url="https://discord.gg/tsTRMqEMFH")
+    button = Button(label="Join server", url="https://discord.gg/EshzsTUtHe")
     view.add_item(button)
     return embed, view
 
 
 def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
-    embed = Embed()
-    embed.colour = constants.EmbedColour.INFO
-    embed.title = item["name"]
+    embed = BossEmbed(title=item["name"], colour=EmbedColour.INFO)
 
     description = ""
     for i in item["description"].splitlines():
@@ -283,19 +280,26 @@ class BossEmbed(Embed):
         self,
         interaction: Optional[Interaction] = None,
         *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
         colour: Optional[Union[int, nextcord.Colour, EmbedColour]] = EmbedColour.DEFAULT,
-        title: Optional[Any] = None,
-        url: Optional[Any] = None,
-        description: Optional[Any] = None,
         timestamp: Optional[datetime] = None,
+        with_url: Optional[bool] = False,
+        show_macro_msg: Optional[bool] = True,
     ) -> None:
         self.interaction = interaction
-        super().__init__(colour=colour, title=title, url=url, description=description, timestamp=timestamp)
-        if interaction and interaction.client.running_macro_views.get(interaction.user.id):
+        super().__init__(
+            colour=colour,
+            title=title,
+            url="https://boss-bot.onrender.com/" if with_url else None,
+            description=description,
+            timestamp=timestamp,
+        )
+        if show_macro_msg and interaction and interaction.client.running_macro_views.get(interaction.user.id):
             # check whether the user is running a macro
             super().set_footer(text=f"{self.interaction.user.name} is running a /macro")
 
-    def set_footer(self, *, text: Optional[Any] = None, icon_url: Optional[Any] = None) -> Self:
+    def set_footer(self, *, text: Optional[str] = None, icon_url: Optional[str] = None) -> Self:
         if self.interaction and self.interaction.client.running_macro_views.get(self.interaction.user.id):
             # check whether the user is running a macro
             msg = f"{self.interaction.user.name} is running a /macro"
@@ -322,21 +326,35 @@ class BossInteraction(Interaction):
     def Embed(
         self,
         *,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
         colour: Optional[Union[int, nextcord.Colour, EmbedColour]] = EmbedColour.DEFAULT,
-        title: Optional[Any] = None,
-        url: Optional[Any] = None,
-        description: Optional[Any] = None,
         timestamp: Optional[datetime] = None,
+        with_url: Optional[bool] = True,
+        show_macro_msg: Optional[bool] = True,
     ) -> BossEmbed:
-        return BossEmbed(self, colour=colour, title=title, url=url, description=description, timestamp=timestamp)
+        return BossEmbed(
+            self,
+            title=title,
+            description=description,
+            colour=colour,
+            timestamp=timestamp,
+            with_url=with_url,
+            show_macro_msg=show_macro_msg,
+        )
 
-    def TextEmbed(self, text: str, colour: Union[int, EmbedColour] = EmbedColour.DEFAULT) -> TextEmbed:
-        return TextEmbed(text, colour, self)
+    def TextEmbed(
+        self, text: str, colour: Union[int, EmbedColour] = EmbedColour.DEFAULT, show_macro_msg: bool = True
+    ) -> TextEmbed:
+        if show_macro_msg:
+            return TextEmbed(text, colour, self)
+        else:
+            return TextEmbed(text, colour)
 
     async def send_text(
-        self, text: str, colour: Union[int, EmbedColour] = EmbedColour.DEFAULT, **kwargs
+        self, text: str, colour: Union[int, EmbedColour] = EmbedColour.DEFAULT, show_macro_msg: bool = True, **kwargs
     ) -> Union[nextcord.PartialInteractionMessage, nextcord.WebhookMessage]:
-        return await self.send(embed=self.TextEmbed(text, colour), **kwargs)
+        return await self.send(embed=self.TextEmbed(text, colour, show_macro_msg), **kwargs)
 
 
 class BossItem:

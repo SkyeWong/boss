@@ -382,7 +382,7 @@ class GuideView(BaseView):
                 EmbedField(
                     "Transferring items",
                     "You can move items from 1 inventory type to other by </move-item:1008017265901437088>.\n"
-                    "Keep note that it uses a few seconds.",
+                    "Keep note that it uses a few seconds and it is intentional.",
                 ),
             ],
             images={"Viewing your inventory": "https://i.imgur.com/hPuwxb4.gif"},
@@ -390,8 +390,8 @@ class GuideView(BaseView):
         GuidePage(
             title="Manage your wealth",
             description="Use your currency to purchase goods and services. \n\n"
-            "Use the /shop command to view available items and their prices, and use the /buy command to purchase items. \n"
-            "You can also use the </trade:1102561137893056563> command to trade currency with virtual villagers, and acquire valuable resources to build your wealth. ",
+            "Use the </trade:1102561137893056563> command to trade currency with virtual villagers. Trades update every hour. "
+            "Each type of villagers buys and sells different items, and they may be selling the same stuff, but with different prices. So make sure you checked the prices before buying things!",
             images={"Trading with villagers": "https://i.imgur.com/FyrT5Qy.gif"},
         ),
         GuidePage(

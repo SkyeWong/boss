@@ -87,7 +87,11 @@ class ShowMacrosView(BaseView):
             else:
                 options_msg = ""
 
-            embed.description += f"\n{index + 1}. {cmd.get_mention(interaction.guild)} {options_msg}"
+            try:
+                cmd_msg = f"{cmd.get_mention(interaction.guild)} {options_msg}"
+            except ValueError:  # command can not be run in the current server
+                cmd_msg = f"/{i['command']} (can not be run in this sever)"
+            embed.description += f"\n{index + 1}. {cmd_msg}"
 
         embed.set_footer(
             text=f"ID: {self.macro_ids[self.current_page].upper()} • Page {self.current_page + 1}/{len(self.macro_ids)}\n"

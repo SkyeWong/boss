@@ -516,7 +516,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                 try:
                     from_amount = await player.modify_currency(from_currency, -amount)
                     to_amount = await player.modify_currency(to_currency, exchanged_amount)
-                except helpers.NegativeBalance:
+                except ValueError:
                     await interaction.send_text(f"You don't have enough {from_currency_msg} to make this exchange.")
                     return
 
@@ -611,11 +611,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         quantity: int = SlashOption(description="Amount of the item to be used", required=None, default=1),
     ):
         db: Database = self.bot.db
-        item = await db.fetchrow(
-            self.GET_BACKPACK_SQL,
-            interaction.user.id,
-            item_name,
-        )
+        item = await db.fetchrow(self.GET_BACKPACK_SQL, interaction.user.id, item_name)
 
         # perform some checks to see if the user can use their items
         if item is None:
@@ -785,10 +781,8 @@ class Resource(commands.Cog, name="Resource Repository"):
             user.id,
         )
 
-        embed = interaction.Embed()
-        embed.colour = EmbedColour.DEFAULT
+        embed = interaction.Embed(title=f"{user.name}'s Profile", colour=EmbedColour.INFO, with_url=True)
         embed.set_thumbnail(url=user.display_avatar.url)
-        embed.set_author(name=f"{user.name}'s Profile")
 
         exp = profile["experience"]
 
@@ -910,7 +904,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             item_worth,
         )
 
-        embed = interaction.Embed(title=f"{user.name}'s Balance", colour=EmbedColour.INFO)
+        embed = interaction.Embed(title=f"{user.name}'s Balance", colour=EmbedColour.INFO, with_url=True)
         # row 1
         embed.add_field(name="Scrap Metal", value=f"{SCRAP_METAL} {scrap_metal:,}")
         embed.add_field(name="Safe", value=f"{SCRAP_METAL} {safe_scrap:,}")
@@ -1127,7 +1121,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         return quantities_after
 
     @nextcord.slash_command(name="move-item")
-    @cooldowns.cooldown(1, 18, SlashBucket.author, check=check_if_not_dev_guild)
+    @cooldowns.cooldown(1, 180, SlashBucket.author, check=check_if_not_dev_guild)
     async def move_item_command(
         self,
         interaction: BossInteraction,
@@ -1216,7 +1210,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                         "You can only store at most 20% of your scrap metals in your safe.",
                         EmbedColour.WARNING,
                     )
-                    raise helpers.BossException()
+                    raise ValueError
 
         embed = interaction.Embed(colour=EmbedColour.DEFAULT)
         embed.description = f"**{'Deposited' if action == 'deposit' else 'Withdrew'}**\n {SCRAP_METAL} {amount:,}"
@@ -1272,7 +1266,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             return
         try:
             await self._change_balance(interaction, "deposit", amount)
-        except helpers.BossException:
+        except ValueError:
             pass
 
     @nextcord.slash_command(description="Withdraw money from your safe into your pocket.")
@@ -1317,7 +1311,7 @@ class Resource(commands.Cog, name="Resource Repository"):
         amount = math.floor(amount)
         try:
             await self._change_balance(interaction, "withdraw", amount)
-        except helpers.BossException:
+        except ValueError:
             pass
 
 

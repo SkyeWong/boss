@@ -20,7 +20,7 @@ class RunMacroView(BaseView):
     """A view to let users run a preset of slash commands through buttons, instead of inputting them in the chat."""
 
     def __init__(self, interaction: BossInteraction):
-        super().__init__(interaction, timeout=120)  # 2 minutes
+        super().__init__(interaction, timeout=None)
         self.db: Database = interaction.client.db
         self.bot: commands.Bot = interaction.client
 
@@ -55,14 +55,14 @@ class RunMacroView(BaseView):
             macro_name,
         )
         if not res:  # the macro is not found. note that the user must own the macro in order to run it.
-            await interaction.send_text("Enter a valid macro name.", EmbedColour.WARNING)
+            await interaction.send_text("Enter a valid macro name.", EmbedColour.WARNING, show_macro_msg=False)
             return
 
         # if the user is already running a macro, we do not restart it.
         # instead, we send a message to them telling them
         if interaction.client.running_macro_views.get(interaction.user.id):
             # check whether the user is running a macro previously
-            await interaction.send_text("You are already running a macro!", EmbedColour.WARNING)
+            await interaction.send_text("You are already running a macro!", EmbedColour.WARNING, show_macro_msg=False)
             return
         # if the user is recording a macro, we halt the execution and tell the user that they can't run a macro while recording one.
         if interaction.client.recording_macro_views.get(interaction.user.id):
@@ -111,7 +111,10 @@ class RunMacroView(BaseView):
             else:
                 options_msg = ""
 
-            embed.description += f"\n- {cmd.get_mention(interaction.guild)} {options_msg}"
+            try:
+                embed.description += f"\n- {cmd.get_mention(interaction.guild)} {options_msg}"
+            except ValueError:  # the command cannot be run in the guild
+                embed.description += f"\n- ~~/{i['command']}~~ (cannot be run)"
 
         embed.set_footer(text=f"Running '{self.macro_name}' macro - {self.cmd_index + 1}/{len(self.macro_cmds)}")
 
@@ -182,38 +185,47 @@ class RunMacroView(BaseView):
         # since the after invoke will change the view's latest msg,
         # but we want to delete the message _after_ the command has been run
         msg = self.latest_msg
-        # run the slash command. this will invoke it with the hooks (check, before_invoke, after_invoke)
-        await slash_cmd.invoke_callback_with_hooks(interaction._state, interaction, args=options)
-        if not interaction.attached.get("in_cooldown"):
-            # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
-            with suppress(nextcord.errors.NotFound):
-                await msg.delete()
-        else:  # the user is in cooldown, we decrement the command index
-            # basically reverse what was done above
+        base_cmd = slash_cmd
+        while not isinstance(base_cmd, nextcord.SlashApplicationCommand):
+            base_cmd = base_cmd.parent_cmd
+        # check if the command can be run in the server
+        if not (base_cmd.is_global or interaction.guild_id in base_cmd.guild_ids):
+            await interaction.send_text("This command could not be run in this server!", show_macro_msg=False)
+            # the check fails and `after_invoke` is not run, so we manually send the message again
+            await self.send_msg(interaction)
+        else:
+            # run the slash command. this will invoke it with the hooks (check, before_invoke, after_invoke)
+            await slash_cmd.invoke_callback_with_hooks(interaction._state, interaction, args=options)
+        if interaction.attached.get("in_cooldown") or interaction.attached.get("reconnected"):
+            # some checks of the command failed, we decrement the command index
+            # basically reverse of what was done above
             self.cmd_index -= 1 if not skip else 2
             if self.cmd_index < 0:
                 self.cmd_index += len(self.macro_cmds)
+        else:
+            # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
+            with suppress(nextcord.errors.NotFound):
+                await msg.delete()
 
-    @button(label="", style=ButtonStyle.blurple, custom_id="run")
+    @button(label="", style=ButtonStyle.blurple, custom_id="run_macro_view: run")
     async def run_cmd_btn(self, button: Button, interaction: BossInteraction):
         """Run the current command in the list"""
         await self._run_cmd(interaction)
 
-    @button(label="", style=ButtonStyle.grey, custom_id="skip")
+    @button(label="", style=ButtonStyle.grey, custom_id="run_macro_view: skip")
     async def skip_cmd_btn(self, button: Button, interaction: BossInteraction):
         """Run the command after the current one in the list"""
         await self._run_cmd(interaction, skip=True)
 
-    @button(label="End", style=ButtonStyle.grey, custom_id="end")
+    @button(label="End", style=ButtonStyle.grey, custom_id="run_macro_view: end")
     async def end_macro(self, button: Button, interaction: BossInteraction):
         """End the current macro."""
         interaction.client.running_macro_views.pop(interaction.user.id, None)
         await interaction.send_text("Successfully ended the current macro!", ephemeral=True)
 
     async def on_timeout(self) -> None:
-        """Delete the last message, suppressing message not found error."""
-        with suppress(nextcord.errors.NotFound):
-            await self.latest_msg.delete()
+        """Delete the user's view from the list of them. This is unlikely to be run since the view is persistent."""
+        self.interaction.client.running_macro_views.pop(self.interaction.user.id, None)
 
     async def interaction_check(self, interaction: BossInteraction) -> bool:
         # If the user is not running a macro, halt the execution
@@ -224,7 +236,9 @@ class RunMacroView(BaseView):
         # check if the button the user clicked is the lastest message
         if self.latest_msg.id != interaction.message.id:
             await interaction.send_text(
-                "The macro message is outdated. Check the most recent one or restart it.", ephemeral=True
+                "The macro message is outdated. Check the most recent one or restart it.",
+                ephemeral=True,
+                show_macro_msg=False,
             )
             return False
         return await super().interaction_check(interaction)

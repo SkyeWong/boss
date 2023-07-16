@@ -137,10 +137,9 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             new_scrap = await player.modify_currency(currency_type, amount)
             msg = f"{interaction.user.mention} set `{player.user.name}`'s {currency_type} to **`{new_scrap:,}`**, modified by {amount:,}"
 
-        embed = interaction.TextEmbed(msg)
+        embed = interaction.TextEmbed(msg, show_macro_msg=False)
         await interaction.send(embed=embed)
-        channel = await self.bot.fetch_channel(988046548309016586)  # log channel
-        await channel.send(embed=embed)
+        await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(embed=embed)
 
     @modify_user.subcommand(name="experience", description="Set a user's experience")
     @require_user_id("player", default_to_author=True)
@@ -162,12 +161,11 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             player.user.id,
         )
         embed = interaction.TextEmbed(
-            f"{interaction.user.mention} set `{player.player.user.name}`'s experience to `{experience}`!"
+            f"{interaction.user.mention} set `{player.user.name}`'s experience to `{experience}`!",
+            show_macro_msg=False,
         )
         await interaction.send(embed=embed)
-
-        channel = await self.bot.fetch_channel(988046548309016586)
-        await channel.send(embed=embed)
+        await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(embed=embed)
 
     @modify_user.subcommand(name="hunger", description="Set a user's hunger")
     @require_user_id("player", default_to_author=True)
@@ -191,11 +189,11 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             player.user.id,
         )
         embed = interaction.TextEmbed(
-            f"{interaction.user.mention} set `{player.player.user.name}`'s hunger to `{hunger}`!"
+            f"{interaction.user.mention} set `{player.user.name}`'s hunger to `{hunger}`!",
+            show_macro_msg=False,
         )
         await interaction.send(embed=embed)
-        channel = await self.bot.fetch_channel(988046548309016586)  # log channel
-        await channel.send(embed=embed)
+        await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(embed=embed)
 
     @modify_user.subcommand(name="health", description="Set a user's health")
     @require_user_id("player", default_to_author=True)
@@ -219,7 +217,8 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             player.user.id,
         )
         embed = interaction.TextEmbed(
-            f"{interaction.user.mention} set `{player.player.user.name}`'s health to `{health}`!"
+            f"{interaction.user.mention} set `{player.user.name}`'s health to `{health}`!",
+            show_macro_msg=False,
         )
         await interaction.send(embed=embed)
         channel = await self.bot.fetch_channel(988046548309016586)  # log channel
@@ -312,7 +311,8 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             return
 
         embed = interaction.Embed(
-            title=f"{interaction.user.name} **UPDATED** `{player.user.name}'s {constants.InventoryType(inv_type)}`"
+            title=f"{interaction.user.name} **UPDATED** `{player.user.name}'s {constants.InventoryType(inv_type)}`",
+            show_macro_msg=False,
         )
         embed.add_field(name="Item", value=item["name"], inline=False)
         embed.add_field(
@@ -322,7 +322,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         )
         embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
         await interaction.send(embed=embed)
-        await interaction.guild.get_channel(988046548309016586).send(embed=embed)
+        await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(embed=embed)
 
     @modify.subcommand(name="item")
     async def modify_item(self, interaction: BossInteraction):
@@ -371,6 +371,9 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 errors.append("The format of `other attributes` are invalid.")
             if not isinstance(_, dict):
                 errors.append("`Other attributes should be in a dictionary format.")
+            elif any(i for i in _.keys() if i not in constants.ITEM_OTHER_ATTR):
+                # `any()` should be more efficient than `all()` since if only 1 match is required
+                errors.append(f"Only these keys are available for the other attributes: `{constants.ITEM_OTHER_ATTR}`.")
         else:
             other_attributes = None
 
@@ -435,7 +438,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         view.add_item(edit_btn)
 
         await interaction.send(embed=embed, view=view)
-        await interaction.guild.get_channel(988046548309016586).send(
+        await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(
             f"A new item is added by {interaction.user.mention}: ", embed=embed
         )
 

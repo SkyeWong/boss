@@ -43,7 +43,7 @@ class Database:
     async def connect(self) -> Pool:
         """Connect to the database and return the connection."""
         if not self.reconnecting and not self.connected:
-            logging.info("\033[1;34mConnecting to the database...\033[0m")
+            logging.info("\033[0;34mConnecting to the database...\033[0m")
             self.reconnecting = True
             try:
                 self.pool = await asyncpg.create_pool(DSN_DB.format(**self.params))

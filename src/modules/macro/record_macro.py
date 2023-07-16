@@ -48,13 +48,21 @@ class RecordMacroView(BaseView):
             "SELECT COUNT(*) FROM players.macro_players WHERE player_id = $1", interaction.user.id
         )
         if owned_macros == 5:
-            await interaction.send_text("You can only have up to 5 macros at 1 time.", EmbedColour.WARNING)
+            await interaction.send_text(
+                "You can only have up to 5 macros at 1 time.",
+                EmbedColour.WARNING,
+                show_macro_msg=False,
+            )
             return
 
         # Check if the user is running a macro.
         # Since they should not record a macro while running one, we halt the execution
         if interaction.client.running_macro_views.get(interaction.user.id):
-            await interaction.send_text("You cannot record a macro while running one.", EmbedColour.WARNING)
+            await interaction.send_text(
+                "You cannot record a macro while running one.",
+                EmbedColour.WARNING,
+                show_macro_msg=False,
+            )
             return
 
         # fetch the macro id that the user is recording and set it as the recording_macro_id of the user
@@ -64,16 +72,15 @@ class RecordMacroView(BaseView):
         # update the list of all `RecordMacroView` views
         interaction.client.recording_macro_views[interaction.user.id] = record_macro_view
         # send a message with the instructions on how to record commands
-        await interaction.send(
-            embed=interaction.Embed(
-                title="Macro recording started",
-                description="Use commands as usual and they will be recorded!\n"
-                "After you have finished, click the ⏹️ button or run </macro record:1124712041307979827> again.\n\n"
-                f"You can have {record_macro_view.MAX_NUMBER_OF_COMMANDS} commands in a macro at most.\n"
-                "If the max number of commands is reached, the recording will stop automatically.",
-                colour=EmbedColour.DEFAULT,
-            )
+        embed = interaction.Embed(
+            title="Macro recording started",
+            description="Use commands as usual and they will be recorded!\n"
+            "After you have finished, click the ⏹️ button or run </macro record:1124712041307979827> again.\n\n"
+            f"You can have {record_macro_view.MAX_NUMBER_OF_COMMANDS} commands in a macro at most.\n"
+            "If the max number of commands is reached, the recording will stop automatically.",
         )
+        embed.set_thumbnail("https://i.imgur.com/eatPnY2.png")
+        await interaction.send(embed=embed)
 
     async def _get_embed(self, interaction: BossInteraction):
         """Returns an embed showing the recorded commands currently"""

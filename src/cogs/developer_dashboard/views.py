@@ -176,6 +176,11 @@ class EditItemModal(Modal):
                 else:
                     if not isinstance(_, dict):
                         errors.append("The other attributes should be in a dictionary format.")
+                    elif any(i for i in _.keys() if i not in constants.ITEM_OTHER_ATTR):
+                        # `any()` should be more efficient than `all()` since if only 1 match is required
+                        errors.append(
+                            f"Only these keys are available for the other attributes: `{constants.ITEM_OTHER_ATTR}`."
+                        )
                     else:
                         values["other_attributes"] = inputted_value
 

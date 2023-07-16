@@ -1,6 +1,6 @@
 # nextcord
 import nextcord
-from nextcord import Embed, Interaction, ButtonStyle, SelectOption
+from nextcord import Embed, ButtonStyle, SelectOption
 from nextcord.ui import Button, button, Select, select, TextInput
 
 # database
@@ -14,7 +14,7 @@ from utils.helpers import BossCurrency, BossItem
 from utils.template_views import BaseView, BaseModal
 from utils.player import Player
 from utils import constants, helpers
-from utils.helpers import TextEmbed
+from utils.helpers import TextEmbed, BossInteraction, BossEmbed
 
 # default modules
 import re
@@ -23,7 +23,7 @@ import datetime
 
 
 class TradeView(BaseView):
-    def __init__(self, interaction: Interaction):
+    def __init__(self, interaction: BossInteraction):
         super().__init__(interaction, timeout=60)
         self.villagers: list[Villager] = []
         self.current_villager: Villager | None = None
@@ -31,7 +31,7 @@ class TradeView(BaseView):
         self.msg: nextcord.Message = None
 
     @classmethod
-    async def send(cls, interaction: Interaction):
+    async def send(cls, interaction: BossInteraction):
         view = cls(interaction)
         await view.get_villagers()
         view.current_villager = view.villagers[0]
@@ -101,7 +101,7 @@ class TradeView(BaseView):
             )
 
     async def get_embed(self):
-        embed = Embed()
+        embed = BossEmbed()
         embed.set_author(name="Trading")
         villager = self.current_villager
         embed.title = f"{villager.name} - {villager.job_title}"
@@ -164,13 +164,13 @@ class TradeView(BaseView):
             )
 
     @select(placeholder="Choose a villager", options=[], custom_id="choose_villager")
-    async def choose_villager(self, select: Select, interaction: Interaction):
+    async def choose_villager(self, select: Select, interaction: BossInteraction):
         self.current_index = int(select.values[0])
         self.current_villager = self.villagers[self.current_index]
         await self.update_message()
 
     @button(emoji="◀️", style=ButtonStyle.gray, custom_id="back")
-    async def back(self, button: Button, interaction: Interaction):
+    async def back(self, button: Button, interaction: BossInteraction):
         # Go to the last page if the first page is shown,
         # otherwise go back a page.
         # This allows the pages to "loop"
@@ -183,7 +183,7 @@ class TradeView(BaseView):
         await self.update_message()
 
     @button(emoji="▶️", style=ButtonStyle.grey, custom_id="next")
-    async def next(self, button: Button, interaction: Interaction):
+    async def next(self, button: Button, interaction: BossInteraction):
         # Go to the last page if the first page is shown,
         # otherwise go back a page.
         # This allows the pages to "loop"
@@ -196,12 +196,12 @@ class TradeView(BaseView):
         await self.update_message()
 
     @button(label="Trade Once", style=ButtonStyle.blurple, custom_id="trade_once")
-    async def trade_once(self, button: Button, interaction: Interaction):
+    async def trade_once(self, button: Button, interaction: BossInteraction):
         """Trade with a villager once"""
         await self.trade(interaction, trade_quantity=1)
 
     @button(label="Trade Custom Amount", style=ButtonStyle.blurple, custom_id="trade_custom")
-    async def trade_custom(self, button: Button, interaction: Interaction):
+    async def trade_custom(self, button: Button, interaction: BossInteraction):
         """Trade with a villager for a custom amount that the user specifies."""
         db: Database = interaction.client.db
         currencies = await db.fetchrow(
@@ -234,12 +234,12 @@ class TradeView(BaseView):
         # so that either the max remaining trades or max number of trades with the user's resources will be shown
         max_num_trades = min(num_trades + [self.current_villager.remaining_trades])
 
-        async def modal_callback(modal_interaction: Interaction):
+        async def modal_callback(modal_interaction: BossInteraction):
             await modal_interaction.response.defer()
             text_input = [i for i in modal.children if i.custom_id == "input"][0]
             quantity: str = text_input.value
             if re.search(r"\D", quantity):
-                await modal_interaction.send(embed=TextEmbed("That's not a number."), ephemeral=True)
+                await modal_interaction.send_text("That's not a number.", ephemeral=True)
             else:
                 await self.trade(interaction, trade_quantity=int(quantity))
 
@@ -250,16 +250,13 @@ class TradeView(BaseView):
         )
         await interaction.response.send_modal(modal)
 
-    async def trade(self, interaction: Interaction, trade_quantity: int):
+    async def trade(self, interaction: BossInteraction, trade_quantity: int):
         """Handle the player's trade with a villager."""
         current_villager = self.current_villager
 
         # If there are no remaining trades for the villager, send a message to the player and return
         if current_villager.remaining_trades < trade_quantity:
-            await interaction.send(
-                embed=TextEmbed(f"{current_villager.name} does not have that much stock."),
-                ephemeral=True,
-            )
+            await interaction.send_text(f"{current_villager.name} does not have that much stock.", ephemeral=True)
             return
 
         db: Database = interaction.client.db
@@ -294,12 +291,9 @@ class TradeView(BaseView):
                                     item.currency_type,
                                     await player.modify_currency(item.currency_type, required_price),
                                 )
-                            except helpers.NegativeBalance:
+                            except ValueError:
                                 # The player does not have enough currency, send a message to the player and return
-                                await interaction.send(
-                                    embed=TextEmbed("You don't have enough scrap metal."),
-                                    ephemeral=True,
-                                )
+                                await interaction.send_text("You don't have enough scrap metal.", ephemeral=True)
                                 return
                         elif isinstance(item, BossItem):
                             # get the quantity of the item the player owns with a generator expression
@@ -314,12 +308,10 @@ class TradeView(BaseView):
                                         new_quantity,
                                     )
                                 )
-                            except helpers.NegativeInvQuantity:
+                            except ValueError:
                                 # The player does not have enough of the item, send a message to the player and return
-                                await interaction.send(
-                                    embed=TextEmbed(
-                                        f"You are {item.quantity * trade_quantity - owned_quantity} short in {await item.get_emoji(db)} {await item.get_name(db)}."
-                                    ),
+                                await interaction.send_text(
+                                    f"You are {item.quantity * trade_quantity - owned_quantity} short in {await item.get_emoji(db)} {await item.get_name(db)}.",
                                     ephemeral=True,
                                 )
                                 return
@@ -361,8 +353,8 @@ class TradeView(BaseView):
         for i in remaining_inventory:
             remaining_msg += f"\n- ` {i.quantity if i.quantity else 0}x ` {await i.get_emoji(db)} {await i.get_name(db)}"  # fmt: skip
 
-        await interaction.send(
-            embed=TextEmbed(f"You successfully received: {supply_msg}\n\nYou now have: {remaining_msg}"),
+        await interaction.send_text(
+            f"You successfully received: {supply_msg}\n\nYou now have: {remaining_msg}",
             ephemeral=True,
         )
 

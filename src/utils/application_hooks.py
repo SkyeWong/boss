@@ -23,6 +23,7 @@ async def cmd_check(interaction: BossInteraction):
     if bot.db.reconnecting or not bot.db.connected:
         msg = await interaction.send_text(
             "We are reconnecting to the database, please be patient and wait for a few seconds.",
+            show_macro_msg=False,
             ephemeral=True,
         )
         await bot.db.connect()
@@ -31,8 +32,10 @@ async def cmd_check(interaction: BossInteraction):
             embed=interaction.TextEmbed(
                 f"We have successfully connected to the database! Use {cmd.get_mention(interaction.guild)} again.",
                 EmbedColour.SUCCESS,
+                show_macro_msg=False,
             )
         )
+        interaction.attached["reconnected"] = True
         return False
 
     # Add player to database if he/she is new
@@ -40,21 +43,14 @@ async def cmd_check(interaction: BossInteraction):
     if not await player.is_present():
         await player.create_profile()
 
-        await interaction.send(
-            embeds=[
-                helpers.TextEmbed(
-                    text="> Welcome to BOSS, the Discord bot for a post-apocalyptic world after World War III. "
-                    "\n\n> In this world, everything is tarnished and resources are scarce. "
-                    "The currency system is based on a variety of items that have value in this new world, "
-                    "including scrap metal, ammunition, and other valuable resources that can be traded or used to purchase goods and services."
-                    "\n\n> BOSS is here to help you navigate this harsh world by providing a currency system that allows you to earn, spend, and trade valuable resources. "
-                    "It makes it easy to manage your currency and track your progress as you explore the post-apocalyptic wasteland. "
-                    "Whether you're scavenging for resources, completing missions, or participating in events, BOSS is here to help you earn currency and build your wealth in this new world. "
-                    "So, join us in the post-apocalyptic wasteland and let BOSS be your guide to survival and prosperity."
-                ),
-                helpers.TextEmbed(text=f"Use {cmd.get_mention(interaction.guild)} again to continue"),
-            ]
+        embed = interaction.Embed(
+            title="Welcome to BOSS!",
+            description=f"Hi, {interaction.user.mention}! BOSS is a bot for set in the post-apocalyptic world after World War III, where everything is tarnished and resources are scarce. "
+            "The currency system is based on a variety of items that have value in this new world, including scrap metals, coppers, and other valuable resources. "
+            "Navigate this harsh world and earn, spend, and trade valuable resources. "
+            "Use </help:964753444164501505> or </guide:1102561144327127201> to learn more about BOSS.",
         )
+        await interaction.send(embed=embed)
         return False
 
     if await player.check_in_inter():
@@ -63,6 +59,7 @@ async def cmd_check(interaction: BossInteraction):
             "You are locked from running any commands until all active commands are completed. Complete all ongoing ones or try again later.",
             EmbedColour.WARNING,
             ephemeral=True,
+            show_macro_msg=False,
         )
         return False
 

@@ -252,7 +252,7 @@ class Fun(commands.Cog, name="Survivor's Playground"):
                     question_res.pop(i)
             try:
                 question = TriviaQuestion(**question_res)
-            except helpers.ComponentLabelTooLong:
+            except ValueError:
                 continue
             else:
                 view = TriviaView(interaction, question)

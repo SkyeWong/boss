@@ -92,15 +92,15 @@ class TriviaQuestion:
     ) -> None:
         self.question = html.unescape(question)
         if len(question) > 100:
-            raise helpers.ComponentLabelTooLong(f"Question `{question}` is too long.")
+            raise ValueError(f"Question `{question}` is too long.")
 
         self.correct_answer = html.unescape(correct_answer)
         if len(correct_answer) > 50:
-            raise helpers.ComponentLabelTooLong(f"Label of `{correct_answer}` is too long.")
+            raise ValueError(f"Label of `{correct_answer}` is too long.")
 
         self.incorrect_answers = [html.unescape(i) for i in incorrect_answers]
         if any([len(i) > 50 for i in self.incorrect_answers]):
-            raise helpers.ComponentLabelTooLong(f"Label of an incorrect_answer is too long.")
+            raise ValueError(f"Label of an incorrect_answer is too long.")
 
         self.category = category
         self.difficulty = difficulty

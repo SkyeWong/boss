@@ -19,6 +19,7 @@ from utils.template_views import BaseView
 
 from .views import ScoutView
 
+import pytz
 
 # default modules
 import random
@@ -73,6 +74,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             embed = interaction.TextEmbed(
                 "Your hunger is smaller than 30! Commands running from now on will have a slight delay.\nConsume some food before continuing.",
                 EmbedColour.WARNING,
+                show_macro_msg=False,
             )
             embed.timestamp = datetime.datetime.now()
             await interaction.user.send(embed=embed)
@@ -565,11 +567,16 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             # if the date of missions are not equal to today (daily missions --> update every day),
             # update the list of missions
             # check only the first mission since they should all be updated at the same time
-            if not missions or missions[0]["date"] != datetime.date.today():
+            now = datetime.datetime.now(tz=pytz.utc)
+            if not missions or missions[0]["date"] != now.date:
                 await self.claim_missions(interaction.user)
                 missions = await self.fetch_missions(interaction.user)
+            # Show the time when missions reset (the start of the next day)
+            start_of_next_day = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            timestamp = int(start_of_next_day.timestamp())
 
-            embed = interaction.Embed(description=f"### {interaction.user.name}'s Daily Missions\n\n")
+            embed = interaction.Embed(title=f"{interaction.user.name}'s Daily Missions")
+            embed.description = f"Resets at <t:{timestamp}:t> (<t:{timestamp}:R>)\n\n"
             for i in missions:
                 mission = self.MISSION_TYPES[i["mission_id"]]
                 embed.description += "✅" if i["finished"] else "❎"

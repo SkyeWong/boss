@@ -65,7 +65,7 @@ class Player:
                 self.user.id,
             )
         except asyncpg.exceptions.CheckViolationError:
-            raise helpers.NegativeBalance()
+            raise ValueError
 
     async def modify_scrap(self, value: int):
         """The shorthand function for `Player.modify_currency("scrap_metal", value)`."""
@@ -92,7 +92,7 @@ class Player:
                 self.user.id,
             )
         except asyncpg.exceptions.CheckViolationError:
-            raise helpers.NegativeBalance()
+            raise ValueError
 
     async def set_scrap(self, value: int):
         """The shorthand function for `Player.set_currency("scrap_metal", value)`."""
@@ -219,7 +219,7 @@ class Player:
                     quantity,
                 )
                 if quantity < 0:
-                    raise helpers.NegativeInvQuantity()
+                    raise ValueError()
         return quantity
 
     async def update_missions(self, interaction: Interaction, mission_id: int, amount: int = 1):

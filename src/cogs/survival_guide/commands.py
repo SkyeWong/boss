@@ -3,8 +3,6 @@ import nextcord
 from nextcord.ext import commands
 from nextcord.ui import Button
 from nextcord import (
-    Embed,
-    Interaction,
     SlashOption,
     SlashApplicationCommand as SlashCmd,
     SlashApplicationSubcommand as SlashSubcmd,
@@ -16,7 +14,7 @@ from utils.postgres_db import Database
 # my modules and constants
 from utils import helpers, constants
 from utils.constants import EmbedColour
-from utils.helpers import TextEmbed, command_info
+from utils.helpers import BossInteraction, command_info
 from modules.macro.run_macro import RunMacroView
 from modules.macro.show_macro import ShowMacrosView
 from modules.macro.record_macro import RecordMacroView
@@ -44,7 +42,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                 cmd_names.append(subcmd)
         return cmd_names
 
-    async def choose_command_autocomplete(self, interaction: Interaction, data: str) -> list[str]:
+    async def choose_command_autocomplete(self, interaction: BossInteraction, data: str) -> list[str]:
         """
         Return every command and subcommand in the bot.
         Returns command that match `data` if it is provided.
@@ -68,7 +66,7 @@ class Utility(commands.Cog, name="Survival Guide"):
             near_items = [cmd for cmd in cmd_names if data.lower() in cmd.lower()]
             await interaction.response.send_autocomplete(near_items[:25])
 
-    def parse_command(self, interaction: Interaction, cmd_name: str):
+    def parse_command(self, interaction: BossInteraction, cmd_name: str):
         client: nextcord.Client = interaction.client
         all_cmds = [i for i in client.get_all_application_commands() if isinstance(i, SlashCmd)]
 
@@ -76,16 +74,16 @@ class Utility(commands.Cog, name="Survival Guide"):
         for item in cmd_list:
             cmd = next((i for i in all_cmds if i.name == item), None)
             if cmd is None:
-                raise helpers.CommandNotFound()
+                raise CommandNotFound()
             if isinstance(cmd, SlashCmd):
                 base_cmd = cmd
             all_cmds = cmd.children.values()
 
         if cmd.qualified_name != cmd_name:
-            raise helpers.CommandNotFound()
+            raise CommandNotFound()
 
         if not base_cmd.is_global and interaction.guild_id not in base_cmd.guild_ids:
-            raise helpers.CommandNotFound()
+            raise CommandNotFound()
 
         return cmd
 
@@ -98,7 +96,7 @@ class Utility(commands.Cog, name="Survival Guide"):
     )
     async def help(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         cmd_name: str = SlashOption(
             name="command",
             description="Get extra info for this command.",
@@ -117,12 +115,10 @@ class Utility(commands.Cog, name="Survival Guide"):
         # search for exact matches since the user is likely to have selected it from autocomplete
         try:
             cmd = self.parse_command(interaction, cmd_name)
-        except helpers.CommandNotFound:
-            await interaction.send(
-                embed=TextEmbed(
-                    "The command is not found! Use </help:964753444164501505> for a list of available commands.",
-                    EmbedColour.WARNING,
-                )
+        except CommandNotFound:
+            await interaction.send_text(
+                "The command is not found! Use </help:964753444164501505> for a list of available commands.",
+                EmbedColour.WARNING,
             )
             return
 
@@ -147,8 +143,8 @@ class Utility(commands.Cog, name="Survival Guide"):
             embed = self._get_command_embed(interaction, cmd, full_desc)
             await interaction.send(embed=embed)
 
-    def _get_command_embed(self, interaction, cmd, full_desc):
-        embed = Embed()
+    def _get_command_embed(self, interaction: BossInteraction, cmd: Union[SlashCmd, SlashSubcmd], full_desc: str):
+        embed = interaction.Embed(with_url=False)
         embed.title = cmd.get_mention(interaction.guild)
         embed.description = full_desc
         embed.colour = EmbedColour.INFO
@@ -161,7 +157,7 @@ class Utility(commands.Cog, name="Survival Guide"):
                 option_msg.append(f"<{name}>")
             else:
                 option_msg.append(f"[{name}]")
-        usage = f"`/{name} {' '.join(option_msg)}`"
+        usage = f"`/{cmd.qualified_name} {' '.join(option_msg)}`"
         embed.add_field(name="Usage", value=usage, inline=False)
 
         # add an "examples" field showing how to use the command
@@ -180,7 +176,7 @@ class Utility(commands.Cog, name="Survival Guide"):
     )
     async def guide(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         page: int = SlashOption(
             description="The page of the guide to start in",
             required=False,
@@ -196,7 +192,7 @@ class Utility(commands.Cog, name="Survival Guide"):
     @nextcord.slash_command(description="Adjust user specific settings")
     async def settings(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         setting: str = SlashOption(
             description="The setting to change",
             choices={"Sort the inventory by item worth": "inv_worth_sort", "Compact mode": "compact_mode"},
@@ -213,17 +209,17 @@ class Utility(commands.Cog, name="Survival Guide"):
             ),
             value,
         )
-        await interaction.send(embed=TextEmbed("Updated your settings!"))
+        await interaction.send_text("Updated your settings!")
 
     @nextcord.slash_command(description="Manage your macros - tools to run commands automatically.")
     @command_info(
         long_help="To see more info on how to use macros, use </guide:1102561144327127201> and select the page about macros."
     )
-    async def macro(self, interaction: Interaction):
+    async def macro(self, interaction: BossInteraction):
         # The parent command of a subcommand will never be called
         pass
 
-    async def choose_macro_autocomplete(self, interaction: Interaction, data: str):
+    async def choose_macro_autocomplete(self, interaction: BossInteraction, data: str):
         user_macros = await interaction.client.db.fetch(
             """
                 SELECT m.name
@@ -245,13 +241,13 @@ class Utility(commands.Cog, name="Survival Guide"):
     @macro.subcommand(description="Start a macro.")
     async def start(
         self,
-        interaction: Interaction,
+        interaction: BossInteraction,
         macro: str = SlashOption(description="The macro to run.", autocomplete_callback=choose_macro_autocomplete),
     ):
         await RunMacroView.start(interaction, macro_name=macro)
 
     @macro.subcommand(description="Record a macro and save it.")
-    async def record(self, interaction: Interaction):
+    async def record(self, interaction: BossInteraction):
         # if the user is recording a macro, stop recording
         # otherwise, start the recording
         if record_macro_view := interaction.client.recording_macro_views.get(interaction.user.id):
@@ -261,8 +257,12 @@ class Utility(commands.Cog, name="Survival Guide"):
             await RecordMacroView.start(interaction)
 
     @macro.subcommand(name="list", description="Show your list of added macros.")
-    async def show(self, interaction: Interaction):
+    async def show(self, interaction: BossInteraction):
         await ShowMacrosView.send(interaction)
+
+
+class CommandNotFound(Exception):
+    pass
 
 
 def setup(bot: commands.Bot):
