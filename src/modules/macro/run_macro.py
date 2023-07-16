@@ -2,36 +2,34 @@
 import nextcord
 from nextcord.ext import commands
 from nextcord import ButtonStyle, ApplicationCommandOptionType as OptionType
-from nextcord.ui import Button, button
+from nextcord.ui import Button, button, View
 
 # my modules
 from utils import helpers
 from utils.constants import EmbedColour
 from utils.helpers import BossInteraction
 from utils.postgres_db import Database
-from utils.template_views import BaseView
 
 # default modules
 import json
 from contextlib import suppress
 
 
-class RunMacroView(BaseView):
+class RunMacroView(View):
     """A view to let users run a preset of slash commands through buttons, instead of inputting them in the chat."""
 
-    def __init__(self, interaction: BossInteraction):
-        super().__init__(interaction, timeout=None)
-        self.db: Database = interaction.client.db
-        self.bot: commands.Bot = interaction.client
-
-        self.macro_cmds = []  # a list of commands to run in the macro
-        # the id and name of the currently running macro
-        self.macro_id: str = ""
-        self.macro_name: str = ""
-        self.cmd_index = 0  # the index of the current command in the macro
-
+    def __init__(self):
+        super().__init__(timeout=None)
+        # created through `RunMacroView.start()`
+        self.interaction: BossInteraction
+        self.db: Database
+        self.bot: commands.Bot
+        self.macro_cmds: list  # a list of commands to run in the macro
+        self.macro_id: str  # the id of the currently running macro
+        self.macro_name: str  # the name of the currently running macro
+        self.cmd_index: int  # the index of the current command in the macro
         # stores the last message sent, if the "run" button is clicked but the message is not equal to the last message, the command will not be run.
-        self.latest_msg: nextcord.Message = None
+        self.latest_msg: nextcord.Message
 
     @classmethod
     async def start(cls, interaction: BossInteraction, macro_name: str):
@@ -70,7 +68,10 @@ class RunMacroView(BaseView):
             return
 
         # create the view
-        view = cls(interaction)
+        view = cls()
+        view.interaction = interaction
+        view.db = interaction.client.db
+        view.bot = interaction.client
         # update the list of commands in the macro with data from the database
         # `macro_commands` will then the following structure:
         #   [
@@ -82,6 +83,7 @@ class RunMacroView(BaseView):
         view.macro_cmds = [{"command": i["command_name"], "options": json.loads(i["options"])} for i in res]
         view.macro_id = res[0]["macro_id"]
         view.macro_name = res[0]["name"]
+        view.cmd_index = 0
         # update the list of all `RunMacroView` views
         interaction.client.running_macro_views[interaction.user.id] = view
         # use interaction.send() and helpers.TextEmbed to avoid adding "<user> is running a /macro" message

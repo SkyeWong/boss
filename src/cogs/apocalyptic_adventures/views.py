@@ -68,6 +68,8 @@ class ScoutButton(Button["ScoutView"]):
                 if item_reward:
                     await player.add_item(item_reward["id"])
 
+                await player.update_missions(interaction, 4)
+
             case "fail":
                 embed.description = self.location["fail"]["msg"]
 

@@ -19,6 +19,7 @@ from utils import constants, helpers
 from utils.constants import EmbedColour
 from utils.helpers import BossInteraction
 from utils.postgres_db import Database
+from modules.macro.run_macro import RunMacroView
 
 # default modules
 import os
@@ -87,8 +88,7 @@ class BossBot(commands.Bot):
         if not self.persistent_views_added:
             # Register the persistent view for listening here.
             # This does not send the view to any message.
-            # self.add_view(PersistentWeatherView((datetime.now(), "", "")))
-            # currently we do not have any persistent weather views, but I'll keep it here for future reference
+            self.add_view(RunMacroView())
             self.persistent_views_added = True
 
         # Connect to the bot database

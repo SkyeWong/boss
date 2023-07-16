@@ -305,7 +305,7 @@ class GuideView(BaseView):
         ),
         GuidePage(
             title="Currency System",
-            description="In the world of BOSS, there are two main types of currency: scrap metal and copper. To check your current cash, use </balance:1100243620033994752> or </profile:1005865383191916564>.",
+            description="In the world of BOSS, there are two main types of currency: scrap metal and copper.",
             fields=[
                 EmbedField(
                     f"Scrap Metal {SCRAP_METAL}",
@@ -320,7 +320,7 @@ class GuideView(BaseView):
                     f"- Some rarer resources can only be obtained using copper.",
                 ),
                 EmbedField(
-                    f"Exchanging currencies",
+                    "Exchanging currencies",
                     "You can exchange the currencies using /exchange, but keep in mind that you will lose some value of your money.",
                 ),
             ],
@@ -337,15 +337,21 @@ class GuideView(BaseView):
                     "Health and hunger system",
                     "You can check your health and hunger values with </profile:1005865383191916564>.\n"
                     "When your **hunger** is **below 30**, you will have a **slight delay** and lose 5 points of health in most grind commands. "
-                    "If your **health** is **below 0**, you **die**. You lose all your money in the pocket, and a random item in your backpack.",
+                    "If your **health** is **below 0**, you **die**. You lose all your scrap metals in the pocket, and a random item in your backpack.",
                 ),
                 EmbedField(
-                    "By scavenging for resources",
-                    "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410>, </scavenge:1107319706681098291> and more!\n"
+                    "Your cash stash",
+                    "Use </balance:1100243620033994752> or </profile:1005865383191916564> to check your current cash. "
+                    "You can store at most 20% of your scrap metals in your safe to prevent losing it from dying. "
+                    "Use </deposit:1125636252373364806> and </withdraw:1125636656557465600> to change your safe balance!",
+                ),
+                EmbedField(
+                    "Scavenging for resources",
+                    "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410>, </scavenge:1107319706681098291>, </scout:1125354337162493972> and more!\n"
                     "They have different rewards to help you grind.",
                 ),
                 EmbedField(
-                    "By completing tasks and challenges",
+                    "Completing tasks and challenges",
                     "You can also earn currency by completing tasks and challenges. "
                     "Use the </missions:1107319711944941638> command to view available missions and track their progress.\n"
                     "Missions update every day.",
@@ -363,20 +369,20 @@ class GuideView(BaseView):
             fields=[
                 EmbedField(
                     "</backpack:1008017263540047872> 🎒",
-                    "- The __every-day rucksack__ that you carry wherever you go. You sell, trade and do almost everything else with the items in it.\n"
-                    "- It only has __32 slots__.\n"
+                    "- The **every-day rucksack** that you carry wherever you go. You sell, trade and do almost everything else with the items in it.\n"
+                    "- It only has **32 slots**.\n"
                     "- When you die, you lose a random item in your backpack.",
                 ),
                 EmbedField(
                     "</chest:1008017264118874112> 🧰",
-                    "- The __crate__ that you store at home. You store most of your items in it and never really care about them.\n"
-                    "- It has __infinite slots__.\n"
+                    "- The **crate** that you store at home. You store most of your items in it and never really care about them.\n"
+                    "- It has **infinite slots**.\n"
                     "- You may lose items in your chest if your base gets raided.",
                 ),
                 EmbedField(
                     "</vault:1008017264936755240> 🔒",
-                    "- Your secret __safe__. Only your most valuable items own a place in it.\n"
-                    "- It only has __5 slots__.\n"
+                    "- Your secret **safe**. Only your most valuable items own a place in it.\n"
+                    "- It only has **5 slots**.\n"
                     "- Only you can view the contents of your own vault, and you will never lose any of them.",
                 ),
                 EmbedField(

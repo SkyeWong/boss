@@ -516,6 +516,14 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
                 {"type": "scrap_metal", "max": 1200, "min": 800},
             ],
         },
+        {
+            "description": "Successfully </scout:1125354337162493972> {quantity} locations",
+            "min": 10,
+            "max": 25,
+            "rewards": [
+                {"type": "scrap_metal", "max": 2000, "min": 1000},
+            ],
+        },
     ]
 
     async def claim_missions(self, user: nextcord.User):
@@ -568,7 +576,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
             # update the list of missions
             # check only the first mission since they should all be updated at the same time
             now = datetime.datetime.now(tz=pytz.utc)
-            if not missions or missions[0]["date"] != now.date:
+            if not missions or missions[0]["date"] != now.date():
                 await self.claim_missions(interaction.user)
                 missions = await self.fetch_missions(interaction.user)
             # Show the time when missions reset (the start of the next day)
