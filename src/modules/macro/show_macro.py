@@ -234,12 +234,7 @@ class ShowMacrosView(BaseView):
         macro_to_delete = self.macro_ids[self.current_page]
         # Send a message to let users confirm/cancel deleting the macro
         embed = TextEmbed(f"Remove the marco **{name}**?")
-        view = ConfirmView(
-            slash_interaction=interaction,
-            embed=embed,
-            confirm_func=delete_macro,
-        )
-        await interaction.send(embed=view.embed, view=view)
+        await ConfirmView(interaction=interaction, embed=embed, confirm_func=delete_macro).send()
 
     @button(label="Import", style=ButtonStyle.grey, custom_id="import")
     async def import_macro(self, button: Button, interaction: Interaction):

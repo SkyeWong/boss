@@ -22,6 +22,7 @@ from utils.postgres_db import Database
 from modules.macro.run_macro import RunMacroView
 
 # default modules
+import asyncio
 import os
 import random
 import sys
@@ -31,25 +32,6 @@ from datetime import timezone
 
 
 nest_asyncio.apply()
-
-werkzeug_logger = logging.getLogger("werkzeug")
-werkzeug_logger.setLevel(logging.ERROR)
-
-root = logging.getLogger()
-root.setLevel(logging.INFO)
-
-nextcord_logger = logging.getLogger("nextcord")
-nextcord_logger.setLevel(logging.ERROR)
-
-handler = logging.StreamHandler(sys.stderr)
-handler.setLevel(logging.INFO)
-handler.setFormatter(
-    logging.Formatter(
-        "\033[1;30m{asctime} ({name}, {levelname}) - \033[0m{message}", datefmt="%d/%m/%y %H:%M", style="{"
-    )
-)
-nextcord_logger.addHandler(handler)
-root.addHandler(handler)
 
 
 class BossBot(commands.Bot):
@@ -77,12 +59,6 @@ class BossBot(commands.Bot):
 
         self.db = Database()
         self.pool = self.db.pool
-
-        # Get the modules of all cogs whose directory structure is ./cogs/<module_name>
-        for folder in os.listdir("cogs"):
-            if folder != "__pycache__":
-                self.load_extension(f"cogs.{folder}.commands")
-        self.load_extension("utils.application_hooks")
 
     async def on_ready(self):
         if not self.persistent_views_added:
@@ -181,9 +157,6 @@ class BossBot(commands.Bot):
         return user
 
 
-bot = BossBot()
-
-
 def get_cooldown_embed(interaction: Interaction, error: CallableOnCooldown) -> Embed:
     """Returns an embed showing the command in cooldown and the time that the cooldown resets."""
     embed = Embed()
@@ -205,5 +178,36 @@ def get_cooldown_embed(interaction: Interaction, error: CallableOnCooldown) -> E
     return embed
 
 
+async def main():
+    # Setup logging handlers
+    werkzeug_logger = logging.getLogger("werkzeug")
+    werkzeug_logger.setLevel(logging.ERROR)
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+
+    nextcord_logger = logging.getLogger("nextcord")
+    nextcord_logger.setLevel(logging.ERROR)
+
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(
+        logging.Formatter(
+            "\033[1;30m{asctime} ({name}, {levelname}) - \033[0m{message}", datefmt="%d/%m/%y %H:%M", style="{"
+        )
+    )
+    nextcord_logger.addHandler(handler)
+    root.addHandler(handler)
+
+    # load all the cogs and extensions, then start and login the bot to discord
+    bot = BossBot()
+    # Get the modules of all cogs whose directory structure is ./cogs/<module_name>
+    for folder in os.listdir("cogs"):
+        if folder != "__pycache__":
+            bot.load_extension(f"cogs.{folder}.commands")
+    bot.load_extension("utils.application_hooks")
+    await bot.start(constants.TOKEN)
+
+
 keep_alive()
-bot.run(constants.TOKEN)
+asyncio.run(main())

@@ -16,6 +16,7 @@ from utils.template_views import BaseView, ConfirmView
 
 # default modules
 import math
+import pprint
 import json
 from typing import Optional
 
@@ -174,12 +175,17 @@ class EditItemModal(Modal):
                 except json.JSONDecodeError:
                     errors.append("The format of other attributes are invalid")
                 else:
+                    VALID_ATTR = constants.ITEM_OTHER_ATTR
                     if not isinstance(_, dict):
                         errors.append("The other attributes should be in a dictionary format.")
-                    elif any(i for i in _.keys() if i not in constants.ITEM_OTHER_ATTR):
+                    elif any(i for i in _.keys() if i not in VALID_ATTR):
                         # `any()` should be more efficient than `all()` since if only 1 match is required
                         errors.append(
-                            f"Only these keys are available for the other attributes: `{constants.ITEM_OTHER_ATTR}`."
+                            f"Only these keys are available for the other attributes: \n```py\n{pprint.pformat(VALID_ATTR)}```"
+                        )
+                    elif any(k for k, v in _.items() if not isinstance(v, VALID_ATTR[k])):
+                        errors.append(
+                            f"The type of values for the other attributes should match this mapping: \n```py\n{pprint.pformat(VALID_ATTR)}```"
                         )
                     else:
                         values["other_attributes"] = inputted_value
@@ -244,7 +250,7 @@ class ConfirmItemDelete(ConfirmView):
         embed.title = f"Delete `{item['name']}`?"
 
         super().__init__(
-            slash_interaction=slash_interaction,
+            interaction=slash_interaction,
             confirm_func=self.delete_item,
             embed=embed,
             confirmed_title="Item deleted!",

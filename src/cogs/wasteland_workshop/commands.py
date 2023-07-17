@@ -51,12 +51,11 @@ from io import BytesIO
 import asyncio
 import os
 import base64
-import html
 from contextlib import suppress
 from typing import Optional
 
 
-class Misc(commands.Cog, name="Wasteland Workshop"):
+class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
     """A collection of misc commands and other features"""
 
     COG_EMOJI = "🧰"
@@ -938,7 +937,7 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
         title: str = SlashOption(description="Title of image (optional)", required=False),
         description: str = SlashOption(description="Description of image (optional)", required=False),
     ):
-        """Uploads an image to imgur anonymously and returns the link. Only available to owners."""
+        """Uploads an image to Imgur. Only available to owners."""
         payload = {
             "image": image.url,
             "type": "url",
@@ -1073,4 +1072,4 @@ class Misc(commands.Cog, name="Wasteland Workshop"):
 
 
 def setup(bot: commands.Bot):
-    bot.add_cog(Misc(bot))
+    bot.add_cog(WastelandWorkshop(bot))

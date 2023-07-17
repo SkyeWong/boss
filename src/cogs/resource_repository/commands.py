@@ -42,7 +42,6 @@ from modules.maze.maze import Maze
 from numerize import numerize
 
 # default modules
-from collections import defaultdict
 from typing import Literal
 import random
 import datetime
@@ -54,7 +53,7 @@ import json
 import logging
 
 
-class Resource(commands.Cog, name="Resource Repository"):
+class ResourceRepository(commands.Cog, name="Resource Repository"):
     """Currency management, trading, and base building"""
 
     COG_EMOJI = "🪙"
@@ -380,14 +379,14 @@ class Resource(commands.Cog, name="Resource Repository"):
             total_price += item["sell_price"] * item["quantity"]
 
         view = ConfirmView(
-            slash_interaction=interaction,
+            interaction=interaction,
             embed=self.get_sell_item_embed(sellable_items, total_price),
             confirm_func=self.sell_all_player_items,
             confirmed_title="BOSS Cash Receipt",
             exclude_items=exclude_items,
         )
         view.embed.title = "Pending Confirmation"
-        await interaction.send(embed=view.embed, view=view)
+        await view.send()
 
     @sell.subcommand(name="item")
     @cooldowns.shared_cooldown("sell_items")
@@ -448,13 +447,13 @@ class Resource(commands.Cog, name="Resource Repository"):
 
         if total_price > 100_000:
             view = ConfirmView(
-                slash_interaction=interaction,
+                interaction=interaction,
                 embed=self.get_sell_item_embed((item,), total_price),
                 confirm_func=sell_player_items,
                 confirmed_title="BOSS Cash Receipt",
             )
             view.embed.title = "Pending Confirmation"
-            await interaction.send(embed=view.embed, view=view)
+            await view.send()
         else:
             await sell_player_items()
             embed = self.get_sell_item_embed((item,), total_price)
@@ -592,8 +591,6 @@ class Resource(commands.Cog, name="Resource Repository"):
         db: Database = self.bot.db
         items = await db.fetch(
             self.GET_BACKPACK_SQL,
-            interaction.user.id,
-            data if data else "",
         )
         await interaction.response.send_autocomplete([i["name"] for i in items][:25])
 
@@ -721,7 +718,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                     await view.send()
 
                 view = ConfirmView(
-                    slash_interaction=interaction,
+                    interaction=interaction,
                     confirm_func=confirm_func,
                     embed=TextEmbed(
                         "The map leads you to a pyramid, in which a maze is placed. "
@@ -732,7 +729,7 @@ class Resource(commands.Cog, name="Resource Repository"):
                     confirmed_title="",
                     cancelled_title="",
                 )
-                await interaction.send(embed=view.embed, view=view)
+                await view.send()
                 return
 
             case _:
@@ -1090,34 +1087,27 @@ class Resource(commands.Cog, name="Resource Repository"):
                     quantity,
                 )
 
-                inv_items = await db.fetch(
+                if quantities_after["to"] != quantity:  # a new item is not added
+                    return quantities_after
+
+                inv_items_count = await db.fetch(
                     """
-                    SELECT inv_type, item_id
+                    SELECT inv_type, COUNT(item_id)
                     FROM players.inventory
                     WHERE player_id = $1
+                    GROUP BY inv_type
+                    ORDER BY inv_type
                     """,
                     player_id,
                 )
-
-                num_of_items_in_inv = defaultdict(set)
-                for item in inv_items:
-                    num_of_items_in_inv[item["inv_type"]].add(item["item_id"])
-
-                for inv_type, items in num_of_items_in_inv.items():
+                for inv_type, n_items in inv_items_count:
                     # transaction has not been committed, items are not updated
                     # so we check for the old values
-                    if (
-                        item_to == inv_type == constants.InventoryType.BACKPACK.value
-                        and len(items) >= 32
-                        and item_id not in items
-                    ):
+                    if item_to == inv_type == constants.InventoryType.BACKPACK.value and n_items >= 32:
                         raise MoveItemException("Backpacks only have 32 slots!")
-                    if (
-                        item_to == inv_type == constants.InventoryType.VAULT.value
-                        and len(items) >= 5
-                        and item_id not in items
-                    ):
+                    if item_to == inv_type == constants.InventoryType.VAULT.value and n_items >= 5:
                         raise MoveItemException("Vaults only have 5 slots!")
+
         return quantities_after
 
     @nextcord.slash_command(name="move-item")
@@ -1171,7 +1161,7 @@ class Resource(commands.Cog, name="Resource Repository"):
             )
 
         except MoveItemException as e:
-            await interaction.send_embed(e.text, EmbedColour.FAIL)
+            await interaction.send_text(e.text, EmbedColour.FAIL)
             return
 
         msg = await interaction.send_text("Moving your items...\n||* intentional wait *||")
@@ -1320,5 +1310,13 @@ class MoveItemException(Exception):
         self.text = text
 
 
-def setup(bot: commands.Bot):
-    bot.add_cog(Resource(bot))
+async def setup(bot: commands.Bot):
+    cog = ResourceRepository(bot)
+    bot.add_cog(cog)
+    # wait until the bot is ready, (has connected database), then set up the cog
+    try:
+        await bot.wait_for("ready", timeout=10)
+    except asyncio.TimeoutError:
+        logging.error("`Resource` timed out while setting up, the cog is not loaded.")
+        return
+    await cog.setup()

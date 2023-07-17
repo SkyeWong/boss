@@ -29,7 +29,7 @@ import random
 import dataclasses
 
 
-class Fun(commands.Cog, name="Survivor's Playground"):
+class SurvivorsPlayground(commands.Cog, name="Survivor's Playground"):
     """Fun commands and mini-games for entertainment"""
 
     COG_EMOJI = "🎢"
@@ -278,4 +278,4 @@ class Fun(commands.Cog, name="Survivor's Playground"):
 
 
 def setup(bot: commands.Bot):
-    bot.add_cog(Fun(bot))
+    bot.add_cog(SurvivorsPlayground(bot))

@@ -24,7 +24,7 @@ from .views import HelpView, GuideView
 from typing import Union
 
 
-class Utility(commands.Cog, name="Survival Guide"):
+class SurvivalGuide(commands.Cog, name="Survival Guide"):
     """Essential commands to assist you in the wasteland"""
 
     COG_EMOJI = "📖"
@@ -123,6 +123,7 @@ class Utility(commands.Cog, name="Survival Guide"):
             return
 
         # the exact match has been found
+        # generate the full description of the command, including long help messages, notes and examples
         name = cmd.qualified_name
         full_desc = cmd.description
         if long_help := getattr(cmd, "long_help", None):
@@ -266,4 +267,4 @@ class CommandNotFound(Exception):
 
 
 def setup(bot: commands.Bot):
-    bot.add_cog(Utility(bot))
+    bot.add_cog(SurvivalGuide(bot))

@@ -12,6 +12,7 @@ from utils.postgres_db import Database
 # inbuilt modules
 import math
 import random
+import json
 from datetime import datetime
 from typing import Literal, Optional, Union, Self
 
@@ -193,8 +194,11 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
     embed.add_field(name="Prices", value=prices_txt, inline=False)
 
     info = ""
-    if (food_min := item.get("food_value_min")) and (food_max := item.get("food_value_max")):
+    other_attr = json.loads(item["other_attributes"])
+    if (food_min := other_attr.get("food_value_min")) and (food_max := other_attr.get("food_value_max")):
         info += f"\n- </use:1107319705070477462>: restore {food_min} - {food_max} points of hunger"
+    if armour_prot := other_attr.get("armour_protection"):
+        info += f"\n- Provides {armour_prot} points of protection."
     if additional_info := item.get("additional_info"):
         info += f"\n- {additional_info}"
 
@@ -288,6 +292,7 @@ class BossEmbed(Embed):
         show_macro_msg: Optional[bool] = True,
     ) -> None:
         self.interaction = interaction
+        self.show_macro_msg = show_macro_msg
         super().__init__(
             colour=colour,
             title=title,
@@ -295,18 +300,20 @@ class BossEmbed(Embed):
             description=description,
             timestamp=timestamp,
         )
-        if show_macro_msg and interaction and interaction.client.running_macro_views.get(interaction.user.id):
-            # check whether the user is running a macro
-            super().set_footer(text=f"{self.interaction.user.name} is running a /macro")
+        if self.show_macro_msg:
+            if interaction and interaction.client.running_macro_views.get(interaction.user.id):
+                # check whether the user is running a macro
+                super().set_footer(text=f"{self.interaction.user.name} is running a /macro")
 
     def set_footer(self, *, text: Optional[str] = None, icon_url: Optional[str] = None) -> Self:
-        if self.interaction and self.interaction.client.running_macro_views.get(self.interaction.user.id):
-            # check whether the user is running a macro
-            msg = f"{self.interaction.user.name} is running a /macro"
-            if "\n" in text:
-                text = f"{text}\n{msg}"
-            else:
-                text = f"{text} | {msg}"
+        if self.show_macro_msg:
+            if self.interaction and self.interaction.client.running_macro_views.get(self.interaction.user.id):
+                # check whether the user is running a macro
+                msg = f"{self.interaction.user.name} is running a /macro"
+                if "\n" in text:
+                    text = f"{text}\n{msg}"
+                else:
+                    text = f"{text} | {msg}"
         return super().set_footer(text=text, icon_url=icon_url)
 
 

@@ -87,11 +87,11 @@ class RunMacroView(View):
         # update the list of all `RunMacroView` views
         interaction.client.running_macro_views[interaction.user.id] = view
         # use interaction.send() and helpers.TextEmbed to avoid adding "<user> is running a /macro" message
-        await interaction.send(embed=helpers.TextEmbed(text=f"Started the macro **{view.macro_name}**."))
+        await interaction.send_text(f"Started the macro **{view.macro_name}**.", show_macro_msg=False)
 
     async def send_msg(self, interaction: BossInteraction):
         """Send a message containing a embed with the next commands and the view to let users run/end the macro."""
-        embed = helpers.Embed(title="Next commands:", description="", colour=EmbedColour.DEFAULT)
+        embed = interaction.Embed(title="Next commands:", description="", with_url=False, show_macro_msg=False)
         # Slice and concatenate the next values,
         # this creates a list from the next command to the command before the one of `cmd_index`,
         # i.e. the next commands to run

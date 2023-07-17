@@ -289,22 +289,22 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                     if quantities["new"] < 0:
                         raise MoveItemException("Not enough items to remove!")
                     if quantities["new"] == quantities["old"]:  # a new item is added
-                        inventory = await conn.fetchrow(
+                        inventory = await conn.fetch(
                             """
-                                SELECT inv_type, COUNT(*) AS items
+                                SELECT inv_type, COALESCE(COUNT(*), 0) AS items
                                 FROM players.inventory
                                 WHERE player_id = $1
                                 GROUP BY inv_type
+                                ORDER BY inv_type
                                 """,
                             player.user.id,
                         )
-
-                        for i in inventory:
-                            # transaction has not been committed, items are not updated
-                            if i == inv_type == 0 and len(i["items"]) >= 32:
-                                raise MoveItemException("Backpacks only have 32 slots!")
-                            if i == inv_type == 2 and len(i["items"]) >= 5:
-                                raise MoveItemException("Vaults only have 5 slots!")
+                        # transaction has not been committed, items are not updated
+                        backpack = constants.InventoryType.BACKPACK.value
+                        if inv_type == backpack and inventory[backpack]["items"] >= 32:
+                            raise MoveItemException("Backpacks only have 32 slots!")
+                        vault = constants.InventoryType.VAULT.value
+                        if inv_type == vault and inventory[vault]["items"] >= 5:
 
         except MoveItemException as e:
             await interaction.send_text(e.text)
@@ -371,9 +371,13 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 errors.append("The format of `other attributes` are invalid.")
             if not isinstance(_, dict):
                 errors.append("`Other attributes should be in a dictionary format.")
-            elif any(i for i in _.keys() if i not in constants.ITEM_OTHER_ATTR):
                 # `any()` should be more efficient than `all()` since if only 1 match is required
-                errors.append(f"Only these keys are available for the other attributes: `{constants.ITEM_OTHER_ATTR}`.")
+                errors.append(
+                    f"Only these keys are available for the other attributes: \n```py{list(VALID_ATTR.keys())}```."
+                )
+            elif any(k for k, v in _.items() if not isinstance(v, VALID_ATTR[k])):
+                errors.append(
+                    f"The type of values for the other attributes should match this mapping: \n```py{VALID_ATTR}```."
         else:
             other_attributes = None
 
@@ -630,4 +634,3 @@ class MoveItemException(Exception):
 
 
 def setup(bot: commands.Bot):
-    bot.add_cog(DevOnly(bot))

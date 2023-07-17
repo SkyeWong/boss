@@ -103,14 +103,14 @@ class HelpView(BaseView):
 
         return options
 
-    def help_embed(self) -> Embed:
+    def help_embed(self, description: Optional[str] = "", author_name: Optional[str] = "Commands") -> Embed:
         """Creates an embed with a list of all the commands in the bot."""
 
-        embed = Embed(description="", colour=EmbedColour.INFO)
+        embed = Embed(description=description, colour=EmbedColour.INFO)
 
         # Set the author of the embed to the bot's user.
         avatar = self.interaction.client.user.avatar
-        embed.set_author(name="Commands", icon_url=avatar.url)
+        embed.set_author(name=author_name, icon_url=avatar.url)
 
         # Get a list of all the commands in the bot.
         command_list = sorted(self.cmd_list, key=lambda x: x.qualified_name)

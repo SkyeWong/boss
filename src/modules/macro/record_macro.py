@@ -281,14 +281,14 @@ class RecordMacroView(BaseView):
         embed = await self._get_embed(interaction)
         embed.title = "Save the macro?"  # set the title of the macro. this will be changed later according to what button the user clicked
         view = ConfirmView(
-            slash_interaction=interaction,
+            interaction=interaction,
             embed=embed,
             confirm_func=send_modal,
             cancel_func=delete_macro,
             confirmed_title="Saving the macro...",
             cancelled_title="Discarded the macro",
         )
-        msg = await interaction.send(embed=view.embed, view=view)
+        msg = await view.send()
 
     async def on_timeout(self) -> None:
         """Delete the last message, suppressing message not found error."""

@@ -13,7 +13,7 @@ COPPER_SCRAP_RATE = 500_000
 DEVS_SERVER_ID = 919223073054539858
 LOG_CHANNEL_ID = 988046548309016586
 
-ITEM_OTHER_ATTR = {"food_value_min", "food_value_max"}
+ITEM_OTHER_ATTR = {"food_value_min": int, "food_value_max": int, "battlegear_type": str, "armour_protection": int}
 
 
 class Enum(enum.Enum):

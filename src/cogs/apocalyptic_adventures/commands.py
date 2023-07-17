@@ -29,7 +29,7 @@ import datetime
 from contextlib import suppress
 
 
-class Survival(commands.Cog, name="Apocalyptic Adventures"):
+class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
     """Missions, quests, exploration, and events"""
 
     COG_EMOJI = "🗺️"
@@ -259,7 +259,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def scavenge(self, interaction: BossInteraction):
-        """Scavenge for resources in post-apocalyptic world, maybe you'll actually found something!"""
+        """Find resources wherever you can in the post-apocalyptic world!"""
         await self._handle_grind_cmd(
             interaction,
             self.SCAVENGE_LOOT,
@@ -468,7 +468,7 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
     @nextcord.slash_command()
     @cooldowns.cooldown(1, 15, SlashBucket.author, check=check_if_not_dev_guild)
     async def scout(self, interaction: BossInteraction):
-        """Explore the wasteland and uncover hidden resources to add to your currency stash."""
+        """Explore the wasteland and uncover hidden resources."""
         view = await ScoutView.send(interaction, self.SCOUT_LOOT)
 
         def check(interaction: BossInteraction):
@@ -620,4 +620,4 @@ class Survival(commands.Cog, name="Apocalyptic Adventures"):
 
 
 def setup(bot: commands.Bot):
-    bot.add_cog(Survival(bot))
+    bot.add_cog(ApocalypticAdventures(bot))
