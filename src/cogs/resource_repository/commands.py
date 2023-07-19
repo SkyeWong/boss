@@ -1,21 +1,32 @@
+# default modules
+from typing import Literal
+import random
+import datetime
+import operator
+import math
+import asyncio
+import json
+import logging
+
 # nextcord
 import nextcord
 from nextcord.ext import commands, tasks
 from nextcord.ui import View, Button
 from nextcord import Interaction, SlashOption, ButtonStyle
 
-# slash command cooldowns
 import cooldowns
 from cooldowns import SlashBucket
 
 import aiohttp
-
-# database
-from utils.postgres_db import Database
 import asyncpg
+
+from numerize import numerize
+
+import pytz
 
 # my modules and constants
 from utils import constants, helpers
+from utils.postgres_db import Database
 from utils.constants import SCRAP_METAL, COPPER, COPPER_SCRAP_RATE, EmbedColour
 from utils.helpers import (
     check_if_not_dev_guild,
@@ -29,8 +40,8 @@ from utils.helpers import (
 from utils.player import Player
 
 # command views
-from utils.template_views import ConfirmView
-from .views import FarmView, InventoryView
+from utils.template_views import ConfirmView, BaseView
+from cogs.resource_repository.views import FarmView, InventoryView
 
 # trade
 from modules.village.village import TradeView
@@ -39,27 +50,18 @@ from modules.village.villagers import Villager
 # maze
 from modules.maze.maze import Maze
 
-from numerize import numerize
-
-# default modules
-from typing import Literal
-import random
-import datetime
-import pytz
-import operator
-import math
-import asyncio
-import json
-import logging
-
 
 class ResourceRepository(commands.Cog, name="Resource Repository"):
     """Currency management, trading, and base building"""
 
     COG_EMOJI = "🪙"
 
-    cooldowns.define_shared_cooldown(1, 8, SlashBucket.author, cooldown_id="sell_items", check=check_if_not_dev_guild)
-    cooldowns.define_shared_cooldown(1, 6, SlashBucket.author, cooldown_id="check_inv", check=check_if_not_dev_guild)
+    cooldowns.define_shared_cooldown(
+        1, 8, SlashBucket.author, cooldown_id="sell_items", check=check_if_not_dev_guild
+    )
+    cooldowns.define_shared_cooldown(
+        1, 6, SlashBucket.author, cooldown_id="check_inv", check=check_if_not_dev_guild
+    )
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -105,7 +107,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
                 interaction.user.id,
                 item["item_id"],
             )
-            owned_quantities = {str(constants.InventoryType(inv_type)): quantity for inv_type, quantity in res}
+            owned_quantities = {
+                str(constants.InventoryType(inv_type)): quantity for inv_type, quantity in res
+            }
             embed = helpers.get_item_embed(item, owned_quantities)
             await interaction.send(embed=embed)
 
@@ -121,7 +125,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         params = {"nameType": "firstname", "quantity": random.randint(10, 18)}
         headers = {"X-Api-Key": "2a4f04bc0708472d9791240ca7d39476"}
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://randommer.io/api/Name", params=params, headers=headers) as response:
+            async with session.get(
+                "https://randommer.io/api/Name", params=params, headers=headers
+            ) as response:
                 names = await response.json()
 
         # generate the villagers
@@ -192,7 +198,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         now = datetime.datetime.now()
         # Wait until the start of the next hour before starting the task loop,
         # so that the trades get updated at the start of hours (HH:00)
-        start_of_next_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        start_of_next_hour = (now + datetime.timedelta(hours=1)).replace(
+            minute=0, second=0, microsecond=0
+        )
         await nextcord.utils.sleep_until(start_of_next_hour)
 
     @nextcord.slash_command(name="farm")
@@ -219,7 +227,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
     async def farm_view(
         self,
         interaction: BossInteraction,
-        user: nextcord.User = SlashOption(description="The user to view the farm of", required=False, default=None),
+        user: nextcord.User = SlashOption(
+            description="The user to view the farm of", required=False, default=None
+        ),
     ):
         """Check your crops' progress."""
         if user is None:
@@ -342,7 +352,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
                 )
                 # the item is not found, or the user does not own any
                 if item is None:
-                    await interaction.send_text(f"The item `{item_name}` doesn't exist.", EmbedColour.WARNING)
+                    await interaction.send_text(
+                        f"The item `{item_name}` doesn't exist.", EmbedColour.WARNING
+                    )
 
                     return
                 if item["quantity"] is None:
@@ -417,7 +429,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
             return
 
         if not item["sell_price"]:
-            await interaction.send_text("The item can't be sold! Try trading them.", EmbedColour.WARNING)
+            await interaction.send_text(
+                "The item can't be sold! Try trading them.", EmbedColour.WARNING
+            )
             return
 
         if not item["quantity"]:
@@ -438,7 +452,7 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         item["quantity"] = quantity
         total_price = item["sell_price"] * quantity
 
-        async def sell_player_items(button=None, btn_inter=None):
+        async def sell_player_items(*args, **kwargs):
             async with db.pool.acquire() as conn:
                 async with conn.transaction():
                     player = Player(db, interaction.user)
@@ -472,7 +486,10 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         amount: str,
     ):
         """Convert from one currency to another."""
-        if from_currency not in ("scrap_metal", "copper") or to_currency not in ("scrap_metal", "copper"):
+        if from_currency not in ("scrap_metal", "copper") or to_currency not in (
+            "scrap_metal",
+            "copper",
+        ):
             raise ValueError("Currency must be either `scrap_metal` or `copper`.")
 
         try:
@@ -502,7 +519,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         exchanged_amount = round(op(amount, exchange_rate))
 
         if exchanged_amount <= 0:  # The user has not exchanged enough scrap metal to have 1 copper
-            await interaction.send_text(f"{amount} {from_currency_msg} is not enough to make 1 {to_currency_msg}.")
+            await interaction.send_text(
+                f"{amount} {from_currency_msg} is not enough to make 1 {to_currency_msg}."
+            )
             return
 
         db: Database = interaction.client.db
@@ -516,7 +535,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
                     from_amount = await player.modify_currency(from_currency, -amount)
                     to_amount = await player.modify_currency(to_currency, exchanged_amount)
                 except ValueError:
-                    await interaction.send_text(f"You don't have enough {from_currency_msg} to make this exchange.")
+                    await interaction.send_text(
+                        f"You don't have enough {from_currency_msg} to make this exchange."
+                    )
                     return
 
         embed = interaction.Embed()
@@ -542,7 +563,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
     async def exchange_to_copper(
         self,
         interaction: BossInteraction,
-        scrap_metal: str = SlashOption(name="scrap-metal", description="Amount of scrap metal to exchange"),
+        scrap_metal: str = SlashOption(
+            name="scrap-metal", description="Amount of scrap metal to exchange"
+        ),
     ):
         """Convert your scrap metals to coppers."""
 
@@ -589,10 +612,10 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
     async def choose_backpack_autocomplete(self, interaction: BossInteraction, data: str):
         """Returns a list of autocompleted choices of all the items in a user's backpack"""
         db: Database = self.bot.db
-        items = await db.fetch(
-            self.GET_BACKPACK_SQL,
+        items = await db.fetch(self.GET_BACKPACK_SQL, interaction.user.id, data if data else "")
+        await interaction.response.send_autocomplete(
+            [i["name"] for i in items if i["quantity"] is not None][:25]
         )
-        await interaction.response.send_autocomplete([i["name"] for i in items][:25])
 
     @nextcord.slash_command(name="use", description="Use an item to activiate its unique ability!")
     @command_info(
@@ -603,9 +626,13 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         self,
         interaction: BossInteraction,
         item_name: str = SlashOption(
-            name="item", description="The item to use", autocomplete_callback=choose_backpack_autocomplete
+            name="item",
+            description="The item to use",
+            autocomplete_callback=choose_backpack_autocomplete,
         ),
-        quantity: int = SlashOption(description="Amount of the item to be used", required=None, default=1),
+        quantity: int = SlashOption(
+            description="Amount of the item to be used", required=None, default=1
+        ),
     ):
         db: Database = self.bot.db
         item = await db.fetchrow(self.GET_BACKPACK_SQL, interaction.user.id, item_name)
@@ -626,16 +653,22 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
             )
             return
 
-        item = dict(item)  # convert the item from asyncpg.Record into a dict for the match-case statement
+        item = dict(
+            item
+        )  # convert the item from asyncpg.Record into a dict for the match-case statement
         player = Player(db, interaction.user)
 
         match item:
             case {"type": constants.ItemType.FOOD.value}:
                 # the mininum and maximum hunger value that 1 unit of the food replenishes
                 other_attributes = json.loads(item["other_attributes"])
-                food_min, food_max = other_attributes.get("food_value_min"), other_attributes.get("food_value_max")
+                food_min, food_max = other_attributes.get("food_value_min"), other_attributes.get(
+                    "food_value_max"
+                )
                 if not food_min or not food_max:
-                    await interaction.send_text("This particular piece of food cannot be consumed, somehow.")
+                    await interaction.send_text(
+                        "This particular piece of food cannot be consumed, somehow."
+                    )
                     return
 
                 food_value = random.randint(food_min, food_max) * quantity
@@ -653,7 +686,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
                     interaction.user.id,
                 )
                 if old_hunger >= 100:
-                    await interaction.send_text("Your hunger is already full, why are you even eating???")
+                    await interaction.send_text(
+                        "Your hunger is already full, why are you even eating???"
+                    )
                     return
 
                 # perform another query because we need to wait for the trigger function to occur
@@ -766,7 +801,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
 
         player = Player(db, user)
         if not await player.is_present():
-            await interaction.send_text("The user hasn't started playing BOSS yet! Maybe invite them over?")
+            await interaction.send_text(
+                "The user hasn't started playing BOSS yet! Maybe invite them over?"
+            )
             return
 
         profile = await db.fetchrow(
@@ -778,7 +815,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
             user.id,
         )
 
-        embed = interaction.Embed(title=f"{user.name}'s Profile", colour=EmbedColour.INFO, with_url=True)
+        embed = interaction.Embed(
+            title=f"{user.name}'s Profile", colour=EmbedColour.INFO, with_url=True
+        )
         embed.set_thumbnail(url=user.display_avatar.url)
 
         exp = profile["experience"]
@@ -808,7 +847,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         )
         if item_worth is None:
             item_worth = 0
-        money_worth = profile["scrap_metal"] + profile["copper"] * COPPER_SCRAP_RATE + profile["safe_scrap"]
+        money_worth = (
+            profile["scrap_metal"] + profile["copper"] * COPPER_SCRAP_RATE + profile["safe_scrap"]
+        )
         net_worth = item_worth + money_worth
 
         # Fields row 1
@@ -845,7 +886,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         )
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command(name="balance", description="Check a user's balance. Cash, item worth, and net.")
+    @nextcord.slash_command(
+        name="balance", description="Check a user's balance. Cash, item worth, and net."
+    )
     @cooldowns.cooldown(1, 8, SlashBucket.author, check=check_if_not_dev_guild)
     async def balance(
         self,
@@ -862,7 +905,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         db: Database = self.bot.db
         player = Player(db, user)
         if not await player.is_present():
-            await interaction.send_text("The user hasn't started playing BOSS yet! Maybe invite them over?")
+            await interaction.send_text(
+                "The user hasn't started playing BOSS yet! Maybe invite them over?"
+            )
             return
 
         scrap_metal, copper, safe_scrap, item_worth = await db.fetchrow(
@@ -901,11 +946,15 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
             item_worth,
         )
 
-        embed = interaction.Embed(title=f"{user.name}'s Balance", colour=EmbedColour.INFO, with_url=True)
+        embed = interaction.Embed(
+            title=f"{user.name}'s Balance", colour=EmbedColour.INFO, with_url=True
+        )
         # row 1
         embed.add_field(name="Scrap Metal", value=f"{SCRAP_METAL} {scrap_metal:,}")
         embed.add_field(name="Safe", value=f"{SCRAP_METAL} {safe_scrap:,}")
-        embed.add_field(name="Safe space", value=f"{SCRAP_METAL} {safe_space:,} ({used_safe}% full)")
+        embed.add_field(
+            name="Safe space", value=f"{SCRAP_METAL} {safe_space:,} ({used_safe}% full)"
+        )
         # row 2
         embed.add_field(name="Copper", value=f"{COPPER} {copper:,}")
         embed.add_field(name="Item worth", value=f"{SCRAP_METAL} {item_worth:,}")
@@ -916,7 +965,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         )
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command(description="See the richest men in the (BOSS) world, who is probably not Elon Musk.")
+    @nextcord.slash_command(
+        description="See the richest men in the (BOSS) world, who is probably not Elon Musk."
+    )
     @command_info(notes="This command is global. We will add a server-specific scope soon.")
     @cooldowns.cooldown(1, 20, SlashBucket.author, check=check_if_not_dev_guild)
     async def leaderboard(self, interaction: BossInteraction):
@@ -934,7 +985,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
             """,
             COPPER_SCRAP_RATE,
         )
-        embed = interaction.Embed(title="Net Worth Leaderboard", description="", colour=EmbedColour.INFO)
+        embed = interaction.Embed(
+            title="Net Worth Leaderboard", description="", colour=EmbedColour.INFO
+        )
         medal_emojis = {
             1: "🥇",
             2: "🥈",
@@ -957,7 +1010,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
             required=False,
             default=None,
         ),
-        page: int = SlashOption(description="The page to start in", required=False, min_value=1, default=1),
+        page: int = SlashOption(
+            description="The page to start in", required=False, min_value=1, default=1
+        ),
     ):
         """Check the backpack of your own or others."""
         if user == None:
@@ -977,23 +1032,32 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
             required=False,
             default=None,
         ),
-        page: int = SlashOption(description="The page to start in", required=False, min_value=1, default=1),
+        page: int = SlashOption(
+            description="The page to start in", required=False, min_value=1, default=1
+        ),
     ):
         """Check the chest of your own or others."""
         if user == None:
             user = interaction.user
-        await InventoryView.send(interaction=interaction, user=user, inv_type=constants.InventoryType.CHEST, page=page)
+        await InventoryView.send(
+            interaction=interaction, user=user, inv_type=constants.InventoryType.CHEST, page=page
+        )
 
     @nextcord.slash_command()
     @cooldowns.shared_cooldown("check_inv")
     async def vault(
         self,
         interaction: BossInteraction,
-        page: int = SlashOption(description="The page to start in", required=False, min_value=1, default=1),
+        page: int = SlashOption(
+            description="The page to start in", required=False, min_value=1, default=1
+        ),
     ):
         """Check the vault of your own."""
         await InventoryView.send(
-            interaction=interaction, user=interaction.user, inv_type=constants.InventoryType.VAULT, page=page
+            interaction=interaction,
+            user=interaction.user,
+            inv_type=constants.InventoryType.VAULT,
+            page=page,
         )
 
     @vault.before_invoke
@@ -1036,6 +1100,7 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         Should be used with try/except to catch errors when
         1) there are not enough items
         2) the slots are full
+        3) the player is trying to move battlegear that he/she equipped
         """
         db: Database = self.bot.db
         quantities_after = {}
@@ -1072,6 +1137,16 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
                     if quantities_after["from"] < 0:
                         raise MoveItemException("Not enough items to move!")
 
+                is_equipped_battlegear = await conn.fetchval(
+                    "SELECT EXISTS (SELECT item_id FROM players.battlegear WHERE player_id = $1 AND item_id = $2 LIMIT 1)",
+                    player_id,
+                    item_id,
+                )
+                if is_equipped_battlegear and quantities_after["from"] <= 0:
+                    raise MoveItemException(
+                        "You need at least 1 of the battlegear in your backpack."
+                    )
+
                 # moves item to to_place
                 quantities_after["to"] = await conn.fetchval(
                     """
@@ -1103,7 +1178,10 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
                 for inv_type, n_items in inv_items_count:
                     # transaction has not been committed, items are not updated
                     # so we check for the old values
-                    if item_to == inv_type == constants.InventoryType.BACKPACK.value and n_items >= 32:
+                    if (
+                        item_to == inv_type == constants.InventoryType.BACKPACK.value
+                        and n_items >= 32
+                    ):
                         raise MoveItemException("Backpacks only have 32 slots!")
                     if item_to == inv_type == constants.InventoryType.VAULT.value and n_items >= 5:
                         raise MoveItemException("Vaults only have 5 slots!")
@@ -1173,12 +1251,18 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
             icon_url=interaction.user.display_avatar.url,
         )
         embed.description = f">>> Item: **{item['name']}**"
-        embed.description += f"\nQuantity in {constants.InventoryType(item_from)}: `{quantities_after['from']}`"
-        embed.description += f"\nQuantity in {constants.InventoryType(item_to)}: `{quantities_after['to']}`"
+        embed.description += (
+            f"\nQuantity in {constants.InventoryType(item_from)}: `{quantities_after['from']}`"
+        )
+        embed.description += (
+            f"\nQuantity in {constants.InventoryType(item_to)}: `{quantities_after['to']}`"
+        )
         embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item['emoji_id']}.png")
         await msg.edit(embed=embed)
 
-    async def _change_balance(self, interaction: BossInteraction, action: Literal["deposit", "withdraw"], amount: int):
+    async def _change_balance(
+        self, interaction: BossInteraction, action: Literal["deposit", "withdraw"], amount: int
+    ):
         """Deposit or withdraw a user's scrap metals."""
         async with interaction.client.db.pool.acquire() as conn:
             async with conn.transaction():
@@ -1203,7 +1287,9 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
                     raise ValueError
 
         embed = interaction.Embed(colour=EmbedColour.DEFAULT)
-        embed.description = f"**{'Deposited' if action == 'deposit' else 'Withdrew'}**\n {SCRAP_METAL} {amount:,}"
+        embed.description = (
+            f"**{'Deposited' if action == 'deposit' else 'Withdrew'}**\n {SCRAP_METAL} {amount:,}"
+        )
         embed.add_field(name="Current Scrap Metals", value=f"{SCRAP_METAL} {new_scrap:,}")
         embed.add_field(name="Current Safe Balance", value=f"{SCRAP_METAL} {new_safe:,}")
         await interaction.send(embed=embed)
@@ -1217,7 +1303,8 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         ),
     ):
         scrap, safe = await interaction.client.db.fetchrow(
-            "SELECT scrap_metal, safe_scrap FROM players.players WHERE player_id = $1", interaction.user.id
+            "SELECT scrap_metal, safe_scrap FROM players.players WHERE player_id = $1",
+            interaction.user.id,
         )
         # calculated by complicated math:
         #   (safe + amt) / (scrap - amt) = 0.2  --> change subject
@@ -1304,19 +1391,239 @@ class ResourceRepository(commands.Cog, name="Resource Repository"):
         except ValueError:
             pass
 
+    @nextcord.slash_command(description="Protect yourself with battlegear!")
+    async def battlegear(self, interaction: BossInteraction):
+        # base commands will not be run
+        pass
+
+    async def choose_battlegear_autocomplete(self, interaction: BossInteraction, data: str):
+        """Returns a list of autocompleted choices of all the items in a user's backpack"""
+        db: Database = self.bot.db
+        items = await db.fetch(
+            """
+                SELECT i.*, CONCAT('<:_:', i.emoji_id, '>') AS emoji
+                FROM utility.items AS i
+                INNER JOIN utility.SearchItem($1) AS s
+                ON i.item_id = s.item_id
+                WHERE i.other_attributes ? 'battlegear_type'
+            """,
+            data if data else "",
+        )
+        await interaction.response.send_autocomplete([i["name"] for i in items][:25])
+
+    @battlegear.subcommand(description="Equip your battlegear")
+    async def equip(
+        self,
+        interaction: BossInteraction,
+        item_name: str = SlashOption(
+            name="item",
+            description="The battlegear to equip",
+            autocomplete_callback=choose_battlegear_autocomplete,
+        ),
+    ):
+        db: Database = self.bot.db
+        item = await db.fetchrow(self.GET_BACKPACK_SQL, interaction.user.id, item_name)
+
+        # perform some checks to see if the user can equip the battlegear
+        if item is None:
+            await interaction.send_text("The item does not exist.", EmbedColour.WARNING)
+            return
+        other_attributes = json.loads(item["other_attributes"])
+        if not (battlegear_type := other_attributes.get("battlegear_type")):
+            await interaction.send_text(
+                f"**{item['name']}** {item['emoji']} is not a piece of battlegear.",
+                EmbedColour.WARNING,
+            )
+            return
+        if item["quantity"] is None:
+            await interaction.send_text(
+                f"You don't have any **{item['name']}** {item['emoji']} in your backpack.",
+                EmbedColour.WARNING,
+            )
+            return
+
+        old_battlegear_id = await db.fetchval(
+            "SELECT item_id FROM players.battlegear WHERE player_id = $1 AND type = $2",
+            interaction.user.id,
+            battlegear_type,
+        )
+        # the user was previously using the same armour
+        if old_battlegear_id == item["item_id"]:
+            await interaction.send_text(
+                f"You have already equipped the **{item['name']}** {item['emoji']}!"
+            )
+            return
+
+        async def change_battlegear(*args, **kwargs):
+            await db.execute(
+                """
+                INSERT INTO players.battlegear
+                VALUES ($1, $2, $3)
+                ON CONFLICT(player_id, type) DO UPDATE
+                    SET item_id = $3
+                RETURNING (SELECT item_id FROM players.battlegear WHERE player_id = $1 AND type = $2) AS old_id
+                """,
+                interaction.user.id,
+                battlegear_type,
+                item["item_id"],
+            )
+            await interaction.send_text(
+                f"Your equipped {battlegear_type} is now {item['emoji']} **{item['name']}**.",
+                EmbedColour.SUCCESS,
+            )
+
+        # the user previously has not equipped any armour
+        if old_battlegear_id is None:
+            await change_battlegear()
+            return
+
+        old_battlegear = await db.fetchrow(
+            """
+            SELECT 
+            name, CONCAT('<:_:', emoji_id, '>') AS emoji
+            FROM utility.items
+            WHERE item_id = $1
+            """,
+            old_battlegear_id,
+        )
+        embed = interaction.Embed(
+            title="Pending Confirmation",
+            description=f"Do you want to replace {old_battlegear['emoji']} **{old_battlegear['name']}** with {item['emoji']} **{item['name']}** as your {battlegear_type}?",
+        )
+        # the armour is changed, so we ask the user for confirmation
+        await ConfirmView(
+            interaction=interaction, confirm_func=change_battlegear, embed=embed
+        ).send()
+
+    @battlegear.subcommand(description="Remove your equipped battlegear")
+    async def remove(
+        self,
+        interaction: BossInteraction,
+        battlegear_type: str = SlashOption(
+            name="battlegear-type",
+            description="The type of battlegear to remove",
+            choices=["helmet", "chestplate", "leggings", "boots", "sword"],
+        ),
+    ):
+        db: Database = self.bot.db
+        old_battlegear_id = await db.fetchval(
+            """
+            DELETE FROM players.battlegear
+            WHERE player_id = $1 AND type = $2
+            RETURNING item_id AS old_id
+            """,
+            interaction.user.id,
+            battlegear_type,
+        )
+        # the user previously has not equipped any armour
+        if old_battlegear_id is None:
+            await interaction.send_text(
+                f"You have not equipped any {battlegear_type} previously.", EmbedColour.WARNING
+            )
+            return
+        old_battlegear = await db.fetchrow(
+            """
+            SELECT 
+            name, CONCAT('<:_:', emoji_id, '>') AS emoji
+            FROM utility.items
+            WHERE item_id = $1
+            """,
+            old_battlegear_id,
+        )
+        # tell the users that the battlegear has been removed
+        await interaction.send_text(
+            f"Successfully un-equipped **{old_battlegear['name']}** {old_battlegear['emoji']}!"
+        )
+
+    @battlegear.subcommand(description="View a user's list of equipped battlegear")
+    async def view(
+        self,
+        interaction: BossInteraction,
+        user: nextcord.User = SlashOption(
+            description="The user to view the list of battlegear of. Leave this empty to check your own.",
+            required=False,
+        ),
+    ):
+        if not user:
+            user = interaction.user
+        db: Database = self.bot.db
+
+        async def get_embed():
+            battlegear = await db.fetch(
+                """
+                SELECT 
+                    type_name, 
+                    i.name AS item_name, 
+                    CASE 
+                        WHEN i.emoji_id IS NOT NULL THEN CONCAT('<:_:', i.emoji_id, '>')
+                        ELSE ''
+                    END AS emoji,
+                    i.other_attributes
+                FROM players.battlegear AS b
+                    RIGHT JOIN unnest(enum_range(NULL::utility.battlegear_type)) AS type_name
+                    ON b.type = type_name AND b.player_id = $1
+                    LEFT JOIN utility.items AS i
+                    ON b.item_id = i.item_id
+                    ORDER BY type_name
+                """,
+                user.id,
+            )
+            embed = interaction.Embed(
+                title=f"{user.name}'s Equipped Battlegear", colour=EmbedColour.INFO
+            )
+            player = Player(db, user)
+            armour_prot, weapon_dmg, combat = await player.calc_combat()
+
+            battlegear_msg = ""
+            max_name_len = max(len(i["item_name"] or i["type_name"]) for i in battlegear)
+            for i in battlegear:
+                battlegear_msg += (
+                    f"\n` {i['item_name'] :>{max_name_len}} ` {i['emoji']}"
+                    if i["item_name"]
+                    else f"\n_` {i['type_name'] :>{max_name_len}} `_"
+                )
+            embed.add_field(name="Battlegear", value=battlegear_msg)
+
+            COLOURS = {
+                80: 36,
+                50: 34,
+                20: 33,
+                0: 31,
+            }  # min_value: colour, must be sorted descending
+            get_colour = lambda x, max=100: next(
+                (v for k, v in COLOURS.items() if x / max >= k / 100), 0
+            )
+            get_colour_fmt = (
+                lambda value, max=100, format=2: f"[{format};{get_colour(value, max)}m{value}[0m"
+            )
+
+            combat_msg = "```ansi"
+            combat_msg += f"\nArmour Protection: {get_colour_fmt(armour_prot)}"
+            combat_msg += f"\nWeapon Damage: {get_colour_fmt(weapon_dmg, 30)}"
+            combat_msg += f"\n[1;40mOverall: {get_colour_fmt(combat, format=1)}"
+            combat_msg += f"\n```{helpers.create_pb(combat)}"
+            embed.add_field(name="Combat", value=combat_msg)
+
+            return embed
+
+        # create a view to let users reload the embed
+        view = BaseView(interaction, timeout=300)  # timeout is 5 minutes
+        button = Button(emoji="🔄")
+
+        async def reload_missions(btn_inter: BossInteraction):
+            await btn_inter.response.edit_message(embed=await get_embed())
+
+        button.callback = reload_missions
+        view.add_item(button)
+
+        await interaction.send(embed=await get_embed(), view=view)
+
 
 class MoveItemException(Exception):
     def __init__(self, text) -> None:
         self.text = text
 
 
-async def setup(bot: commands.Bot):
+def setup(bot: commands.Bot):
     cog = ResourceRepository(bot)
     bot.add_cog(cog)
-    # wait until the bot is ready, (has connected database), then set up the cog
-    try:
-        await bot.wait_for("ready", timeout=10)
-    except asyncio.TimeoutError:
-        logging.error("`Resource` timed out while setting up, the cog is not loaded.")
-        return
-    await cog.setup()

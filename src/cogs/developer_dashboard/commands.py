@@ -1,37 +1,32 @@
+# default modules
+from typing import Union
+
 # nextcord
 import nextcord
 from nextcord.ext import commands
 from nextcord import (
-    Embed,
     SlashOption,
     ButtonStyle,
     SlashApplicationCommand as SlashCmd,
     SlashApplicationSubcommand as SlashSubcmd,
-    CallbackWrapper,
-    BaseApplicationCommand,
-    CallbackWrapper,
-    BaseApplicationCommand,
 )
-from nextcord.ui import View, Button
+from nextcord.ui import Button
+
 
 # database
+import asyncpg
 from utils.postgres_db import Database
 
 # my modules and constants
 from utils import constants, helpers
-from utils.player import Player
+from utils.template_views import BaseView
 from utils.constants import EmbedColour
+from utils.player import Player
 from utils.helpers import BossInteraction, command_info
-
-# views and modals
-from .views import EditItemView, ConfirmItemDelete, EmojiView
-
-# default modules
-import json
-from typing import Union
+from .views import EditItemView, ConfirmItemDelete, EmojiView, check_input
 
 
-class DevOnly(commands.Cog, name="Developer Dashboard"):
+class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
     """Toolkit for developers to assist moderate the bot"""
 
     COG_EMOJI = "⚙️"
@@ -39,44 +34,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    def require_user_id(variable_name: str, default_to_author: bool = False):
-        """Checks if `variable_name` (the option that requires a user id) is valid before running the command,
-        and convert it into a `Player` object before running the command again."""
-
-        class RequireUserIdCmd(CallbackWrapper):
-            def modify(self, app_cmd: BaseApplicationCommand) -> None:
-                original_callback = self.callback
-
-                async def callback(*args, **kwargs):
-                    interaction: BossInteraction = args[1]
-                    user_id = kwargs[variable_name]
-
-                    if default_to_author and user_id is None:
-                        user = interaction.user
-                    else:
-                        user_id = int(user_id)
-                        try:
-                            user = await interaction.client.fetch_user(user_id)
-                        except (nextcord.NotFound, nextcord.HTTPException):
-                            await interaction.send_text("The user id is invalid"),
-                            return
-
-                    player = Player(interaction.client.db, user)
-                    if not await player.is_present():
-                        await interaction.send_text("The user doesn't play BOSS!"),
-                        return
-
-                    kwargs[variable_name] = player
-                    await original_callback(*args, **kwargs)
-
-                app_cmd.callback = callback
-
-        def wrapper(func):
-            return RequireUserIdCmd(func)
-
-        return wrapper
-
-    def cog_application_command_check(self, interaction: BossInteraction) -> bool:
+    def cog_application_command_check(self, interaction: nextcord.Interaction) -> bool:
         if interaction.guild_id:
             return interaction.guild_id == constants.DEVS_SERVER_ID
         else:
@@ -97,21 +55,20 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
     @nextcord.slash_command(name="modify", guild_ids=[constants.DEVS_SERVER_ID])
     async def modify(self, interaction: BossInteraction):
         """Modify users and items info."""
-        pass
 
     @modify.subcommand(name="user")
     async def modify_user(self, interaction: BossInteraction):
         """Edit a user's profile."""
-        pass
 
-    @modify_user.subcommand(name="currency", description="Modify or set a user's scrap metal and coppers")
-    @require_user_id("player", default_to_author=True)
+    @modify_user.subcommand(
+        name="currency", description="Modify or set a user's scrap metal and coppers"
+    )
     async def modify_currency(
         self,
         interaction: BossInteraction,
         currency_type: str = SlashOption(name="currency-type", choices=["scrap_metal", "copper"]),
-        amount: str = SlashOption(name="amount"),
-        player: str = SlashOption(name="user-id", required=False),
+        amount_str: str = SlashOption(name="amount"),
+        user: Union[nextcord.User, nextcord.Member, None] = SlashOption(required=False),
         set_or_modify: str = SlashOption(
             name="set-or-modify",
             description="Changes the user's scrap metal by a certain value or sets it to the value. DEFAULT: MODIFY",
@@ -120,36 +77,38 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             default="modify",
         ),
     ):
-        assert isinstance(player, Player)  # should be converted by `require_user_id()`
+        if not user:
+            user = interaction.user
         try:
-            amount = helpers.text_to_num(amount)
+            amount = helpers.text_to_num(amount_str)
         except ValueError:
             await interaction.send_text("The amount is invalid")
             return
+        player = Player(interaction.client.db, user)
         if not await player.is_present():
             await interaction.send_text("The user doesn't play BOSS")
             return
 
         if set_or_modify == "set":
             new_scrap = await player.set_currency(currency_type, amount)
-            msg = f"{interaction.user.mention} set `{player.user.name}`'s {currency_type} to **`{new_scrap:,}`**"
+            msg = f"{interaction.user.mention} set `{player.name}`'s {currency_type} to **`{new_scrap:,}`**"
         else:
             new_scrap = await player.modify_currency(currency_type, amount)
-            msg = f"{interaction.user.mention} set `{player.user.name}`'s {currency_type} to **`{new_scrap:,}`**, modified by {amount:,}"
+            msg = f"{interaction.user.mention} set `{player.name}`'s {currency_type} to **`{new_scrap:,}`**, modified by {amount:,}"
 
         embed = interaction.TextEmbed(msg, show_macro_msg=False)
         await interaction.send(embed=embed)
         await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(embed=embed)
 
     @modify_user.subcommand(name="experience", description="Set a user's experience")
-    @require_user_id("player", default_to_author=True)
     async def modify_experience(
         self,
         interaction: BossInteraction,
         experience: int = SlashOption(description="Level * 100 + experience", required=True),
-        player: str = SlashOption(name="user-id", required=False),
+        player: nextcord.User = SlashOption(required=False),
     ):
-        assert isinstance(player, Player)  # should be converted by `require_user_id()`
+        if not player:
+            player = interaction.user
         db: Database = self.bot.db
         await db.fetchval(
             """
@@ -158,26 +117,26 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             WHERE player_id = $2
             """,
             experience,
-            player.user.id,
+            player.id,
         )
         embed = interaction.TextEmbed(
-            f"{interaction.user.mention} set `{player.user.name}`'s experience to `{experience}`!",
+            f"{interaction.user.mention} set `{player.name}`'s experience to `{experience}`!",
             show_macro_msg=False,
         )
         await interaction.send(embed=embed)
         await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(embed=embed)
 
     @modify_user.subcommand(name="hunger", description="Set a user's hunger")
-    @require_user_id("player", default_to_author=True)
     async def modify_hunger(
         self,
         interaction: BossInteraction,
         hunger: int = SlashOption(
-            description="Hunger to set to. min - 0, max - 100", required=True, min_value=0, max_value=100
+            description="Hunger to set to.", required=True, min_value=0, max_value=100
         ),
-        player: str = SlashOption(name="user-id", required=False),
+        player: nextcord.User = SlashOption(required=False),
     ):
-        assert isinstance(player, Player)  # should be converted by `require_user_id()`
+        if not player:
+            player = interaction.user
         db: Database = self.bot.db
         await db.fetchval(
             """
@@ -186,26 +145,26 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             WHERE player_id = $2
             """,
             hunger,
-            player.user.id,
+            player.id,
         )
         embed = interaction.TextEmbed(
-            f"{interaction.user.mention} set `{player.user.name}`'s hunger to `{hunger}`!",
+            f"{interaction.user.mention} set `{player.name}`'s hunger to `{hunger}`!",
             show_macro_msg=False,
         )
         await interaction.send(embed=embed)
         await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(embed=embed)
 
     @modify_user.subcommand(name="health", description="Set a user's health")
-    @require_user_id("player", default_to_author=True)
     async def modify_health(
         self,
         interaction: BossInteraction,
         health: int = SlashOption(
-            description="Health to set to. min - 0, max - 100", required=True, min_value=0, max_value=100
+            description="Health to set to", required=True, min_value=0, max_value=100
         ),
-        player: str = SlashOption(name="user-id", required=False),
+        player: nextcord.User = SlashOption(required=False),
     ):
-        assert isinstance(player, Player)  # should be converted by `require_user_id()`
+        if not player:
+            player = interaction.user
         db: Database = self.bot.db
         await db.fetchval(
             """
@@ -214,10 +173,10 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             WHERE player_id = $2
             """,
             health,
-            player.user.id,
+            player.id,
         )
         embed = interaction.TextEmbed(
-            f"{interaction.user.mention} set `{player.user.name}`'s health to `{health}`!",
+            f"{interaction.user.mention} set `{player.name}`'s health to `{health}`!",
             show_macro_msg=False,
         )
         await interaction.send(embed=embed)
@@ -225,7 +184,6 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         await channel.send(embed=embed)
 
     @modify_user.subcommand(name="inventory")
-    @require_user_id("player", default_to_author=True)
     async def modify_inventory(
         self,
         interaction: BossInteraction,
@@ -233,7 +191,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             name="inventory-type",
             description="The type of inventory to edit",
             required=True,
-            choices=constants.InventoryType.to_dict(),
+            choices=constants.InventoryType,
         ),
         item_name: str = SlashOption(
             name="item",
@@ -241,10 +199,8 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
             required=True,
             autocomplete_callback=choose_item_autocomplete,
         ),
-        player: str = SlashOption(
-            name="user-id",
-            description="The id of the user whose inventory you want to edit, defaults to you",
-            required=False,
+        player: nextcord.User = SlashOption(
+            description="The user whose inventory you want to edit, defaults to you", required=False
         ),
         quantity: int = SlashOption(
             description="How many items to add or delete? defaults to 1",
@@ -257,7 +213,8 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         #   0 --> backpack (when die lose all stuff, only 32 slots)
         #   1 --> chest (when players attack base and lose some stuff, infinite slots)
         #   2 --> vault (will never be lost, only 5 slots)
-        assert isinstance(player, Player)  # should be converted by `require_user_id()`
+        if not player:
+            player = interaction.user
         db: Database = self.bot.db
         item = await db.fetchrow(self.GET_ITEM_SQL, item_name)
         if item is None:
@@ -281,7 +238,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                                     0
                                 ) As old 
                             """,
-                        player.user.id,
+                        player.id,
                         inv_type,
                         item["item_id"],
                         quantity,
@@ -297,7 +254,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                                 GROUP BY inv_type
                                 ORDER BY inv_type
                                 """,
-                            player.user.id,
+                            player.id,
                         )
                         # transaction has not been committed, items are not updated
                         backpack = constants.InventoryType.BACKPACK.value
@@ -305,13 +262,14 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                             raise MoveItemException("Backpacks only have 32 slots!")
                         vault = constants.InventoryType.VAULT.value
                         if inv_type == vault and inventory[vault]["items"] >= 5:
+                            raise MoveItemException("Vaults only have 5 slots!")
 
         except MoveItemException as e:
             await interaction.send_text(e.text)
             return
 
         embed = interaction.Embed(
-            title=f"{interaction.user.name} **UPDATED** `{player.user.name}'s {constants.InventoryType(inv_type)}`",
+            title=f"{interaction.user.name} **UPDATED** `{player.name}'s {constants.InventoryType(inv_type)}`",
             show_macro_msg=False,
         )
         embed.add_field(name="Item", value=item["name"], inline=False)
@@ -336,110 +294,88 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         name: str = SlashOption(required=True, min_length=2),
         description: str = SlashOption(required=True, min_length=2),
         emoji_id: str = SlashOption(required=True),
-        rarity: int = SlashOption(
-            choices=constants.ItemRarity.to_dict(),
-            required=False,
-            default=0,
+        rarity: str = SlashOption(
+            choices=[i.name for i in constants.ItemRarity], required=False, default=0
         ),
-        item_type: int = SlashOption(choices=constants.ItemType.to_dict(), required=False, default=1),
-        buy_price: str = SlashOption(required=False, default="0", description="0 --> unable to be bought"),
-        sell_price: str = SlashOption(required=False, default="0", description="0 --> unable to be sold"),
-        trade_price: str = SlashOption(required=False, default="0", description="0 --> unknown value"),
-        other_attributes: str = SlashOption(required=False, default="", description="in JSON format"),
+        item_type: str = SlashOption(
+            choices=[i.name for i in constants.ItemType], required=False, default=1
+        ),
+        buy_price: str = SlashOption(
+            required=False, default="0", description="0 --> unable to be bought"
+        ),
+        sell_price: str = SlashOption(
+            required=False, default="0", description="0 --> unable to be sold"
+        ),
+        trade_price: str = SlashOption(
+            required=False, default="0", description="0 --> unknown value"
+        ),
+        other_attributes: str = SlashOption(
+            required=False, default="", description="in JSON format"
+        ),
     ):
         errors = []
-        prices = {"buy": buy_price, "sell": sell_price, "trade": trade_price}
-        for k, price in prices.items():
-            # if value in one of these convert them from "2k" to 2000
+        values = {}
+        for column, user_input in {
+            "name": name,
+            "description": description,
+            "emoji_id": emoji_id,
+            "rarity": rarity,
+            "type": item_type,
+            "buy_price": buy_price,
+            "sell_price": sell_price,
+            "trade_price": trade_price,
+            "other_attributes": other_attributes,
+        }.items():
             try:
-                prices[k] = helpers.text_to_num(price)
-            except ValueError:
-                errors.append(
-                    f"The {k} price is not a valid number. Tip: use `2k` for _2,000_, `5m 4k` for _5,004,000_"
-                )
-        # change emoji id to int
-        if not emoji_id.isnumeric():
-            errors.append("The emoji id is invalid")
-        else:
-            emoji_id = int(emoji_id)
+                if (value := check_input(column, user_input)) is not None:
+                    values[column] = value
+            except ValueError as e:
+                errors.append(e.args[0])
 
-        # load the other attributes json text into dict
-        if other_attributes:
-            try:
-                _ = json.loads(other_attributes)
-            except json.JSONDecodeError:
-                errors.append("The format of `other attributes` are invalid.")
-            if not isinstance(_, dict):
-                errors.append("`Other attributes should be in a dictionary format.")
-                # `any()` should be more efficient than `all()` since if only 1 match is required
-                errors.append(
-                    f"Only these keys are available for the other attributes: \n```py{list(VALID_ATTR.keys())}```."
-                )
-            elif any(k for k, v in _.items() if not isinstance(v, VALID_ATTR[k])):
-                errors.append(
-                    f"The type of values for the other attributes should match this mapping: \n```py{VALID_ATTR}```."
-        else:
-            other_attributes = None
-
-        # if an error occured send a message and return the function
-        if len(errors) > 0:
-            embed = Embed()
+        # if it is an invalid value send a message and leave the function
+        if errors:
+            embed = interaction.Embed(description="")
             embed.set_author(name="The following error(s) occured:")
-            embed.description = ">>> "
             for index, error in enumerate(errors):
                 embed.description += f"{index + 1}. {error}\n"
             await interaction.send(embed=embed, ephemeral=True)
             return
 
         db: Database = self.bot.db
-        res = await db.fetchrow(
-            """
-            SELECT name
-            FROM utility.items
-            WHERE name = $1
-            """,
-            name,
-        )
-        if res:
+        if await db.fetchrow("SELECT name FROM utility.items WHERE name = $1", name):
             await interaction.send_text("An item with the same name exists. Rename the item.")
             return
 
         try:
-            item = await db.fetchrow(
-                """
-                INSERT INTO utility.items (name, description, emoji_id, buy_price, sell_price, trade_price, rarity, type, other_attributes)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                RETURNING *
-                """,
-                name,
-                description,
-                emoji_id,
-                prices["buy"],
-                prices["sell"],
-                prices["trade"],
-                rarity,
-                item_type,
-                other_attributes,
-            )
-        except Exception as e:
+            sql = (
+                "INSERT INTO utility.items ("
+                + ", ".join(values.keys())
+                + ") VALUES ("
+                + ", ".join(f"${i + 1}" for i, column in enumerate(values))
+                + ") RETURNING *"
+            )  # add each column into the query
+            item = await db.fetchrow(sql, *values.values())
+        except asyncpg.Exe as e:
             # only devs will be able to run this command, so it is safe to show the complete error message to them
             await interaction.send_text(f"{e.__class__.__name__}: {e}", EmbedColour.WARNING)
             return
 
         embed = helpers.get_item_embed(item)
+        view = BaseView(interaction)
 
-        view = View()
-
-        async def send_edit_item(interaction: BossInteraction):
-            client: nextcord.Client = interaction.client
-            cmds = client.get_all_application_commands()
-            modify_cmd: nextcord.SlashApplicationCommand = [cmd for cmd in cmds if cmd.name == "modify"][0]
-            edit_item_cmd = modify_cmd.children["item"].children["edit"]
-            await edit_item_cmd.invoke_callback(interaction, itemname=item["name"])
+        async def send_edit_item(btn_inter: BossInteraction):
+            await self.edit_item.invoke_callback(btn_inter, itemname=item["name"])
 
         edit_btn = Button(label="Edit", style=ButtonStyle.blurple)
         edit_btn.callback = send_edit_item
         view.add_item(edit_btn)
+
+        async def send_delete_item(btn_inter: BossInteraction):
+            await self.delete_item.invoke_callback(btn_inter, item=item["name"])
+
+        delete_btn = Button(label="Delete", style=ButtonStyle.blurple)
+        delete_btn.callback = send_delete_item
+        view.add_item(delete_btn)
 
         await interaction.send(embed=embed, view=view)
         await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(
@@ -512,21 +448,25 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         """Get the application ID of a slash command."""
         client: nextcord.Client = interaction.client
         cmds = client.get_all_application_commands()
-        command = [cmd for cmd in cmds if cmd.qualified_name == command_name and isinstance(cmd, SlashCmd)]
+        command = [
+            cmd for cmd in cmds if cmd.qualified_name == command_name and isinstance(cmd, SlashCmd)
+        ]
         if not command:
             await interaction.send_text("The command is not found")
             return
         command = command[0]
 
         command_id = list(command.command_ids.values())[0]
-        embed = interaction.Embed(title=command.get_mention(interaction.guild), description=f"> ID: `{command_id}`\n")
+        embed = interaction.Embed(
+            title=command.get_mention(interaction.guild), description=f"> ID: `{command_id}`\n"
+        )
 
         if not command.children:
-            embed.description += f"> Mention syntax: <\/{command.qualified_name}:{command_id}>"
+            embed.description += f"> Mention syntax: \\{command.get_mention(interaction.guild)}"
         else:
             subcmds = self.get_all_subcommands(command)
             mentions = [
-                f"{subcmd.get_mention(interaction.guild)}: \{subcmd.get_mention(interaction.guild)}"
+                f"{subcmd.get_mention(interaction.guild)}: \\{subcmd.get_mention(interaction.guild)}"
                 for subcmd in subcmds
             ]
             embed.description += "\n".join(mentions)
@@ -537,7 +477,7 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
                 guild = await self.bot.fetch_guild(guild_id)
                 guilds_str += f"{guild.name} `({guild_id})`\n"
         else:
-            guilds_str = f"**Global**"
+            guilds_str = "**Global**"
         embed.add_field(name="Servers", value=guilds_str)
         await interaction.send(embed=embed)
 
@@ -564,14 +504,18 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
 
         if not data:
             # return full list
-            await interaction.response.send_autocomplete(sorted([emoji.name for emoji in emojis])[:25])
+            await interaction.response.send_autocomplete(
+                sorted([emoji.name for emoji in emojis])[:25]
+            )
             return
         # send a list of nearest matches from the list of item
         near_emojis = sorted([emoji.name for emoji in emojis if data.lower() in emoji.name.lower()])
         await interaction.response.send_autocomplete(near_emojis[:25])
 
     @nextcord.slash_command(
-        name="emoji", description="Search for emojis in the server!", guild_ids=[constants.DEVS_SERVER_ID]
+        name="emoji",
+        description="Search for emojis in the server!",
+        guild_ids=[constants.DEVS_SERVER_ID],
     )
     @command_info(
         examples={
@@ -609,7 +553,9 @@ class DevOnly(commands.Cog, name="Developer Dashboard"):
         emoji_name = emoji_name.lower()
         # perform a search on emojis
         emojis_found = [
-            emoji for emoji in bot_emojis if emoji_name in emoji.name.lower() or emoji_name == str(emoji.id)
+            emoji
+            for emoji in bot_emojis
+            if emoji_name in emoji.name.lower() or emoji_name == str(emoji.id)
         ]
 
         emojis_found.sort(key=lambda emoji: emoji.name)
@@ -634,3 +580,4 @@ class MoveItemException(Exception):
 
 
 def setup(bot: commands.Bot):
+    bot.add_cog(DeveloperDashboard(bot))

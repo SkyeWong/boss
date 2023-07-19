@@ -1,13 +1,12 @@
+import datetime
+import random
+
 from nextcord import Embed
 from nextcord.ext import commands
 
-from utils import helpers
 from utils.player import Player
 from utils.helpers import BossInteraction
 from utils.constants import EmbedColour
-
-import datetime
-import random
 
 
 async def cmd_check(interaction: BossInteraction):

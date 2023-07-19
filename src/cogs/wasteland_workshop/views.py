@@ -1,22 +1,21 @@
-# nextcord
-import nextcord
-from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import View, Button, button, Select, select
-
-# my modules
-from utils.template_views import BaseView
-
-from numerize import numerize
-import pytz
-import googleapiclient.discovery
-
 # default modules
 import datetime
 from typing import Optional, Literal
 import enum
 import os
-import math
 import re
+
+# nextcord
+import nextcord
+from nextcord import Embed, Interaction, ButtonStyle, SelectOption
+from nextcord.ui import View, Button, button, Select, select
+
+from numerize import numerize
+import pytz
+import googleapiclient.discovery
+
+# my modules
+from utils.template_views import BaseView
 
 
 def get_weather_view(self, forecast):
@@ -151,7 +150,9 @@ class Video:
 
         link = f"https://www.youtube.com/watch?v={video_response['id']}"
         published_time = int(
-            datetime.datetime.strptime(video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
+            datetime.datetime.strptime(
+                video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ"
+            )
             .replace(tzinfo=datetime.timezone.utc)
             .astimezone(tz=None)
             .timestamp()
@@ -356,7 +357,9 @@ class VideoView(BaseView):
         api_version = "v3"
         dev_key = os.getenv("GOOGLE_API_KEY")
 
-        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+        youtube = googleapiclient.discovery.build(
+            api_service_name, api_version, developerKey=dev_key
+        )
         search_response = (
             youtube.search()
             .list(
@@ -371,7 +374,9 @@ class VideoView(BaseView):
         video_ids = [i["id"]["videoId"] for i in search_response["items"]]
 
         videos_response = (
-            youtube.videos().list(part="snippet,contentDetails,statistics", id=",".join(video_ids)).execute()
+            youtube.videos()
+            .list(part="snippet,contentDetails,statistics", id=",".join(video_ids))
+            .execute()
         )
 
         videos = [Video.from_api_response(video) for video in videos_response["items"]]
@@ -408,7 +413,9 @@ class ChannelVideoView(VideoView):
         next_page_token: str = None,
         list_index: int = 1,
     ):
-        super().__init__(slash_interaction, videos, "", prev_page_token, next_page_token, list_index)
+        super().__init__(
+            slash_interaction, videos, "", prev_page_token, next_page_token, list_index
+        )
         self.playlist_id = playlist_id
 
     async def show_video_list(self, interaction: Interaction, type: Literal["prev", "next"]):
@@ -416,16 +423,22 @@ class ChannelVideoView(VideoView):
         api_version = "v3"
         dev_key = os.getenv("GOOGLE_API_KEY")
 
-        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+        youtube = googleapiclient.discovery.build(
+            api_service_name, api_version, developerKey=dev_key
+        )
         playlist_response = (
-            youtube.playlistItems().list(part="contentDetails", playlistId=self.playlist_id, maxResults=25).execute()
+            youtube.playlistItems()
+            .list(part="contentDetails", playlistId=self.playlist_id, maxResults=25)
+            .execute()
         )
 
         videos_response = (
             youtube.videos()
             .list(
                 part="snippet,contentDetails,statistics",
-                id=",".join([video["contentDetails"]["videoId"] for video in playlist_response["items"]]),
+                id=",".join(
+                    [video["contentDetails"]["videoId"] for video in playlist_response["items"]]
+                ),
             )
             .execute()
         )
@@ -669,7 +682,9 @@ class NextTrainView(BaseView):
         embed.colour = colours.get(train.line, None)  # black for default
 
         arriving_station = [
-            name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.arriving_station
+            name
+            for name, code in LINE_STATION_CODES[train.line.value].items()
+            if code == train.arriving_station
         ][0]
         embed.title = f"Trains arriving at {arriving_station}"
 
@@ -678,7 +693,9 @@ class NextTrainView(BaseView):
         )  # + 1 because self.page uses zero-indexing
 
         destination_name = [
-            name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.destination
+            name
+            for name, code in LINE_STATION_CODES[train.line.value].items()
+            if code == train.destination
         ][0]
         embed.add_field(
             name="Destination",
@@ -691,7 +708,9 @@ class NextTrainView(BaseView):
         arrival_timestamp = int(train.arrival_time.timestamp())
         hk_tz = pytz.timezone("Asia/Hong_Kong")
         embed.add_field(
-            name="Arrival time" if train.arrival_time > datetime.datetime.now(tz=hk_tz) else "Departure time",
+            name="Arrival time"
+            if train.arrival_time > datetime.datetime.now(tz=hk_tz)
+            else "Departure time",
             value=f"<t:{arrival_timestamp}:t> • <t:{arrival_timestamp}:R>",
             inline=False,
         )

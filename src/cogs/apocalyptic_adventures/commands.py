@@ -1,7 +1,16 @@
+# default modules
+import random
+import asyncio
+import json
+import datetime
+from contextlib import suppress
+
 # nextcord
 import nextcord
 from nextcord.ext import commands
 from nextcord.ui import Button
+
+import pytz
 
 # slash command cooldowns
 import cooldowns
@@ -13,20 +22,11 @@ from utils.postgres_db import Database
 # my modules and constants
 from utils import helpers
 from utils.constants import CURRENCY_EMOJIS, EmbedColour
-from utils.helpers import check_if_not_dev_guild, BossItem, BossInteraction, command_info, work_in_progress
+from utils.helpers import check_if_not_dev_guild, BossItem, BossInteraction, command_info
 from utils.player import Player
 from utils.template_views import BaseView
 
 from .views import ScoutView
-
-import pytz
-
-# default modules
-import random
-import asyncio
-import json
-import datetime
-from contextlib import suppress
 
 
 class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
@@ -97,7 +97,9 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             mission_id (int): The id of the mission type.
         """
         db: Database = self.bot.db
-        reward_category = random.choices(list(loot_table.keys()), [i["chance"] for i in loot_table.values()])[0]
+        reward_category = random.choices(
+            list(loot_table.keys()), [i["chance"] for i in loot_table.values()]
+        )[0]
 
         if reward_category == "fail":
             await interaction.send_text(random.choice(fail_messages))
@@ -145,7 +147,10 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             ],
         },
         "rare": {"chance": 8, "rewards": [{"type": "item", "id": 21, "min": 1, "max": 1}]},  # boar
-        "epic": {"chance": 2, "rewards": [{"type": "item", "id": 20, "min": 1, "max": 1}]},  # dragon
+        "epic": {
+            "chance": 2,
+            "rewards": [{"type": "item", "id": 20, "min": 1, "max": 1}],
+        },  # dragon
     }
 
     @nextcord.slash_command()
@@ -212,7 +217,10 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
 
     MINE_LOOT = {
         "fail": {"chance": 40},
-        "common": {"chance": 35, "rewards": [{"type": "item", "id": 33, "min": 1, "max": 10}]},  # stone
+        "common": {
+            "chance": 35,
+            "rewards": [{"type": "item", "id": 33, "min": 1, "max": 10}],
+        },  # stone
         "uncommon": {
             "chance": 20,
             "rewards": [
@@ -220,7 +228,10 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
                 {"type": "item", "id": 44, "min": 1, "max": 5},  # iron ore
             ],
         },
-        "rare": {"chance": 5, "rewards": [{"type": "item", "id": 34, "min": 1, "max": 1}]},  # diamond ore
+        "rare": {
+            "chance": 5,
+            "rewards": [{"type": "item", "id": 34, "min": 1, "max": 1}],
+        },  # diamond ore
     }
 
     @nextcord.slash_command()
@@ -580,7 +591,9 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
                 await self.claim_missions(interaction.user)
                 missions = await self.fetch_missions(interaction.user)
             # Show the time when missions reset (the start of the next day)
-            start_of_next_day = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            start_of_next_day = (now + datetime.timedelta(days=1)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
             timestamp = int(start_of_next_day.timestamp())
 
             embed = interaction.Embed(title=f"{interaction.user.name}'s Daily Missions")
@@ -588,7 +601,9 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             for i in missions:
                 mission = self.MISSION_TYPES[i["mission_id"]]
                 embed.description += "✅" if i["finished"] else "❎"
-                embed.description += f" **{mission['description'].format(quantity=i['total_amount'])}**\n"
+                embed.description += (
+                    f" **{mission['description'].format(quantity=i['total_amount'])}**\n"
+                )
 
                 # generate the "reward" string
                 reward = json.loads(i["reward"])
@@ -617,6 +632,25 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
         view.add_item(button)
 
         await interaction.send(embed=await get_embed(), view=view)
+
+    @nextcord.slash_command(description="Steal another user's resource by raiding their base!")
+    @command_info(
+        long_help="When you use this command, a random user will be selected. Equip yourself with battlegear in /equip!"
+    )
+    async def raid(self, interaction: BossInteraction):
+        enemy_id = await interaction.client.db.fetchval(
+            """
+            SELECT p2.player_id as player2_id
+            FROM players.combat AS p1
+            INNER JOIN players.combat AS p2 ON p1.player_id <> p2.player_id
+            WHERE p1.player_id = $1
+            ORDER BY abs(p1.combat - p2.combat * RANDOM())
+            LIMIT 1
+            """,
+            interaction.user.id,
+        )
+        enemy = await interaction.client.get_or_fetch_user(enemy_id)
+        await interaction.send_text(f"You are in a match against {enemy.name}!")
 
 
 def setup(bot: commands.Bot):

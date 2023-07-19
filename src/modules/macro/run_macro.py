@@ -1,3 +1,7 @@
+# default modules
+import json
+from contextlib import suppress
+
 # nextcord
 import nextcord
 from nextcord.ext import commands
@@ -9,10 +13,6 @@ from utils import helpers
 from utils.constants import EmbedColour
 from utils.helpers import BossInteraction
 from utils.postgres_db import Database
-
-# default modules
-import json
-from contextlib import suppress
 
 
 class RunMacroView(View):
@@ -52,19 +52,27 @@ class RunMacroView(View):
             interaction.user.id,
             macro_name,
         )
-        if not res:  # the macro is not found. note that the user must own the macro in order to run it.
-            await interaction.send_text("Enter a valid macro name.", EmbedColour.WARNING, show_macro_msg=False)
+        if (
+            not res
+        ):  # the macro is not found. note that the user must own the macro in order to run it.
+            await interaction.send_text(
+                "Enter a valid macro name.", EmbedColour.WARNING, show_macro_msg=False
+            )
             return
 
         # if the user is already running a macro, we do not restart it.
         # instead, we send a message to them telling them
         if interaction.client.running_macro_views.get(interaction.user.id):
             # check whether the user is running a macro previously
-            await interaction.send_text("You are already running a macro!", EmbedColour.WARNING, show_macro_msg=False)
+            await interaction.send_text(
+                "You are already running a macro!", EmbedColour.WARNING, show_macro_msg=False
+            )
             return
         # if the user is recording a macro, we halt the execution and tell the user that they can't run a macro while recording one.
         if interaction.client.recording_macro_views.get(interaction.user.id):
-            await interaction.send_text("You cannot run a macro while recording one.", EmbedColour.WARNING)
+            await interaction.send_text(
+                "You cannot run a macro while recording one.", EmbedColour.WARNING
+            )
             return
 
         # create the view
@@ -80,18 +88,24 @@ class RunMacroView(View):
         #   ]
         # cmd["command"] stores the full name of the command ([parent names] + cmd name)
         # cmd["options"] stores the options passed into the command (which may be optional)
-        view.macro_cmds = [{"command": i["command_name"], "options": json.loads(i["options"])} for i in res]
+        view.macro_cmds = [
+            {"command": i["command_name"], "options": json.loads(i["options"])} for i in res
+        ]
         view.macro_id = res[0]["macro_id"]
         view.macro_name = res[0]["name"]
         view.cmd_index = 0
         # update the list of all `RunMacroView` views
         interaction.client.running_macro_views[interaction.user.id] = view
         # use interaction.send() and helpers.TextEmbed to avoid adding "<user> is running a /macro" message
-        await interaction.send_text(f"Started the macro **{view.macro_name}**.", show_macro_msg=False)
+        await interaction.send_text(
+            f"Started the macro **{view.macro_name}**.", show_macro_msg=False
+        )
 
     async def send_msg(self, interaction: BossInteraction):
         """Send a message containing a embed with the next commands and the view to let users run/end the macro."""
-        embed = interaction.Embed(title="Next commands:", description="", with_url=False, show_macro_msg=False)
+        embed = interaction.Embed(
+            title="Next commands:", description="", with_url=False, show_macro_msg=False
+        )
         # Slice and concatenate the next values,
         # this creates a list from the next command to the command before the one of `cmd_index`,
         # i.e. the next commands to run
@@ -99,7 +113,9 @@ class RunMacroView(View):
         next_3_cmds = next_cmds[:3]  # Slice the next three values
 
         for i in next_3_cmds:
-            cmd = helpers.find_command(interaction.client, i["command"])  # search for the command with the name
+            cmd = helpers.find_command(
+                interaction.client, i["command"]
+            )  # search for the command with the name
             # make a message denoting the options of the command
             if i["options"]:
                 options_msg = []
@@ -118,7 +134,9 @@ class RunMacroView(View):
             except ValueError:  # the command cannot be run in the guild
                 embed.description += f"\n- ~~/{i['command']}~~ (cannot be run)"
 
-        embed.set_footer(text=f"Running '{self.macro_name}' macro - {self.cmd_index + 1}/{len(self.macro_cmds)}")
+        embed.set_footer(
+            text=f"Running '{self.macro_name}' macro - {self.cmd_index + 1}/{len(self.macro_cmds)}"
+        )
 
         # set the label of the "run" button to the next command
         self.run_cmd_btn.label = f"Run /{self.macro_cmds[self.cmd_index]['command']}"
@@ -192,12 +210,16 @@ class RunMacroView(View):
             base_cmd = base_cmd.parent_cmd
         # check if the command can be run in the server
         if not (base_cmd.is_global or interaction.guild_id in base_cmd.guild_ids):
-            await interaction.send_text("This command could not be run in this server!", show_macro_msg=False)
+            await interaction.send_text(
+                "This command could not be run in this server!", show_macro_msg=False
+            )
             # the check fails and `after_invoke` is not run, so we manually send the message again
             await self.send_msg(interaction)
         else:
             # run the slash command. this will invoke it with the hooks (check, before_invoke, after_invoke)
-            await slash_cmd.invoke_callback_with_hooks(interaction._state, interaction, args=options)
+            await slash_cmd.invoke_callback_with_hooks(
+                interaction._state, interaction, args=options
+            )
         if interaction.attached.get("in_cooldown") or interaction.attached.get("reconnected"):
             # some checks of the command failed, we decrement the command index
             # basically reverse of what was done above

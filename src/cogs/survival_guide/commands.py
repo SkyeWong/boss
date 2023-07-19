@@ -1,3 +1,6 @@
+# default modules
+from typing import Union
+
 # nextcord
 import nextcord
 from nextcord.ext import commands
@@ -12,7 +15,6 @@ from nextcord import (
 from utils.postgres_db import Database
 
 # my modules and constants
-from utils import helpers, constants
 from utils.constants import EmbedColour
 from utils.helpers import BossInteraction, command_info
 from modules.macro.run_macro import RunMacroView
@@ -20,8 +22,6 @@ from modules.macro.show_macro import ShowMacrosView
 from modules.macro.record_macro import RecordMacroView
 
 from .views import HelpView, GuideView
-
-from typing import Union
 
 
 class SurvivalGuide(commands.Cog, name="Survival Guide"):
@@ -42,7 +42,9 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
                 cmd_names.append(subcmd)
         return cmd_names
 
-    async def choose_command_autocomplete(self, interaction: BossInteraction, data: str) -> list[str]:
+    async def choose_command_autocomplete(
+        self, interaction: BossInteraction, data: str
+    ) -> list[str]:
         """
         Return every command and subcommand in the bot.
         Returns command that match `data` if it is provided.
@@ -133,7 +135,9 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
                 full_desc += f"\n- {note}"
         if cmd.children:
             # this command has subcommands, send a list of the subcommands
-            view = HelpView(interaction, cmd_list=self.get_all_subcommands(cmd), with_select_menu=False)
+            view = HelpView(
+                interaction, cmd_list=self.get_all_subcommands(cmd), with_select_menu=False
+            )
             await view.send(
                 description=f"{full_desc}\n\n",
                 author_name=f"Subcommands of /{name}",
@@ -144,7 +148,9 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
             embed = self._get_command_embed(interaction, cmd, full_desc)
             await interaction.send(embed=embed)
 
-    def _get_command_embed(self, interaction: BossInteraction, cmd: Union[SlashCmd, SlashSubcmd], full_desc: str):
+    def _get_command_embed(
+        self, interaction: BossInteraction, cmd: Union[SlashCmd, SlashSubcmd], full_desc: str
+    ):
         embed = interaction.Embed(with_url=False)
         embed.title = cmd.get_mention(interaction.guild)
         embed.description = full_desc
@@ -196,7 +202,10 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
         interaction: BossInteraction,
         setting: str = SlashOption(
             description="The setting to change",
-            choices={"Sort the inventory by item worth": "inv_worth_sort", "Compact mode": "compact_mode"},
+            choices={
+                "Sort the inventory by item worth": "inv_worth_sort",
+                "Compact mode": "compact_mode",
+            },
         ),
         value: bool = SlashOption(description="The value to change to"),
     ):
@@ -243,7 +252,9 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
     async def start(
         self,
         interaction: BossInteraction,
-        macro: str = SlashOption(description="The macro to run.", autocomplete_callback=choose_macro_autocomplete),
+        macro: str = SlashOption(
+            description="The macro to run.", autocomplete_callback=choose_macro_autocomplete
+        ),
     ):
         await RunMacroView.start(interaction, macro_name=macro)
 

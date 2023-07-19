@@ -1,16 +1,16 @@
+# default modules
+import json
+
 # nextcord
 import nextcord
 from nextcord import Embed, Interaction, ButtonStyle, ApplicationCommandOptionType as OptionType
 from nextcord.ui import Button, button, TextInput
 
 # my modules
-from utils import constants, helpers
+from utils import helpers
 from utils.constants import EmbedColour
 from utils.helpers import TextEmbed
 from utils.template_views import BaseView, ConfirmView, BaseModal
-
-# default modules
-import json
 
 
 class ShowMacrosView(BaseView):
@@ -73,7 +73,9 @@ class ShowMacrosView(BaseView):
         # cmd["command"] stores the full name of the command ([parent names] + cmd name)
         # cmd["options"] stores the options passed into the command (which may be optional)
         for index, i in enumerate(macro_commands):
-            cmd = helpers.find_command(interaction.client, i["command"])  # search for the command with the name
+            cmd = helpers.find_command(
+                interaction.client, i["command"]
+            )  # search for the command with the name
             # make a message denoting the options
             if i["options"]:
                 options_msg = []
@@ -192,8 +194,10 @@ class ShowMacrosView(BaseView):
         # then run it with the name of the current macro
         macro_cmd = next(i for i in all_cmds if i.name == "macro")
         start_cmd = next(i for i in macro_cmd.children.values() if i.name == "start")
-        name, cmds = await self._get_macro()
-        await start_cmd.invoke_callback_with_hooks(macro_cmd._state, interaction, kwargs={"macro": name})
+        name, _ = await self._get_macro()
+        await start_cmd.invoke_callback_with_hooks(
+            macro_cmd._state, interaction, kwargs={"macro": name}
+        )
 
     @button(label="Remove", style=ButtonStyle.grey, custom_id="remove")
     async def remove(self, button: Button, interaction: Interaction):
@@ -214,7 +218,9 @@ class ShowMacrosView(BaseView):
             msg = await interaction.original_message()
             await msg.delete()
 
-            await btn_inter.send(embed=TextEmbed(f"Successfully removed the macro **{name}**!"), ephemeral=True)
+            await btn_inter.send(
+                embed=TextEmbed(f"Successfully removed the macro **{name}**!"), ephemeral=True
+            )
             # Reset the current page to 0, in case the new "page" may not be available (because the last macro is deleted)
             self.current_page = 0
             await self.update_msg(interaction)
@@ -230,7 +236,7 @@ class ShowMacrosView(BaseView):
                 macro_to_delete,
             )
 
-        name, cmds = await self._get_macro()
+        name, _ = await self._get_macro()
         macro_to_delete = self.macro_ids[self.current_page]
         # Send a message to let users confirm/cancel deleting the macro
         embed = TextEmbed(f"Remove the marco **{name}**?")
@@ -260,12 +266,16 @@ class ShowMacrosView(BaseView):
             # perform some checks before inserting the macro into the user's list
             if res is None:
                 await modal_inter.send(
-                    embed=TextEmbed("The macro with the given ID does not exist.", EmbedColour.WARNING), ephemeral=True
+                    embed=TextEmbed(
+                        "The macro with the given ID does not exist.", EmbedColour.WARNING
+                    ),
+                    ephemeral=True,
                 )
                 return
             if res["player_id"] is not None:
                 await modal_inter.send(
-                    embed=TextEmbed("You already own the macro.", EmbedColour.WARNING), ephemeral=True
+                    embed=TextEmbed("You already own the macro.", EmbedColour.WARNING),
+                    ephemeral=True,
                 )
                 return
 
@@ -286,13 +296,15 @@ class ShowMacrosView(BaseView):
             # the view will only have the "import" button.
             # Then `view.update_view()` will not work.
             # We also don't want to re-add the buttons to the view again.
-            view = self.__class__(interaction, self.macro_ids + [res["macro_id"]])  # append the imported macro
+            view = self.__class__(
+                interaction, self.macro_ids + [res["macro_id"]]
+            )  # append the imported macro
             view.update_view()
             embed = await view._get_embed(interaction)
             view.msg = await self.msg.edit(embed=embed, view=view)
 
         modal = BaseModal(
-            title=f"Importing a macro",
+            title="Importing a macro",
             inputs=[
                 TextInput(label="ID", required=True, custom_id="id"),
             ],

@@ -1,6 +1,11 @@
+# default modules
+import re
+import pytz
+import datetime
+
 # nextcord
 import nextcord
-from nextcord import Embed, ButtonStyle, SelectOption
+from nextcord import ButtonStyle, SelectOption
 from nextcord.ui import Button, button, Select, select, TextInput
 
 # database
@@ -13,13 +18,8 @@ from utils.helpers import BossCurrency, BossItem
 # my modules and constants
 from utils.template_views import BaseView, BaseModal
 from utils.player import Player
-from utils import constants, helpers
+from utils import constants
 from utils.helpers import TextEmbed, BossInteraction, BossEmbed
-
-# default modules
-import re
-import pytz
-import datetime
 
 
 class TradeView(BaseView):
@@ -111,7 +111,9 @@ class TradeView(BaseView):
         )
         time = datetime.datetime.strptime(comment, "%y-%m-%d %H:%M %Z")
         time = time.replace(tzinfo=pytz.UTC)
-        embed.set_footer(text="Trade with items in your backpack!\nVillagers reset every hour. Last updated")
+        embed.set_footer(
+            text="Trade with items in your backpack!\nVillagers reset every hour. Last updated"
+        )
         embed.timestamp = time
 
         demand_msg, supply_msg = await villager.format_trade()
@@ -224,7 +226,9 @@ class TradeView(BaseView):
         num_trades = []  # a list to store how many times the user can trade for each item
         for item in self.current_villager.demand:
             if isinstance(item, BossItem):
-                owned_quantity = next((i["quantity"] for i in inventory if i["item_id"] == item.id), 0)
+                owned_quantity = next(
+                    (i["quantity"] for i in inventory if i["item_id"] == item.id), 0
+                )
                 num_trades.append(owned_quantity // item.quantity)
             elif isinstance(item, BossCurrency):
                 num_trades.append(currencies[item.currency_type] // item.price)
@@ -245,7 +249,14 @@ class TradeView(BaseView):
 
         modal = BaseModal(
             title="Trade Custom Amount",
-            inputs=[TextInput(label="Times to trade", required=True, placeholder=max_num_trades, custom_id="input")],
+            inputs=[
+                TextInput(
+                    label="Times to trade",
+                    required=True,
+                    placeholder=max_num_trades,
+                    custom_id="input",
+                )
+            ],
             callback=modal_callback,
         )
         await interaction.response.send_modal(modal)
@@ -256,7 +267,9 @@ class TradeView(BaseView):
 
         # If there are no remaining trades for the villager, send a message to the player and return
         if current_villager.remaining_trades < trade_quantity:
-            await interaction.send_text(f"{current_villager.name} does not have that much stock.", ephemeral=True)
+            await interaction.send_text(
+                f"{current_villager.name} does not have that much stock.", ephemeral=True
+            )
             return
 
         db: Database = interaction.client.db
@@ -289,15 +302,21 @@ class TradeView(BaseView):
                                 required_price = multiplier * item.price * trade_quantity
                                 remaining_currency = (
                                     item.currency_type,
-                                    await player.modify_currency(item.currency_type, required_price),
+                                    await player.modify_currency(
+                                        item.currency_type, required_price
+                                    ),
                                 )
                             except ValueError:
                                 # The player does not have enough currency, send a message to the player and return
-                                await interaction.send_text("You don't have enough scrap metal.", ephemeral=True)
+                                await interaction.send_text(
+                                    "You don't have enough scrap metal.", ephemeral=True
+                                )
                                 return
                         elif isinstance(item, BossItem):
                             # get the quantity of the item the player owns with a generator expression
-                            owned_quantity = next((i["quantity"] for i in inventory if i["item_id"] == item.id), 0)
+                            owned_quantity = next(
+                                (i["quantity"] for i in inventory if i["item_id"] == item.id), 0
+                            )
                             try:
                                 # Add/remove the required amount of items to/from the player's inventory
                                 required_quantity = multiplier * item.quantity * trade_quantity

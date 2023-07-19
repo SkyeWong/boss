@@ -1,4 +1,3 @@
-# default modules
 from datetime import datetime
 from .maze_utils import ITEMS
 

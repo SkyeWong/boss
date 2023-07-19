@@ -1,3 +1,7 @@
+# default modules
+import json
+from contextlib import suppress
+
 # nextcord
 import nextcord
 from nextcord.ext import commands
@@ -5,15 +9,11 @@ from nextcord import ButtonStyle, ApplicationCommandOptionType as OptionType
 from nextcord.ui import Button, button, TextInput
 
 # my modules
-from utils import constants, helpers
+from utils import helpers
 from utils.constants import EmbedColour
 from utils.helpers import BossInteraction
 from utils.postgres_db import Database
 from utils.template_views import BaseView, ConfirmView, BaseModal
-
-# default modules
-import json
-from contextlib import suppress
 
 
 class RecordMacroView(BaseView):
@@ -35,7 +35,9 @@ class RecordMacroView(BaseView):
         self.recording_macro_id = recording_macro_id
         self.recorded_cmds = []
         self.latest_msg: nextcord.Message = None
-        self.saved_macro = False  # flag variable to show if the user has saved the currently recording macro
+        self.saved_macro = (
+            False  # flag variable to show if the user has saved the currently recording macro
+        )
         self.recording = True  # flag variable to show if the user is currently recording
 
     @classmethod
@@ -88,7 +90,9 @@ class RecordMacroView(BaseView):
 
         cmds_msg = ""
         for index, i in enumerate(self.recorded_cmds):
-            cmd = helpers.find_command(interaction.client, i["command"])  # search for the command with the name
+            cmd = helpers.find_command(
+                interaction.client, i["command"]
+            )  # search for the command with the name
             # make a message denoting the options
             if i["options"]:
                 options_msg = []
@@ -119,7 +123,9 @@ class RecordMacroView(BaseView):
         else:
             self.delete_cmd_btn.label = "Delete last command"
             self.delete_cmd_btn.disabled = True
-        self.latest_msg = await interaction.send(embed=await self._get_embed(interaction), view=self, ephemeral=True)
+        self.latest_msg = await interaction.send(
+            embed=await self._get_embed(interaction), view=self, ephemeral=True
+        )
 
     async def record(self, interaction: BossInteraction):
         cmd = interaction.application_command
@@ -156,9 +162,14 @@ class RecordMacroView(BaseView):
 
         # update the lsit of recorded commands
         self.recorded_cmds.append(
-            {"command": cmd.qualified_name, "options": {i.get("name"): i.get("value") for i in option_data}}
+            {
+                "command": cmd.qualified_name,
+                "options": {i.get("name"): i.get("value") for i in option_data},
+            }
         )
-        if len(self.recorded_cmds) == self.MAX_NUMBER_OF_COMMANDS:  # the max length of a macro has reached
+        if (
+            len(self.recorded_cmds) == self.MAX_NUMBER_OF_COMMANDS
+        ):  # the max length of a macro has reached
             await self.stop_recording.callback(interaction)
         else:
             # suppress the message not found error in case it is "dismissed" by the user (dismissed bcs it is a ephemeral message)
@@ -171,7 +182,9 @@ class RecordMacroView(BaseView):
         if len(self.recorded_cmds) == 0:
             # should not be run since if there are no commands the button should be disabled,
             # but still added nevertheless as a precaution
-            await interaction.send_text("There are no recorded commands.", ephemeral=True, delete_after=5)
+            await interaction.send_text(
+                "There are no recorded commands.", ephemeral=True, delete_after=5
+            )
             return
 
         # pop the last command and notify the user that it has been deleted
@@ -200,7 +213,9 @@ class RecordMacroView(BaseView):
                 or when the modal has timed out,
                 or when there are no commands recorded
             """
-            await self.db.execute("DELETE FROM players.macros WHERE macro_id = $1", self.recording_macro_id)
+            await self.db.execute(
+                "DELETE FROM players.macros WHERE macro_id = $1", self.recording_macro_id
+            )
 
         self.recording = False
         # remove the player from the list of all `RecordMacroViews`
@@ -270,7 +285,11 @@ class RecordMacroView(BaseView):
 
             modal = BaseModal(
                 title="Saving macro",
-                inputs=[TextInput(label="Name", required=True, min_length=3, max_length=30, custom_id="input")],
+                inputs=[
+                    TextInput(
+                        label="Name", required=True, min_length=3, max_length=30, custom_id="input"
+                    )
+                ],
                 callback=modal_callback,
             )
             modal.on_timeout = on_timeout

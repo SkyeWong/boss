@@ -1,3 +1,7 @@
+# default modules
+import random
+import dataclasses
+
 # nextcord
 import nextcord
 from nextcord.ext import commands
@@ -7,26 +11,20 @@ from nextcord import Interaction, SlashOption, Embed
 import cooldowns
 from cooldowns import SlashBucket
 
+import aiohttp
+
 # my modules and constants
 from utils import constants, helpers
 from utils.helpers import check_if_not_dev_guild, TextEmbed, command_info
 
 # command views
 from .views import (
-    # FightPlayer,
-    # FightView,
     TriviaQuestion,
     TriviaView,
 )
 
 # maze
 from modules.maze.maze import Maze
-
-import aiohttp
-
-# default modules
-import random
-import dataclasses
 
 
 class SurvivorsPlayground(commands.Cog, name="Survivor's Playground"):
@@ -62,7 +60,9 @@ class SurvivorsPlayground(commands.Cog, name="Survivor's Playground"):
         elif second < first:
             first, second = second, first
         elif second == first:
-            await interaction.send(embed=TextEmbed("BOTH numbers are the same! What do you expect me to do?"))
+            await interaction.send(
+                embed=TextEmbed("BOTH numbers are the same! What do you expect me to do?")
+            )
             return
 
         number = random.randint(first, second)
@@ -88,7 +88,9 @@ class SurvivorsPlayground(commands.Cog, name="Survivor's Playground"):
             embed.set_thumbnail(url="https://i.imgur.com/VcqwLpT.png")
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command(name="8ball", description="I can tell you the future and make decisions! 🎱")
+    @nextcord.slash_command(
+        name="8ball", description="I can tell you the future and make decisions! 🎱"
+    )
     @command_info(
         long_help="This shows a random response from the classic 8ball.",
         examples={
@@ -99,7 +101,9 @@ class SurvivorsPlayground(commands.Cog, name="Survivor's Playground"):
     async def eight_ball(
         self,
         interaction: Interaction,
-        question: str = SlashOption(name="question", description="Something to ask me...", max_length=100),
+        question: str = SlashOption(
+            name="question", description="Something to ask me...", max_length=100
+        ),
     ):
         RESPONSES = {
             "yes": [
@@ -147,32 +151,9 @@ class SurvivorsPlayground(commands.Cog, name="Survivor's Playground"):
         embed.add_field(name=f"_{question}_", value=f"\n```ansi\n{response}\n[0m\n```")
         await interaction.send(embed=embed)
 
-    # @nextcord.slash_command(name="fight", description="Fight with another user!")
-    # @cooldowns.cooldown(1, 60, SlashBucket.author, check=check_if_not_dev_guild)
-    # async def fight(
-    #     self,
-    #     interaction: Interaction,
-    #     user: nextcord.User = SlashOption(
-    #         description="The user to fight with",
-    #     ),
-    # ):
-    #     if interaction.user == user:
-    #         await interaction.send("Who are you fighting with, not... yourself? 😂", ephemeral=True)
-    #         return
-    #     if user.bot:
-    #         await interaction.send(
-    #             "Why are you fighting with a bot?! ||We might be implementing an AI soon tho...||",
-    #             ephemeral=True,
-    #         )
-    #         return
-
-    #     players = [FightPlayer(interaction.user), FightPlayer(user)]
-    #     view = FightView(interaction, *players)
-    #     embed = view.get_embed()
-    #     await interaction.send(embed=embed, view=view)
-    #     view.msg = await interaction.original_message()
-
-    @nextcord.slash_command(name="trivia", description="Test your knowledge with a random trivia question!")
+    @nextcord.slash_command(
+        name="trivia", description="Test your knowledge with a random trivia question!"
+    )
     @command_info(
         long_help="This fetches a question from [Open Trivia DB](https://opentdb.com/).",
         examples={

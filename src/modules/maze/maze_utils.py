@@ -1,9 +1,9 @@
-# nextcord
-from nextcord import Interaction, Embed
-
 # default modules
 import itertools
 import random
+
+# nextcord
+from nextcord import Interaction, Embed
 
 
 class Cell:
@@ -110,7 +110,9 @@ class Drill(MazeItem):
         x, y = player.get_new_position()
         if player.hp <= 50:
             await interaction.send(
-                embed=Embed(description="You sure you gonna drill through the wall? You seem a bit low dude"),
+                embed=Embed(
+                    description="You sure you gonna drill through the wall? You seem a bit low dude"
+                ),
                 ephemeral=True,
                 delete_after=3,
             )
@@ -120,7 +122,9 @@ class Drill(MazeItem):
             view.maze_map[y][x] = 0
             player.hp -= 50
         else:
-            await interaction.send(embed=Embed(description="That's not a wall bruh."), ephemeral=True, delete_after=3)
+            await interaction.send(
+                embed=Embed(description="That's not a wall bruh."), ephemeral=True, delete_after=3
+            )
             return False
 
         embed = view.get_embed()

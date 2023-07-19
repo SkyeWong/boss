@@ -1,18 +1,20 @@
-# nextcord
-import nextcord
-from nextcord.ext import commands
-from nextcord import Embed, Interaction
+# default modules
+import asyncio
+import os
+import random
+import sys
+import logging
+from datetime import timezone
+from typing import Union, Optional
 
-# nextcord cooldowns
+# third-party
+import nextcord
+from nextcord import Embed, Interaction
+from nextcord.ext import commands
+
 from cooldowns import CallableOnCooldown
 
-# nested asyncio --> perform multiple asyncs at once
 import nest_asyncio
-
-# creates a flask app, which
-#   lets uptimerobot ping the app to make it stay up, and
-#   uploads the boss' website (https://boss-bot.onrender.com/) to the internet
-from keep_alive import keep_alive
 
 # my modules
 from utils import constants, helpers
@@ -21,14 +23,10 @@ from utils.helpers import BossInteraction
 from utils.postgres_db import Database
 from modules.macro.run_macro import RunMacroView
 
-# default modules
-import asyncio
-import os
-import random
-import sys
-import logging
-from typing import Union, Optional
-from datetime import timezone
+# creates a flask app, which
+#   lets uptimerobot ping the app to make it stay up, and
+#   uploads the boss' website (https://boss-bot.onrender.com/) to the internet
+from keep_alive import keep_alive
 
 
 nest_asyncio.apply()
@@ -59,6 +57,7 @@ class BossBot(commands.Bot):
 
         self.db = Database()
         self.pool = self.db.pool
+        self.has_connected_db = asyncio.Event()
 
     async def on_ready(self):
         if not self.persistent_views_added:
@@ -70,6 +69,7 @@ class BossBot(commands.Bot):
         # Connect to the bot database
         if not self.db.connected:
             self.pool = await self.db.connect()
+        self.has_connected_db.set()
 
         logging.info(
             f"\033[1;36m{self.user.name} (ID: {self.user.id})\033[0m has connected to discord \033[0;34min {len(self.guilds)} servers!\033[0m"
@@ -116,7 +116,9 @@ class BossBot(commands.Bot):
         logging.error("An error occured", exc_info=exc)
 
     @staticmethod
-    async def get_or_fetch_member(guild: nextcord.Guild, member_id: int) -> Union[nextcord.Member, None]:
+    async def get_or_fetch_member(
+        guild: nextcord.Guild, member_id: int
+    ) -> Union[nextcord.Member, None]:
         """Looks up a member in cache or fetches if not found. If the member is not in the guid, returns `None`."""
         member = guild.get_member(member_id)
         if member is not None:
@@ -128,7 +130,12 @@ class BossBot(commands.Bot):
     async def get_or_fetch_channel(
         self, channel_id: int
     ) -> Optional[
-        Union[nextcord.abc.GuildChannel, nextcord.Thread, nextcord.abc.PrivateChannel, nextcord.PartialMessageable]
+        Union[
+            nextcord.abc.GuildChannel,
+            nextcord.Thread,
+            nextcord.abc.PrivateChannel,
+            nextcord.PartialMessageable,
+        ]
     ]:
         """Looks up a channel in cache or fetches if not found."""
         channel = self.get_channel(channel_id)
@@ -171,9 +178,7 @@ def get_cooldown_embed(interaction: Interaction, error: CallableOnCooldown) -> E
     embed.title = random.choice(titles)
     command = interaction.application_command
     resets_at = error.resets_at.replace(tzinfo=timezone.utc).astimezone()
-    embed.description = (
-        f"You can use {command.get_mention(interaction.guild)} again <t:{int(resets_at.timestamp())}:R>!"
-    )
+    embed.description = f"You can use {command.get_mention(interaction.guild)} again <t:{int(resets_at.timestamp())}:R>!"
     embed.colour = EmbedColour.WARNING
     return embed
 
@@ -193,7 +198,8 @@ async def main():
     handler.setLevel(logging.INFO)
     handler.setFormatter(
         logging.Formatter(
-            "\033[1;30m{asctime} ({name}, {levelname}) - \033[0m{message}", datefmt="%d/%m/%y %H:%M", style="{"
+            "\033[1;30m%(asctime)s (%(name)s, %(levelname)s) - \033[0m%(message)s",
+            datefmt="%d/%m/%y %H:%M",
         )
     )
     nextcord_logger.addHandler(handler)

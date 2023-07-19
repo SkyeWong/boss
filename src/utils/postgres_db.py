@@ -1,11 +1,10 @@
+import os
+import asyncio
+import logging
+
 import asyncpg
 from asyncpg import Pool
 
-from utils import helpers
-
-import asyncio
-import os
-import logging
 
 POSTGRES_PW = os.getenv("POSTGRES_PW")
 

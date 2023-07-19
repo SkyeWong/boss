@@ -1,20 +1,22 @@
+"""Module providing an interface for commonly-used player actions with the database."""
+# default modules
+from typing import Literal
+import json
+from datetime import datetime
+
 # nextcord
 import nextcord
 from nextcord import Interaction, Embed
 
 # database
-from utils.postgres_db import Database
 import asyncpg
 
-# my modules
-from utils import helpers, constants
-from utils.helpers import BossItem
-from utils.constants import EmbedColour, SCRAP_METAL
 
-# default modules
-from typing import Literal
-import json
-from datetime import datetime
+# my modules
+from utils import constants
+from utils.helpers import BossItem
+from utils.postgres_db import Database
+from utils.constants import EmbedColour, SCRAP_METAL
 
 
 class Player:
@@ -64,8 +66,8 @@ class Player:
                 value,
                 self.user.id,
             )
-        except asyncpg.exceptions.CheckViolationError:
-            raise ValueError
+        except asyncpg.exceptions.CheckViolationError as e:
+            raise ValueError from e
 
     async def modify_scrap(self, value: int):
         """The shorthand function for `Player.modify_currency("scrap_metal", value)`."""
@@ -91,8 +93,8 @@ class Player:
                 value,
                 self.user.id,
             )
-        except asyncpg.exceptions.CheckViolationError:
-            raise ValueError
+        except asyncpg.exceptions.CheckViolationError as e:
+            raise ValueError from e
 
     async def set_scrap(self, value: int):
         """The shorthand function for `Player.set_currency("scrap_metal", value)`."""
@@ -223,6 +225,10 @@ class Player:
         return quantity
 
     async def update_missions(self, interaction: Interaction, mission_id: int, amount: int = 1):
+        """
+        Update the mission progress of a user with the given id,
+        and an optional amount to update.
+        """
         # if the user has a mission of the type of the command, update its progress
         mission = await self.db.fetchrow(
             """
@@ -238,16 +244,15 @@ class Player:
         if mission is None:  # the mission does not exist
             return
 
-        # check whether the mission has been finished (finished > total) and check that it has not been finished before
-        if mission["finished_amount"] >= mission["total_amount"] and mission["finished"] == False:
+        # check whether the mission has been finished (finished > total)
+        # and check that it has not been finished before
+        if mission["finished_amount"] >= mission["total_amount"] and not mission["finished"]:
             cog = interaction.client.get_cog("Apocalyptic Adventures")
 
             embed = Embed(colour=EmbedColour.SUCCESS)
             embed.set_thumbnail("https://i.imgur.com/OzmCuvW.png")
             embed.description = "### You completed a mission!\n"
-            embed.description += (
-                f"- Mission: {cog.MISSION_TYPES[mission_id]['description'].format(quantity=mission['total_amount'])}\n"
-            )
+            embed.description += f"- Mission: {cog.MISSION_TYPES[mission_id]['description'].format(quantity=mission['total_amount'])}\n"
 
             # generate the "reward" string
             reward = json.loads(mission["reward"])
@@ -262,3 +267,9 @@ class Player:
             embed.description += f"You received {reward_msg}\n"
 
             await interaction.send(embed=embed, ephemeral=True)
+
+    async def calc_combat(self):
+        return await self.db.fetchrow(
+            "SELECT armour_protection, weapon_damage, combat FROM players.combat WHERE player_id = $1",
+            self.user.id,
+        )

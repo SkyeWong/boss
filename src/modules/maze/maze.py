@@ -1,8 +1,18 @@
+# default modules
+import random
+import math
+from datetime import datetime
+import asyncio
+import re
+
 # nextcord
 import nextcord
 from nextcord import Embed, Interaction, ButtonStyle, SelectOption
 from nextcord.ui import View, Button, button, Select, select, TextInput
 
+# mazelib
+from mazelib import Maze as Mazelib
+from mazelib.generate.Prims import Prims
 
 # my modules and constants
 from utils.template_views import BaseView, BaseModal
@@ -14,17 +24,6 @@ from utils.helpers import BossItem, BossCurrency, TextEmbed, EmbedColour
 from .maze_player import MazePlayer
 from .maze_enemies import MazeEnemy
 from .maze_utils import ITEMS, MazeItem
-
-# mazelib
-from mazelib import Maze as Mazelib
-from mazelib.generate.Prims import Prims
-
-# default modules
-import random
-import math
-from datetime import datetime
-import asyncio
-import re
 
 
 class MazeButton(Button["Maze"]):
@@ -120,7 +119,9 @@ class MazeButton(Button["Maze"]):
                 while player.walking == True:  # if player walked, continue to do so
                     if player.hunger < 30:  # stop running if hunger is too low
                         await interaction.send(
-                            embed=TextEmbed("I'm too tired to run! Find some food before sprinting again."),
+                            embed=TextEmbed(
+                                "I'm too tired to run! Find some food before sprinting again."
+                            ),
                             ephemeral=True,
                         )
                         break
@@ -184,7 +185,7 @@ class MazeButton(Button["Maze"]):
             embed = Embed()
             embed.set_author(name="Inventory")
             embed.add_field(name="Item", value="`not selected`")
-            inv_view = InvView(view)
+            inv_view = MazeInvView(view)
             inv_view.msg = await interaction.send(embed=embed, view=inv_view, ephemeral=True)
         elif "compass" in self.custom_id:
             embed = Embed()
@@ -199,7 +200,9 @@ class MazeButton(Button["Maze"]):
         embed.colour = random.choice(constants.EMBED_COLOURS)
         return embed
 
-    async def check_in_cooldown(self, interaction: Interaction, action: str, action_gerund: str = None):
+    async def check_in_cooldown(
+        self, interaction: Interaction, action: str, action_gerund: str = None
+    ):
         player = self.player
         cd = (datetime.now() - player.cooldowns[action][0]).total_seconds()
         if cd < player.cooldowns[action][1]:
@@ -230,7 +233,12 @@ class MazeButton(Button["Maze"]):
 class Maze(BaseView):
     """Shows buttons to control a player in Maze."""
 
-    def __init__(self, interaction, size: tuple[int] = (12, 12), rewards: list[BossItem | BossCurrency] = None):
+    def __init__(
+        self,
+        interaction,
+        size: tuple[int] = (12, 12),
+        rewards: list[BossItem | BossCurrency] = None,
+    ):
         """
         `1.` Initalise the player, enemies and the view.
 
@@ -313,14 +321,20 @@ class Maze(BaseView):
         while True:
             enemy.x = random.randint(1, len(self.maze_map[0])) - 1
             enemy.y = random.randint(1, len(self.maze_map)) - 1
-            distance_with_player = math.sqrt((self.player.x - enemy.x) ** 2 + (self.player.y - enemy.y) ** 2)
-            if (self.maze_map[enemy.y][enemy.x] not in enemy.unwalkable_cells) and (distance_with_player > 5):
+            distance_with_player = math.sqrt(
+                (self.player.x - enemy.x) ** 2 + (self.player.y - enemy.y) ** 2
+            )
+            if (self.maze_map[enemy.y][enemy.x] not in enemy.unwalkable_cells) and (
+                distance_with_player > 5
+            ):
                 break
         enemy.move.start()
         self.enemies.append(enemy)
 
     def spawn_item(self):
-        item = random.choices(list(ITEMS.values()), [item.spawn_chance for item in ITEMS.values()])[0]
+        item = random.choices(list(ITEMS.values()), [item.spawn_chance for item in ITEMS.values()])[
+            0
+        ]
         while True:
             x = random.randint(1, len(self.maze_map[0])) - 1
             y = random.randint(1, len(self.maze_map)) - 1
@@ -394,17 +408,26 @@ class Maze(BaseView):
                     boss_player = BossPlayer(db, self.interaction.user)
                     if isinstance(i, BossItem):
                         await boss_player.add_item(i.id, i.quantity)
-                        reward_msg += f"\n- ` {i.quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"
+                        reward_msg += (
+                            f"\n- ` {i.quantity}x ` {await i.get_emoji(db)} {await i.get_name(db)}"
+                        )
                     else:
                         await boss_player.modify_currency(i.currency_type, i.price)
-                        reward_msg += f"\n- {constants.CURRENCY_EMOJIS[i.currency_type]} {i.price:,}"
+                        reward_msg += (
+                            f"\n- {constants.CURRENCY_EMOJIS[i.currency_type]} {i.price:,}"
+                        )
 
             await interaction.send(
-                embed=TextEmbed("### Congrats, you won! 🎉🎉🎉" + (f"\nYou also got:{reward_msg}" if reward_msg else "")),
+                embed=TextEmbed(
+                    "### Congrats, you won! 🎉🎉🎉"
+                    + (f"\nYou also got:{reward_msg}" if reward_msg else "")
+                ),
                 ephemeral=True,
             )
 
-        if item := [item for item in self.items if player.x == item.x and player.y == item.y]:  # picked up item
+        if item := [
+            item for item in self.items if player.x == item.x and player.y == item.y
+        ]:  # picked up item
             item: MazeItem = item[0]
             self.items.remove(item)
 
@@ -467,12 +490,16 @@ class Maze(BaseView):
                     camera_str += camera[y][x]
 
                 elif item := [
-                    item for item in self.items if x + x_start_index == item.x and y + y_start_index == item.y
+                    item
+                    for item in self.items
+                    if x + x_start_index == item.x and y + y_start_index == item.y
                 ]:
                     camera_str += item[0].emoji
 
                 elif enemy := [
-                    enemy for enemy in self.enemies if x + x_start_index == enemy.x and y + y_start_index == enemy.y
+                    enemy
+                    for enemy in self.enemies
+                    if x + x_start_index == enemy.x and y + y_start_index == enemy.y
                 ]:
                     camera_str += enemy[0].emoji
 
@@ -551,7 +578,7 @@ class Maze(BaseView):
             await self.message.edit(embed=embed, view=self)
 
 
-class InvView(View):
+class MazeInvView(View):
     def __init__(self, maze: Maze):
         super().__init__()
         self.maze = maze
@@ -636,13 +663,17 @@ class InvView(View):
     async def use_max_item(self, button: Button, interaction: Interaction):
         await self._use_item(interaction, self.max_quantity)
 
-    @button(label="Use custom amount", style=ButtonStyle.blurple, disabled=True, custom_id="use_custom")
+    @button(
+        label="Use custom amount", style=ButtonStyle.blurple, disabled=True, custom_id="use_custom"
+    )
     async def use_custom_item(self, button: Button, interaction: Interaction):
         async def modal_callback(modal_interaction: Interaction):
             text_input = [i for i in modal.children if i.custom_id == "input"][0]
             quantity: str = text_input.value
             if re.search(r"\D", quantity):
-                await modal_interaction.send(embed=TextEmbed("That's not a number."), ephemeral=True)
+                await modal_interaction.send(
+                    embed=TextEmbed("That's not a number."), ephemeral=True
+                )
             else:
                 quantity = int(quantity)
                 if quantity > self.max_quantity:
@@ -659,7 +690,10 @@ class InvView(View):
             title="Use Custom Amount",
             inputs=[
                 TextInput(
-                    label="Times to use the item for", required=True, placeholder=self.max_quantity, custom_id="input"
+                    label="Times to use the item for",
+                    required=True,
+                    placeholder=self.max_quantity,
+                    custom_id="input",
                 )
             ],
             callback=modal_callback,

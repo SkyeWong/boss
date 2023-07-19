@@ -1,3 +1,7 @@
+# default modules
+from typing import Optional, Callable, Literal
+from contextlib import suppress
+
 # nextcord
 import nextcord
 from nextcord import Embed, ButtonStyle
@@ -6,10 +10,6 @@ from nextcord.ui import View, Button, button, Modal, TextInput
 # my modules and constants
 from utils.player import Player
 from utils.helpers import BossInteraction
-
-# default modules
-from typing import Optional, Callable, Literal
-from contextlib import suppress
 
 
 class BaseView(View):
@@ -73,7 +73,9 @@ class ConfirmView(BaseView):
         await self.player.set_in_inter(True)
         return message
 
-    async def _btn_response(self, interaction: BossInteraction, action: Literal["confirm", "cancel"]):
+    async def _btn_response(
+        self, interaction: BossInteraction, action: Literal["confirm", "cancel"]
+    ):
         if action not in {"confirm", "cancel"}:
             raise ValueError("Action must be one of 'confirm' or 'cancel'.")
 

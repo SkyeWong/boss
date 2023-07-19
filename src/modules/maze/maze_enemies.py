@@ -1,17 +1,13 @@
-# nextcord
-from nextcord.ext import tasks
-
 # default modules
 import random
 import asyncio
-import math
+
+# nextcord
+from nextcord.ext import tasks
+
 
 # my modules and constants
-from utils.player import Player
-from utils import constants
 from utils.helpers import TextEmbed
-
-# maze utils
 from .maze_utils import Cell
 
 
@@ -90,7 +86,7 @@ class MazeEnemy:
     async def move(self):
         view = self.view
         # check if enemy is in a certain area before moving
-        cam, x_start_index, y_start_index = view.get_camera(12)
+        _, x_start_index, y_start_index = view.get_camera(12)
         if self.x > x_start_index and self.x < x_start_index + 15:
             if self.y > y_start_index and self.y < y_start_index + 15:
                 player = view.player

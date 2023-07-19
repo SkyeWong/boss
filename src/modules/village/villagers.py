@@ -1,13 +1,13 @@
+# default modules
+import random
+from typing import Optional
+
 # database
 from utils.postgres_db import Database
 
 # my modules
 from utils import constants
 from utils.helpers import BossItem, BossCurrency
-
-# default modules
-import random
-from typing import Optional
 
 
 class Villager:
@@ -47,7 +47,9 @@ class Villager:
         for index, value in enumerate((self.demand, self.supply)):
             for i in value:
                 if isinstance(i, BossCurrency):
-                    msgs[index] += f"\n{constants.CURRENCY_EMOJIS[i.currency_type]} ` {i.price * trade_quantity:,} `"
+                    msgs[
+                        index
+                    ] += f"\n{constants.CURRENCY_EMOJIS[i.currency_type]} ` {i.price * trade_quantity:,} `"
                 elif isinstance(i, BossItem):
                     msgs[index] += f"\n` {i.quantity * trade_quantity}x ` {await i.get_emoji(self.db)} {await i.get_name(self.db)}"  # fmt: skip
         return msgs[0], msgs[1]

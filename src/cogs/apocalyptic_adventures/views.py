@@ -1,3 +1,6 @@
+# default modules
+import random
+
 # nextcord
 import nextcord
 from nextcord import ButtonStyle
@@ -11,9 +14,6 @@ from utils.constants import EmbedColour, CURRENCY_EMOJIS
 from utils.helpers import BossInteraction, BossItem
 from utils.player import Player
 from utils.template_views import BaseView
-
-# default modules
-import random
 
 
 class ScoutButton(Button["ScoutView"]):
@@ -37,7 +37,11 @@ class ScoutButton(Button["ScoutView"]):
         # Choose a result based on the chances defined by `location`
         result = random.choices(
             ["nothing", "success", "fail"],
-            [self.location["nothing"]["chance"], self.location["success"]["chance"], self.location["fail"]["chance"]],
+            [
+                self.location["nothing"]["chance"],
+                self.location["success"]["chance"],
+                self.location["fail"]["chance"],
+            ],
         )[0]
 
         db: Database = interaction.client.db
@@ -58,9 +62,7 @@ class ScoutButton(Button["ScoutView"]):
                 if item_reward := self.location[result].get("item"):
                     if random.randint(0, 100) < item_reward["chance"]:
                         item = BossItem(item_reward["id"], 1)
-                        embed.description += (
-                            f"\nYou also found **1x {await item.get_name(db)}** {await item.get_emoji(db)}"
-                        )
+                        embed.description += f"\nYou also found **1x {await item.get_name(db)}** {await item.get_emoji(db)}"
 
                 await interaction.response.edit_message(embed=embed, view=view)
 
@@ -115,7 +117,10 @@ class ScoutView(BaseView):
             for i in self.children:
                 i.disabled = True
             await self.msg.edit(
-                embed=self.interaction.TextEmbed("Guess you didn't want to search anywhere after all?"), view=self
+                embed=self.interaction.TextEmbed(
+                    "Guess you didn't want to search anywhere after all?"
+                ),
+                view=self,
             )
             self.scouting_finished = True
             await self.player.set_in_inter(False)

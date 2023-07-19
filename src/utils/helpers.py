@@ -68,7 +68,7 @@ def text_to_num(text: str) -> int:
                 raise ValueError(f"text_to_num() received a non-number prefix before {magnitude}")
             res += num * d[magnitude]
         else:
-            raise ValueError(f"text_to_num() is passed an incorrect magnitude.")
+            raise ValueError("text_to_num() is passed an incorrect magnitude.")
     return math.floor(res)
 
 
@@ -169,13 +169,13 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
     embed.description = description
 
     if not owned_quantity:  # `owned_quantity` is 0/ empty dict
-        embed.description += f"\nYou own **0**"
+        embed.description += "\nYou own **0**"
 
     elif isinstance(owned_quantity, int):
         embed.description += f"\nYou own **{owned_quantity}**"
 
     elif isinstance(owned_quantity, dict) and owned_quantity:  # make sure the dict is not empty
-        embed.description += f" \nYou own"
+        embed.description += " \nYou own"
         for inv_type, quantity in owned_quantity.items():
             embed.description += f"\n` - ` **{quantity}** in your {inv_type}"
 
@@ -195,10 +195,14 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
 
     info = ""
     other_attr = json.loads(item["other_attributes"])
-    if (food_min := other_attr.get("food_value_min")) and (food_max := other_attr.get("food_value_max")):
+    if (food_min := other_attr.get("food_value_min")) and (
+        food_max := other_attr.get("food_value_max")
+    ):
         info += f"\n- </use:1107319705070477462>: restore {food_min} - {food_max} points of hunger"
     if armour_prot := other_attr.get("armour_protection"):
         info += f"\n- Provides {armour_prot} points of protection."
+    if weapon_dmg := other_attr.get("weapon_damage"):
+        info += f"\n- Deals {weapon_dmg} points of damage on each hit."
     if additional_info := item.get("additional_info"):
         info += f"\n- {additional_info}"
 
@@ -222,22 +226,20 @@ def format_with_link(text: str):
 
 
 PB_EMOJIS = {
-    # lighter colours
-    "PB1E": "<:PB1E:1121318451500290088>",
-    "PB1HF": "<:PB1HF:1121322335060901928>",
-    "PB1F": "<:PB1F:1121318454285320324>",
-    "PB2E": "<:PB2E:1121318455996592148>",
-    "PB2HF": "<:PB2HF:1125688174249791509>",
-    "PB2F": "<:PB2F:1121318441845018634>",
-    "PB3E": "<:PB3E:1121318446257406023>",
-    "PB3F": "<:PB3F:1121318449352822788>",
+    "PB1E": "<:PB1E:1130331732571328624>",
+    "PB1R": "<:PB1R:1130329877162229793>",
+    "PB1F": "<:PB1F:1130329874482073610>",
+    "PB2E": "<:PB2E:1130329878814785628>",
+    "PB2R": "<:PB2R:1130329883671801876>",
+    "PB2F": "<:PB2F:1130329882073772092>",
+    "PB3E": "<:PB3E:1130329887115321435>",
+    "PB3F": "<:PB3F:1130451473143189504>",
 }
 
 
 def create_pb(percentage: int):
     """Creates a progress bar with the width of 5 and with `filled` emojis set to the filled variants."""
-    filled = round(percentage / 10) * 10  # round off to the nearest 10
-    filled = round(filled / 20)
+    filled = round(percentage / 20)
 
     if filled < 0:
         filled = 0
@@ -258,10 +260,10 @@ def create_pb(percentage: int):
     if filled < 5:
         # check if filled is not 5 because if the last one is filled then we don't need to replace
         # replace the last "filled" block with the "half-filled" one to make it rounded
-        pb = PB_EMOJIS["PB2HF"].join(pb.rsplit(PB_EMOJIS["PB2F"], 1))
+        pb = PB_EMOJIS["PB2R"].join(pb.rsplit(PB_EMOJIS["PB2F"], 1))
     if filled == 1:
         # if only 1 block is filled, then replace the first block with its half-filled variant
-        pb = pb.replace(PB_EMOJIS["PB1F"], PB_EMOJIS["PB1HF"], 1)
+        pb = pb.replace(PB_EMOJIS["PB1F"], PB_EMOJIS["PB1R"], 1)
     return pb
 
 
@@ -270,7 +272,9 @@ def find_command(
 ) -> Union[nextcord.SlashApplicationCommand, nextcord.SlashApplicationSubcommand]:
     """Finds the slash command (searches for subcommands too) with the name `command_name`. This presumes that command exist and has no typos."""
     cmds = client.get_all_application_commands()
-    slash_cmd: nextcord.SlashApplicationCommand = next(cmd for cmd in cmds if cmd.name == command_name.split()[0])
+    slash_cmd: nextcord.SlashApplicationCommand = next(
+        cmd for cmd in cmds if cmd.name == command_name.split()[0]
+    )
     split_index = 1
     # find the macro command in the children of the base command, if it doesnt match the full command name
     while slash_cmd.qualified_name != command_name:
@@ -300,20 +304,26 @@ class BossEmbed(Embed):
             description=description,
             timestamp=timestamp,
         )
-        if self.show_macro_msg:
-            if interaction and interaction.client.running_macro_views.get(interaction.user.id):
-                # check whether the user is running a macro
-                super().set_footer(text=f"{self.interaction.user.name} is running a /macro")
+        if (
+            self.show_macro_msg
+            and interaction
+            and interaction.client.running_macro_views.get(interaction.user.id)
+        ):
+            # check whether the user is running a macro
+            super().set_footer(text=f"{self.interaction.user.name} is running a /macro")
 
     def set_footer(self, *, text: Optional[str] = None, icon_url: Optional[str] = None) -> Self:
-        if self.show_macro_msg:
-            if self.interaction and self.interaction.client.running_macro_views.get(self.interaction.user.id):
-                # check whether the user is running a macro
-                msg = f"{self.interaction.user.name} is running a /macro"
-                if "\n" in text:
-                    text = f"{text}\n{msg}"
-                else:
-                    text = f"{text} | {msg}"
+        if (
+            self.show_macro_msg
+            and self.interaction
+            and self.interaction.client.running_macro_views.get(self.interaction.user.id)
+        ):
+            # check whether the user is running a macro
+            msg = f"{self.interaction.user.name} is running a /macro"
+            if "\n" in text:
+                text = f"{text}\n{msg}"
+            else:
+                text = f"{text} | {msg}"
         return super().set_footer(text=text, icon_url=icon_url)
 
 
@@ -351,7 +361,10 @@ class BossInteraction(Interaction):
         )
 
     def TextEmbed(
-        self, text: str, colour: Union[int, EmbedColour] = EmbedColour.DEFAULT, show_macro_msg: bool = True
+        self,
+        text: str,
+        colour: Union[int, EmbedColour] = EmbedColour.DEFAULT,
+        show_macro_msg: bool = True,
     ) -> TextEmbed:
         if show_macro_msg:
             return TextEmbed(text, colour, self)
@@ -359,7 +372,11 @@ class BossInteraction(Interaction):
             return TextEmbed(text, colour)
 
     async def send_text(
-        self, text: str, colour: Union[int, EmbedColour] = EmbedColour.DEFAULT, show_macro_msg: bool = True, **kwargs
+        self,
+        text: str,
+        colour: Union[int, EmbedColour] = EmbedColour.DEFAULT,
+        show_macro_msg: bool = True,
+        **kwargs,
     ) -> Union[nextcord.PartialInteractionMessage, nextcord.WebhookMessage]:
         return await self.send(embed=self.TextEmbed(text, colour, show_macro_msg), **kwargs)
 

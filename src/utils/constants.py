@@ -1,6 +1,5 @@
 import os
 import enum
-from nextcord import Colour
 
 
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -45,7 +44,7 @@ class IntEnum(Enum, enum.IntEnum):
 class EmbedColour(IntEnum):
     """A list of preset colours to be used in embeds"""
 
-    INFO = 0x7FB2F0  # light blue
+    INFO = 0x3498DB  # light blue
     SUCCESS = 0x88E08C  # light green
     FAIL = 0xFF8F8F  # light red
     WARNING = 0xFFC87D  # light orange

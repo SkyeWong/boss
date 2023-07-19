@@ -1,18 +1,17 @@
+# default modules
+from typing import Optional, Union
+from dataclasses import dataclass
+import math
+
 # nextcord
 import nextcord
 from nextcord import Embed, Interaction, ButtonStyle, SelectOption
 from nextcord.ui import Button, button, Select, select
 
 # my modules
-from utils import constants, helpers
+from utils import constants
 from utils.constants import SCRAP_METAL, COPPER, EmbedColour
-from utils.helpers import TextEmbed
 from utils.template_views import BaseView
-
-# default modules
-from typing import Optional, Union
-from dataclasses import dataclass
-import math
 
 
 class HelpView(BaseView):
@@ -103,7 +102,9 @@ class HelpView(BaseView):
 
         return options
 
-    def help_embed(self, description: Optional[str] = "", author_name: Optional[str] = "Commands") -> Embed:
+    def help_embed(
+        self, description: Optional[str] = "", author_name: Optional[str] = "Commands"
+    ) -> Embed:
         """Creates an embed with a list of all the commands in the bot."""
 
         embed = Embed(description=description, colour=EmbedColour.INFO)
