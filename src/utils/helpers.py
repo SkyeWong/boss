@@ -1,20 +1,21 @@
 # nextcord
-from nextcord.ext import commands
-from nextcord import Embed, Interaction, BaseApplicationCommand, CallbackWrapper
-from nextcord.ui import View, Button
+import json
+
+# inbuilt modules
+import math
+import random
+from datetime import datetime
+from typing import Literal, Optional, Self, Union
+
 import nextcord
+from nextcord import BaseApplicationCommand, CallbackWrapper, Embed, Interaction
+from nextcord.ext import commands
+from nextcord.ui import Button, View
 
 # constants
 from utils import constants
 from utils.constants import SCRAP_METAL, EmbedColour
 from utils.postgres_db import Database
-
-# inbuilt modules
-import math
-import random
-import json
-from datetime import datetime
-from typing import Literal, Optional, Union, Self
 
 
 def check_if_not_dev_guild(*args, **_) -> bool:
@@ -42,7 +43,7 @@ def text_to_num(text: str) -> int:
     text = text.lower()
     text = text.replace(" ", "")
     text = text.replace(",", "")
-    d = {
+    short_forms = {
         "k": 1_000,  # thousands
         "m": 1_000_000,  # millions
         "b": 1_000_000_000,  # billions
@@ -56,17 +57,17 @@ def text_to_num(text: str) -> int:
         if not isinstance(i, str):
             # Non-strings are bad are missing data in poster's submission
             raise ValueError(f"text_to_num() must be passed str, not {i.__class__.__qualname__}")
-        elif i.isnumeric():
+        if i.isnumeric():
             res += int(i)
-        elif i[-1] in d:
+        elif i[-1] in short_forms:
             # separate out the K, M, or B
             num, magnitude = i[:-1], i[-1]
             try:
                 # if this succeeds, you have your (first) float
                 num = float(num)
-            except ValueError:
-                raise ValueError(f"text_to_num() received a non-number prefix before {magnitude}")
-            res += num * d[magnitude]
+            except ValueError as exc:
+                raise ValueError(f"text_to_num() received a non-number prefix before {magnitude}") from exc
+            res += num * short_forms[magnitude]
         else:
             raise ValueError("text_to_num() is passed an incorrect magnitude.")
     return math.floor(res)
@@ -136,7 +137,8 @@ def work_in_progress(dev_guild_only: bool = True):
                     await app_cmd.original_callback(*args, **kwargs)
                 else:
                     await interaction.send_text(
-                        "The developement of this command is in progress.\nYou can't use it now, but keep checking for updates!"
+                        "The developement of this command is in progress.\nYou can't use it now, but keep checking for"
+                        " updates!"
                     )
 
             app_cmd.callback = callback
@@ -150,7 +152,10 @@ def work_in_progress(dev_guild_only: bool = True):
 def get_error_message():
     embed = BossEmbed(
         title="An error occurred. Try again in a few seconds.",
-        description="If this continues to happen, please report it in our [server](https://discord.gg/EshzsTUtHe 'BOSS Server').",
+        description=(
+            "If this continues to happen, please report it in our [server](https://discord.gg/EshzsTUtHe 'BOSS"
+            " Server')."
+        ),
         colour=EmbedColour.FAIL,
     )
     view = View()
@@ -195,9 +200,7 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
 
     info = ""
     other_attr = json.loads(item["other_attributes"])
-    if (food_min := other_attr.get("food_value_min")) and (
-        food_max := other_attr.get("food_value_max")
-    ):
+    if (food_min := other_attr.get("food_value_min")) and (food_max := other_attr.get("food_value_max")):
         info += f"\n- </use:1107319705070477462>: restore {food_min} - {food_max} points of hunger"
     if armour_prot := other_attr.get("armour_protection"):
         info += f"\n- Provides {armour_prot} points of protection."
@@ -221,7 +224,7 @@ def get_item_embed(item, owned_quantity: dict[str, int] | int = None):
 
 
 def format_with_link(text: str):
-    """Formats a text with its markdown link form: \[text](link)"""
+    r"""Formats a text with its markdown link form: \[text](link)"""
     return f"[`{text}`](https://boss-bot.onrender.com/)"
 
 
@@ -246,35 +249,35 @@ def create_pb(percentage: int):
     if filled > 5:
         filled = 5
 
-    pb = ""
+    progress_bar = ""
     # if even 1 block needs to be filled set the first block to filled, otherwise leave it empty
-    pb += PB_EMOJIS["PB1F"] if filled > 0 else PB_EMOJIS["PB1E"]
-    # if filled is 5, then the last one will be filled, so we need to fill 3 blocks (5 minus the first and last "rounded" blocks)
+    progress_bar += PB_EMOJIS["PB1F"] if filled > 0 else PB_EMOJIS["PB1E"]
+    # if filled is 5, then the last one will be filled, so
+    # we need to fill 3 blocks (5 minus the first and last "rounded" blocks)
     # otherwise we fill (filled - 1) blocks since the first one is filled by the above line
-    pb += PB_EMOJIS["PB2F"] * (3 if filled == 5 else filled - 1)
+    progress_bar += PB_EMOJIS["PB2F"] * (3 if filled == 5 else filled - 1)
     # if filled is 0, similar to the above line, we leave 3 blocks as empty
     # otherwise we leave the remaining blocks out of 3 empty (5 minus the first and last "rounded" blocks)
-    pb += PB_EMOJIS["PB2E"] * (3 if filled == 0 else 3 - (filled - 1))
+    progress_bar += PB_EMOJIS["PB2E"] * (3 if filled == 0 else 3 - (filled - 1))
     # lastly fill in the last block with reasons similar to the first block
-    pb += PB_EMOJIS["PB3F"] if filled == 5 else PB_EMOJIS["PB3E"]
+    progress_bar += PB_EMOJIS["PB3F"] if filled == 5 else PB_EMOJIS["PB3E"]
     if filled < 5:
         # check if filled is not 5 because if the last one is filled then we don't need to replace
         # replace the last "filled" block with the "half-filled" one to make it rounded
-        pb = PB_EMOJIS["PB2R"].join(pb.rsplit(PB_EMOJIS["PB2F"], 1))
+        progress_bar = PB_EMOJIS["PB2R"].join(progress_bar.rsplit(PB_EMOJIS["PB2F"], 1))
     if filled == 1:
         # if only 1 block is filled, then replace the first block with its half-filled variant
-        pb = pb.replace(PB_EMOJIS["PB1F"], PB_EMOJIS["PB1R"], 1)
-    return pb
+        progress_bar = progress_bar.replace(PB_EMOJIS["PB1F"], PB_EMOJIS["PB1R"], 1)
+    return progress_bar
 
 
 def find_command(
     client: Union[commands.Bot, nextcord.Client], command_name: str
 ) -> Union[nextcord.SlashApplicationCommand, nextcord.SlashApplicationSubcommand]:
-    """Finds the slash command (searches for subcommands too) with the name `command_name`. This presumes that command exist and has no typos."""
+    """Finds the slash command (searches for subcommands too) with the name `command_name`.
+    This assumes that command exist and has no typos."""
     cmds = client.get_all_application_commands()
-    slash_cmd: nextcord.SlashApplicationCommand = next(
-        cmd for cmd in cmds if cmd.name == command_name.split()[0]
-    )
+    slash_cmd: nextcord.SlashApplicationCommand = next(cmd for cmd in cmds if cmd.name == command_name.split()[0])
     split_index = 1
     # find the macro command in the children of the base command, if it doesnt match the full command name
     while slash_cmd.qualified_name != command_name:
@@ -304,11 +307,7 @@ class BossEmbed(Embed):
             description=description,
             timestamp=timestamp,
         )
-        if (
-            self.show_macro_msg
-            and interaction
-            and interaction.client.running_macro_views.get(interaction.user.id)
-        ):
+        if self.show_macro_msg and interaction and interaction.client.running_macro_views.get(interaction.user.id):
             # check whether the user is running a macro
             super().set_footer(text=f"{self.interaction.user.name} is running a /macro")
 
@@ -340,7 +339,7 @@ class TextEmbed(BossEmbed):
 
 
 class BossInteraction(Interaction):
-    def Embed(
+    def embed(
         self,
         *,
         title: Optional[str] = None,
@@ -360,7 +359,7 @@ class BossInteraction(Interaction):
             show_macro_msg=show_macro_msg,
         )
 
-    def TextEmbed(
+    def text_embed(
         self,
         text: str,
         colour: Union[int, EmbedColour] = EmbedColour.DEFAULT,
@@ -378,18 +377,18 @@ class BossInteraction(Interaction):
         show_macro_msg: bool = True,
         **kwargs,
     ) -> Union[nextcord.PartialInteractionMessage, nextcord.WebhookMessage]:
-        return await self.send(embed=self.TextEmbed(text, colour, show_macro_msg), **kwargs)
+        return await self.send(embed=self.text_embed(text, colour, show_macro_msg), **kwargs)
 
 
 class BossItem:
     def __init__(
         self,
-        id: int,
+        item_id: int,
         quantity: Optional[int] = 1,
         name: Optional[str] = None,
         emoji: Optional[str] = None,
     ) -> None:
-        self.id = id
+        self.item_id = item_id
         self.quantity = quantity
         self._name = name
         self._emoji = emoji
@@ -403,7 +402,7 @@ class BossItem:
                 FROM utility.items
                 WHERE item_id = $1
                 """,
-                self.id,
+                self.item_id,
             )
         return self._name
 
@@ -416,16 +415,16 @@ class BossItem:
                 FROM utility.items
                 WHERE item_id = $1
                 """,
-                self.id,
+                self.item_id,
             )
         return self._emoji
 
     def __eq__(self, other):
         """Check if the `item_id`s of 2 BossItem instances are the same, or the `item_id` is equal to a `int`."""
         if isinstance(other, BossItem):
-            return self.id == other.id
+            return self.item_id == other.item_id
         if isinstance(other, int):
-            return self.id == other
+            return self.item_id == other
         return NotImplemented
 
     def __mul__(self, other):
@@ -440,14 +439,15 @@ class BossItem:
                 either the int or float classes.
 
         Returns:
-            BossItem: A new BossItem instance with a quantity equal to the current quantity multiplied by the scalar value.
+            BossItem: A new BossItem instance with a quantity
+                equal to the current quantity multiplied by the scalar value.
         """
         if not isinstance(other, (int, float)):
             return NotImplemented
-        return self.__class__(self.id, round(self.quantity * other), self._name, self._emoji)
+        return self.__class__(self.item_id, round(self.quantity * other), self._name, self._emoji)
 
     def __repr__(self):
-        return f"BossItem(item_id={self.id}, quantity={self.quantity}, name={self._name!r}, emoji={self._emoji!r})"
+        return f"BossItem(item_id={self.item_id}, quantity={self.quantity}, name={self._name!r}, emoji={self._emoji!r})"
 
 
 class BossCurrency:
@@ -534,7 +534,8 @@ class BossCurrency:
             other (int or float): The scalar value to multiply the price by.
 
         Returns:
-            BossCurrency: A new BossCurrency instance with a price value equal to the current price multiplied by the scalar value.
+            BossCurrency: A new BossCurrency instance with a price value
+                equal to the current price multiplied by the scalar value.
         """
         return self.__class__(self.price * other, self.currency_type)
 

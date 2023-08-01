@@ -1,18 +1,23 @@
 # default modules
+import asyncio
+import json
 import random
+from dataclasses import dataclass
+from typing import Optional, Union
 
 # nextcord
 import nextcord
 from nextcord import ButtonStyle
 from nextcord.ui import Button
 
-# database
-from utils.postgres_db import Database
-
 # my modules and constants
-from utils.constants import EmbedColour, CURRENCY_EMOJIS
+from utils import helpers
+from utils.constants import CURRENCY_EMOJIS, EmbedColour
 from utils.helpers import BossInteraction, BossItem
 from utils.player import Player
+
+# database
+from utils.postgres_db import Database
 from utils.template_views import BaseView
 
 
@@ -31,7 +36,7 @@ class ScoutButton(Button["ScoutView"]):
             if i.label != self.label:
                 i.style = ButtonStyle.grey
 
-        embed = interaction.Embed(description="", colour=EmbedColour.DEFAULT)
+        embed = interaction.embed(description="", colour=EmbedColour.DEFAULT)
         embed.set_author(name=f"{interaction.user.name} scouted the {self.label}")
 
         # Choose a result based on the chances defined by `location`
@@ -59,10 +64,11 @@ class ScoutButton(Button["ScoutView"]):
                 )
 
                 item_reward = None
-                if item_reward := self.location[result].get("item"):
-                    if random.randint(0, 100) < item_reward["chance"]:
-                        item = BossItem(item_reward["id"], 1)
-                        embed.description += f"\nYou also found **1x {await item.get_name(db)}** {await item.get_emoji(db)}"
+                if (item_reward := self.location[result].get("item")) and random.randint(0, 100) < item_reward[
+                    "chance"
+                ]:
+                    item = BossItem(item_reward["id"], 1)
+                    embed.description += f"\nYou also found **1x {await item.get_name(db)}** {await item.get_emoji(db)}"
 
                 await interaction.response.edit_message(embed=embed, view=view)
 
@@ -104,7 +110,7 @@ class ScoutView(BaseView):
         for i in locations:
             view.add_item(ScoutButton(i))
 
-        embed = interaction.TextEmbed(
+        embed = interaction.text_embed(
             "**Where do you want to scout?**\n_Click a button to start scouting at the location!_"
         )
         view.msg = await interaction.send(embed=embed, view=view)
@@ -117,10 +123,153 @@ class ScoutView(BaseView):
             for i in self.children:
                 i.disabled = True
             await self.msg.edit(
-                embed=self.interaction.TextEmbed(
-                    "Guess you didn't want to search anywhere after all?"
-                ),
+                embed=self.interaction.text_embed("Guess you didn't want to search anywhere after all?"),
                 view=self,
             )
             self.scouting_finished = True
             await self.player.set_in_inter(False)
+
+
+@dataclass
+class RaidPlayer:
+    """Represents a player in /raid."""
+
+    user: nextcord.User
+    battlegear: list
+    health: int = 100
+
+    @property
+    def armour_prot(self) -> float:
+        """The sum of protection provided by all the armour the player has,
+        as a percentage with range [0, 1]."""
+        return sum(i["other_attributes"].get("armour_protection", 0) for i in self.battlegear) / 100
+
+    @property
+    def attack_dmg(self) -> int:
+        """The attack the player does on each round."""
+        return sum(i["other_attributes"].get("weapon_damage", 0) for i in self.battlegear) or 8
+
+
+class RaidView(BaseView):
+    def __init__(self, interaction: BossInteraction, players: list[RaidPlayer]):
+        super().__init__(interaction, timeout=None)
+        self.message: Union[nextcord.WebhookMessage, nextcord.PartialInteractionMessage] = None
+        self.db: Database = interaction.client.db
+        self.players = players
+        self.round = 1
+
+    @classmethod
+    async def create(cls, interaction: BossInteraction, user_1: nextcord.User, user_2: nextcord.User):
+        db: Database = interaction.client.db
+        players = []
+        for i in (user_1, user_2):
+            data = await db.fetch(
+                """
+                SELECT 
+                    type_name, 
+                    i.name AS item_name, 
+                    CASE 
+                        WHEN i.emoji_id IS NOT NULL THEN CONCAT('<:_:', i.emoji_id, '>')
+                        ELSE ''
+                    END AS emoji,
+                    i.other_attributes
+                FROM players.battlegear AS b
+                    RIGHT JOIN unnest(enum_range(NULL::utility.battlegear_type)) AS type_name
+                    ON b.type = type_name AND b.player_id = $1
+                    LEFT JOIN utility.items AS i
+                    ON b.item_id = i.item_id
+                    ORDER BY type_name
+                """,
+                i.id,
+            )
+            battlegear = []
+            for j in data:
+                j = dict(j)
+                j["other_attributes"] = json.loads(j["other_attributes"] or "{}")
+                battlegear.append(j)
+            players.append(RaidPlayer(i, battlegear))
+        player = Player(interaction.client.db, interaction.user)
+        await player.set_in_inter(True)
+        return cls(interaction, players)
+
+    async def send(self, msg: Optional[nextcord.Message] = None):
+        if msg:
+            func = msg.edit
+        else:
+            func = self.interaction.send
+        self.message = await func(embed=self.get_embed(), view=self)
+        while all(i.health > 0 for i in self.players):
+            await asyncio.sleep(3)
+            await self.update()
+
+    def get_embed(self, msgs: list[str] = None):
+        embed = self.interaction.embed(show_macro_msg=False)
+        embed.set_author(name=f"⚔️ Raid (Round {self.round})")
+        for i in self.players:
+            player_msg = f"{'❤️' if i.health > 0 else '💀'} {helpers.create_pb(i.health)} **{i.health}%**\n"
+            combat = round(i.armour_prot * 50 + i.attack_dmg / 30 * 50)
+            player_msg += f"🛡️ {helpers.create_pb(combat)} **{combat}%**\n"
+            player_msg += "🏹 " + "".join(j["emoji"] for j in i.battlegear)
+            embed.add_field(name=i.user.name, value=player_msg)
+        if msgs:
+            embed.add_field(name="Last Round", value="\n".join(msgs), inline=False)
+        return embed
+
+    FIGHT_ADJS = {
+        "fail": [
+            "inept",
+            "clumsy",
+            "weak",
+            "unskilled",
+            "graceless",
+            "slow",
+            "clumsy",
+            "vulnerable",
+            "helpless",
+        ],
+        "success": [
+            "devastating",
+            "powerful",
+            "efficient",
+            "skillful",
+            "graceful",
+            "quick",
+            "agile",
+            "vicious",
+            "merciless",
+        ],
+    }
+
+    async def update(self):
+        self.round += 1
+        won_player = None
+        msgs = []
+        for index, current_player in enumerate(self.players):
+            # get the other player
+            other_player = self.players[(index + 1) % 2]
+            # calculate the attack based on the current user's weapon, and the other user's armour
+            # decide whether the current user is successful
+            res = random.choice(("success", "fail"))
+            if res == "success":
+                attack = current_player.attack_dmg * random.uniform(1.2, 1.5)
+            else:
+                attack = current_player.attack_dmg * random.uniform(0.6, 0.8)
+
+            damage = min(round(attack * (1 - other_player.armour_prot * 0.6)), other_player.health)
+            other_player.health -= damage
+            msgs.append(
+                f"**{current_player.user.name}** lands a"
+                f" {random.choice(RaidView.FIGHT_ADJS[res])} attack, dealing {damage}% damage!"
+            )
+            if other_player.health <= 0:
+                won_player = current_player
+        if won_player:
+            content = f"{won_player.user.mention} is a legendary fighter!"
+            player = Player(self.interaction.client.db, self.interaction.user)
+            await player.set_in_inter(False)
+        else:
+            content = None
+        await self.message.edit(
+            content=content,
+            embed=self.get_embed(msgs),
+        )

@@ -1,32 +1,32 @@
 # default modules
-import random
 import asyncio
-import json
 import datetime
+import json
+import random
 from contextlib import suppress
-
-# nextcord
-import nextcord
-from nextcord.ext import commands
-from nextcord.ui import Button
-
-import pytz
 
 # slash command cooldowns
 import cooldowns
-from cooldowns import SlashBucket
 
-# database
-from utils.postgres_db import Database
+# nextcord
+import nextcord
+import pytz
+from cooldowns import SlashBucket
+from nextcord.ext import commands
+from nextcord.ui import Button
+
+# views
+from cogs.apocalyptic_adventures.views import RaidView, ScoutView
 
 # my modules and constants
 from utils import helpers
 from utils.constants import CURRENCY_EMOJIS, EmbedColour
-from utils.helpers import check_if_not_dev_guild, BossItem, BossInteraction, command_info
+from utils.helpers import BossInteraction, BossItem, check_if_not_dev_guild, command_info
 from utils.player import Player
-from utils.template_views import BaseView
 
-from .views import ScoutView
+# database
+from utils.postgres_db import Database
+from utils.template_views import BaseView
 
 
 class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
@@ -71,8 +71,12 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             interaction.user.id,
         )
         if old_hunger >= 30 and new_hunger < 30:
-            embed = interaction.TextEmbed(
-                "Your hunger is smaller than 30! Commands running from now on will have a slight delay.\nConsume some food before continuing.",
+            embed = interaction.text_embed(
+                (
+                    "Your hunger is smaller than 30! "
+                    "Commands running from now on will have a slight delay.\n"
+                    "Consume some food before continuing."
+                ),
                 EmbedColour.WARNING,
                 show_macro_msg=False,
             )
@@ -87,19 +91,20 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
         success_message: str,
         mission_id: int = None,
     ):
-        """Handles a grind command, which accepts no parameters and choose a random reward for the user.
+        """Handles a grind command.
+
+        The grind command should accept no options and will choose a random reward for the user,
+        based on a loot table.
 
         Args:
             interaction (BossInteraction): The interaction of the slash command
-            loot_table (dict): The loot table, which should be initalised in `Survival.__init__()`
-            fail_messages (list[str]): A list of messages to show the user when they get nothing, then a random one will be chosen to shown
-            success_message (str): The message to show when they succeed. It must include "{reward}", which will be used to format the reward item
+            loot_table (dict): The loot table
+            fail_messages (list[str]): A list of messages to show when the user get nothing
+            success_message (str): The msg to show when they succeed. "{reward}" must be included
             mission_id (int): The id of the mission type.
         """
         db: Database = self.bot.db
-        reward_category = random.choices(
-            list(loot_table.keys()), [i["chance"] for i in loot_table.values()]
-        )[0]
+        reward_category = random.choices(list(loot_table.keys()), [i["chance"] for i in loot_table.values()])[0]
 
         if reward_category == "fail":
             await interaction.send_text(random.choice(fail_messages))
@@ -162,7 +167,10 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             self.HUNT_LOOT,
             fail_messages=[
                 "You went hunting but found nothing... No dinner tonight ig",
-                "Looks like you didn't catch anything this time. Maybe next time you should aim for something smaller than a mountain?",
+                (
+                    "Looks like you didn't catch anything this time. Maybe next time you should aim"
+                    " for something smaller than a mountain?"
+                ),
                 "Sorry, looks like you missed the memo about animals being able to smell fear.",
                 "Looks like the only thing you managed to hunt was disappointment.",
                 "I hate to break it to you, but I think the only thing you caught was a cold.",
@@ -248,7 +256,10 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
                 "You've managed to mine nothing but air. Your pickaxe must be thrilled.",
                 "You mine and you mine, but all you find are rocks.",
                 "Looks like you struck out. Maybe next time you'll get lucky and find a diamond... or not.",
-                "Breaking rocks all day, yet nothing to show for it. You're a real master at mining for disappointment.",
+                (
+                    "Breaking rocks all day, yet nothing to show for it."
+                    " You're a real master at mining for disappointment."
+                ),
             ],
             success_message="You went to the quarries and mined out {reward}!",
             mission_id=3,
@@ -290,7 +301,9 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             "name": "junkyard",
             "nothing": {
                 "chance": 20,
-                "msg": "You found nothing! Maybe next time you'll finally get something useful in the giant pile of trash.",
+                "msg": (
+                    "You found nothing! Maybe next time you'll finally get something useful in the giant pile of trash."
+                ),
             },
             "fail": {
                 "chance": 10,
@@ -342,7 +355,10 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             "name": "swamp",
             "nothing": {
                 "chance": 50,
-                "msg": "Looks like the area had nothing of value. That's definitely bad luck, not skill issues. Definitely.",
+                "msg": (
+                    "Looks like the area had nothing of value."
+                    " That's definitely bad luck, not skill issues. Definitely."
+                ),
             },
             "fail": {
                 "chance": 10,
@@ -385,7 +401,10 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             },
             "success": {
                 "chance": 80,
-                "msg": "You found a money bag on the ground! After checking that no one was around, you emptied its contents and obtained {reward}.",
+                "msg": (
+                    "You found a money bag on the ground! After checking that no one was around,"
+                    " you emptied its contents and obtained {reward}."
+                ),
                 "money": {"type": "scrap_metal", "min": 500, "max": 1800},
             },
         },
@@ -419,7 +438,10 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             },
             "success": {
                 "chance": 40,
-                "msg": "You found {reward} next to a suspicious piece of machine. A label on it says 'radioactive'??? Uh oh.",
+                "msg": (
+                    "You found {reward} next to a suspicious piece of machine. A label on it says"
+                    " 'radioactive'??? Uh oh."
+                ),
                 "money": {"type": "scrap_metal", "min": 1500, "max": 2000},
             },
         },
@@ -453,7 +475,9 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             },
             "success": {
                 "chance": 80,
-                "msg": "After searching for hours in the smelly and potentially poisonous dumpsite, you found {reward}.",
+                "msg": (
+                    "After searching for hours in the smelly and potentially poisonous dumpsite, you found {reward}."
+                ),
                 "money": {"type": "scrap_metal", "min": 500, "max": 700},
             },
         },
@@ -461,11 +485,17 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
             "name": "factory",
             "nothing": {
                 "chance": 10,
-                "msg": "The entrance was locked, and of course you didn't have the brainpower to break in through the windows.",
+                "msg": (
+                    "The entrance was locked, and of course you didn't have the brainpower to break"
+                    " in through the windows."
+                ),
             },
             "fail": {
                 "chance": 30,
-                "msg": "You accidentally turned on old alarm system and attracted the attention of nearby scavengers. They attacked you.",
+                "msg": (
+                    "You accidentally turned on old alarm system and attracted the attention of"
+                    " nearby scavengers. They attacked you."
+                ),
                 "punishment": {"type": "health", "min": 5, "max": 8},
             },
             "success": {
@@ -487,10 +517,12 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
                 return False  # a slash command is invoked, so we ignore the interaction
             return interaction.message.id == view.msg.id
 
-        # halt the execution, so that `after_invoke` is performed after the user has finished scouting
+        # halt the execution,
+        # so that `after_invoke` is performed after the user has finished scouting
         with suppress(asyncio.TimeoutError):
             await self.bot.wait_for("interaction", check=check, timeout=view.timeout)
-        # the timeout should be equal to the timeout of the view, so that even when the user does nothing it will time out
+        # the timeout should be equal to the timeout of the view,
+        # so that even when the user does nothing it will time out
 
     MISSION_TYPES = [
         {
@@ -538,8 +570,11 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
     ]
 
     async def claim_missions(self, user: nextcord.User):
+        """Selects 3 random missions from `ApocalypticAdventures.MISSION_TYPES`,
+        then add the missions to the player in the database."""
         new_missions = []
-        for index, mission in random.sample(list(enumerate(self.MISSION_TYPES)), 3):
+        for mission in random.sample(ApocalypticAdventures.MISSION_TYPES, 3):
+            index = self.MISSION_TYPES.index(mission)
             reward: dict = random.choice(mission["rewards"]).copy()
             reward["amount"] = random.randint(reward["min"], reward["max"])
             # append the mission to the list of new_missions
@@ -591,34 +626,39 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
                 await self.claim_missions(interaction.user)
                 missions = await self.fetch_missions(interaction.user)
             # Show the time when missions reset (the start of the next day)
-            start_of_next_day = (now + datetime.timedelta(days=1)).replace(
-                hour=0, minute=0, second=0, microsecond=0
-            )
+            start_of_next_day = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
             timestamp = int(start_of_next_day.timestamp())
 
-            embed = interaction.Embed(title=f"{interaction.user.name}'s Daily Missions")
+            embed = interaction.embed(title=f"{interaction.user.name}'s Daily Missions")
             embed.description = f"Resets at <t:{timestamp}:t> (<t:{timestamp}:R>)\n\n"
             for i in missions:
                 mission = self.MISSION_TYPES[i["mission_id"]]
                 embed.description += "✅" if i["finished"] else "❎"
-                embed.description += (
-                    f" **{mission['description'].format(quantity=i['total_amount'])}**\n"
-                )
+                embed.description += f" **{mission['description'].format(quantity=i['total_amount'])}**\n"
 
                 # generate the "reward" string
                 reward = json.loads(i["reward"])
                 if reward["type"] == "item":
                     item = BossItem(reward["id"], reward["amount"])
-                    embed.description += f"<:ReplyCont:1124521050655440916> Reward: {reward['amount']}x {await item.get_emoji(db)} {await item.get_name(db)}\n"
+                    embed.description += (
+                        f"<:ReplyCont:1124521050655440916> Reward: {reward['amount']}x"
+                        f" {await item.get_emoji(db)} {await item.get_name(db)}\n"
+                    )
                 else:
                     # reward["type"] will be "scrap_metal" or "copper"
-                    embed.description += f"<:ReplyCont:1124521050655440916> Reward: {CURRENCY_EMOJIS[reward['type']]} {reward['amount']}\n"
+                    embed.description += (
+                        "<:ReplyCont:1124521050655440916> Reward:"
+                        f" {CURRENCY_EMOJIS[reward['type']]} {reward['amount']}\n"
+                    )
 
                 # generate the progress bar
                 finished = i["finished_amount"]
                 total = i["total_amount"]
                 done_percent = round(finished / total * 100)
-                embed.description += f"<:reply:1117458829869858917> {helpers.create_pb(done_percent)} ` {done_percent}% ` ` {finished} / {total} `\n\n"
+                embed.description += (
+                    f"<:reply:1117458829869858917> {helpers.create_pb(done_percent)} `"
+                    f" {done_percent}% ` ` {finished} / {total} `\n\n"
+                )
             return embed
 
         # create a view to let users reload the embed
@@ -640,17 +680,28 @@ class ApocalypticAdventures(commands.Cog, name="Apocalyptic Adventures"):
     async def raid(self, interaction: BossInteraction):
         enemy_id = await interaction.client.db.fetchval(
             """
-            SELECT p2.player_id as player2_id
+            SELECT p2.player_id as enemy_id
             FROM players.combat AS p1
             INNER JOIN players.combat AS p2 ON p1.player_id <> p2.player_id
             WHERE p1.player_id = $1
-            ORDER BY abs(p1.combat - p2.combat * RANDOM())
+            ORDER BY abs(p1.combat - p2.combat * (random() * (12 - 8 + 1) + 8) / 10)
             LIMIT 1
             """,
             interaction.user.id,
         )
-        enemy = await interaction.client.get_or_fetch_user(enemy_id)
-        await interaction.send_text(f"You are in a match against {enemy.name}!")
+        enemy: nextcord.User = await interaction.client.get_or_fetch_user(enemy_id)
+        view = await RaidView.create(interaction, interaction.user, enemy)
+        embed = interaction.embed(
+            description=(
+                f"While snatching everything you could at **{enemy.name}**'s base, **{enemy.name}**"
+                " showed up suddenly. You couldn't escape, and were forced to fight!"
+            ),
+            show_macro_msg=False,
+        )
+        embed.set_author(name="Raid in progress").set_footer(text="Continuing after 3 seconds...")
+        msg = await interaction.send(embed=embed)
+        await asyncio.sleep(3)
+        await view.send(msg)
 
 
 def setup(bot: commands.Bot):

@@ -1,21 +1,21 @@
 # default modules
+import json
 import math
 import pprint
-import json
 
-# nextcord
+import asyncpg
+
+# third-party modules
 import nextcord
-from nextcord import Embed, ButtonStyle, SelectOption
-from nextcord.ui import Modal, Button, button, Select, select, TextInput
-
-# database
 from asyncpg import Record
-from utils.postgres_db import Database
+from nextcord import ButtonStyle, Embed, SelectOption
+from nextcord.ui import Button, Modal, Select, TextInput, button, select
 
 # my modules and constants
 from utils import constants, helpers
 from utils.constants import EmbedColour, IntEnum
-from utils.helpers import TextEmbed, BossInteraction
+from utils.helpers import BossInteraction, TextEmbed
+from utils.postgres_db import Database
 from utils.template_views import BaseView, ConfirmView
 
 
@@ -40,33 +40,30 @@ def _check_enum_input(value: str, enum: IntEnum):
     if value.isnumeric():
         try:
             return enum(value).value
-        except ValueError:
-            raise ValueError(error_msg)
+        except ValueError as exc:
+            raise ValueError(error_msg) from exc
     try:
         return enum[value].value
-    except KeyError:
-        raise ValueError(error_msg)
+    except KeyError as exc:
+        raise ValueError(error_msg) from exc
 
 
 def _check_other_attr_input(value: str):
     # we simply verify that the json is valid, we will not store the loaded json object.
     try:
         _ = json.loads(value)
-    except json.JSONDecodeError:
-        raise ValueError("The format of other attributes are invalid.")
+    except json.JSONDecodeError as exc:
+        raise ValueError("The format of other attributes are invalid.") from exc
     if not isinstance(_, dict):
         raise ValueError("The other attributes should be in a dictionary format.")
-    VALID_ATTR = constants.ITEM_OTHER_ATTR
-    VALID_ATTR_MSG = f"```py\n{pprint.pformat(VALID_ATTR)}```"
+    valid_attr_msg = f"```py\n{pprint.pformat(constants.ITEM_OTHER_ATTR)}```"
     for k, v in _.items():
-        if k not in VALID_ATTR:
+        if k not in constants.ITEM_OTHER_ATTR:
             raise ValueError(
-                f"{k} is not a valid key.\nOnly these keys should be used for other attributes: \n{VALID_ATTR_MSG}"
+                f"{k} is not a valid key.\nOnly these keys should be used for other attributes: \n{valid_attr_msg}"
             )
-        if not isinstance(v, VALID_ATTR[k]):
-            raise ValueError(
-                f"The types of the other attributes should match this mapping: \n{VALID_ATTR_MSG}"
-            )
+        if not isinstance(v, constants.ITEM_OTHER_ATTR[k]):
+            raise ValueError(f"The types of the other attributes should match this mapping: \n{valid_attr_msg}")
     return value
 
 
@@ -75,8 +72,8 @@ def check_input(column: str, value: str):
         case "buy_price" | "sell_price" | "trade_price":
             try:
                 return helpers.text_to_num(value)
-            except ValueError:
-                raise ValueError(f"The `{column}` is not a valid number or a shorthand.")
+            except ValueError as exc:
+                raise ValueError(f"The `{column}` is not a valid number or a shorthand.") from exc
 
         case "name" | "description":
             return value
@@ -84,8 +81,7 @@ def check_input(column: str, value: str):
         case "emoji_id":
             if not value.isnumeric():
                 raise ValueError("The emoji id is invalid.")
-            else:
-                return int(value)
+            return int(value)
 
         case "rarity":
             return _check_enum_input(value, constants.ItemRarity)
@@ -111,19 +107,19 @@ class EditItemView(BaseView):
         return _get_item_embed(self.item)
 
     @button(label="Edit Names", style=ButtonStyle.blurple)
-    async def edit_name(self, button: Button, interaction: BossInteraction):
+    async def edit_name(self, btn: Button, interaction: BossInteraction):
         model = EditItemModal(self.interaction, self.item)
         await model.popuplate_inputs("name", "description", "emoji_id")
         await interaction.response.send_modal(model)
 
     @button(label="Edit Prices")
-    async def edit_price(self, button: Button, interaction: BossInteraction):
+    async def edit_price(self, btn: Button, interaction: BossInteraction):
         model = EditItemModal(self.interaction, self.item)
         await model.popuplate_inputs("buy_price", "sell_price", "trade_price")
         await interaction.response.send_modal(model)
 
     @button(label="Edit Other Attributes")
-    async def edit_rarities_types(self, button: Button, interaction: BossInteraction):
+    async def edit_rarities_types(self, btn: Button, interaction: BossInteraction):
         model = EditItemModal(self.interaction, self.item)
         await model.popuplate_inputs("rarity", "type", "other_attributes")
         await interaction.response.send_modal(model)
@@ -137,9 +133,7 @@ class EditItemModal(Modal):
         super().__init__(title=f"Editing {self.item['name']}")
         self.inputs = {}
 
-    async def popuplate_inputs(
-        self, column, *other_columns
-    ):  # make sure at least 1 column is provided
+    async def popuplate_inputs(self, column, *other_columns):  # make sure at least 1 column is provided
         """Populate the modal's list of input, including any columns that have been provided."""
         columns = (column,) + other_columns
         for field, value in self.item.items():
@@ -166,25 +160,23 @@ class EditItemModal(Modal):
         errors = []
         values = {}
 
-        for column, input in self.inputs.items():
+        for column, text_input in self.inputs.items():
             try:
-                if value := check_input(column, input.value) is not None:
+                if (value := check_input(column, text_input.value)) is not None:
                     values[column] = value
-            except ValueError as e:
-                errors.append(e.args[0])
+            except ValueError as exc:
+                errors.append(exc.args[0])
 
         # if it is an invalid value send a message and leave the function
         if errors:
-            embed = self.interaction.Embed(description="")
+            embed = self.interaction.embed(description="")
             embed.set_author(name="The following error(s) occured:")
             for index, error in enumerate(errors):
                 embed.description += f"{index + 1}. {error}\n"
             await interaction.send(embed=embed, ephemeral=True)
             return
 
-        changed_values = {
-            column: value for column, value in values.items() if value != self.item[column]
-        }
+        changed_values = {column: value for column, value in values.items() if value != self.item[column]}
         if not changed_values:
             await interaction.send_text("No values are updated!", ephemeral=True)
             return
@@ -200,10 +192,11 @@ class EditItemModal(Modal):
             )  # basically add each changed column into the query
             new_item = await db.fetchrow(sql, self.item["item_id"], *changed_values.values())
 
-        except Exception as e:
+        except asyncpg.PostgresError as exc:
             # since only devs use this command, we can send them the whole error message
             await interaction.send(
-                embed=TextEmbed(f"{e.__class__.__name__}: {e}", EmbedColour.WARNING), ephemeral=True
+                embed=TextEmbed(f"{exc.__class__.__name__}: {exc}", EmbedColour.WARNING),
+                ephemeral=True,
             )
             return
 
@@ -211,9 +204,7 @@ class EditItemModal(Modal):
         embed = view.get_item_embed()
         await interaction.edit(embed=embed, view=view)
 
-        embed = Embed(
-            title=f"**{interaction.user.name}** edited the following values of `{self.item['name']}`"
-        )
+        embed = Embed(title=f"**{interaction.user.name}** edited the following values of `{self.item['name']}`")
         for column, changed_value in changed_values.items():
             old = str(self.item[column]).replace("\n", " ")
             new = str(changed_value).replace("\n", " ")
@@ -239,7 +230,7 @@ class ConfirmItemDelete(ConfirmView):
             confirmed_title="Item deleted!",
         )
 
-    async def delete_item(self, button: Button, interaction: BossInteraction):
+    async def delete_item(self, btn: Button, interaction: BossInteraction):
         db: Database = interaction.client.db
         item_name = await db.fetchval(
             """
@@ -265,12 +256,15 @@ class EmojiView(BaseView):
         self.emoji_index = 0
 
     @classmethod
-    async def send(cls, interaction: BossInteraction, emojis: list[nextcord.Emoji]):
+    async def send(cls, interaction: BossInteraction, emojis: list[nextcord.Emoji], content: str = None):
         view = cls(interaction, emojis)
         embed = view._get_embed()
         view.disable_buttons()
 
-        await interaction.send(f"There are `{len(emojis)}` emojis.", embed=embed, view=view)
+        if not content:
+            content = f"There are `{len(emojis)}` emojis."
+
+        await interaction.send(content, embed=embed, view=view)
 
     async def update(self, interaction: BossInteraction):
         self.disable_buttons()
@@ -321,12 +315,14 @@ class EmojiView(BaseView):
         embed.description = str(emoji)
 
         embed.add_field(
-            name=f"\:{emoji.name}:",
-            value=f">>> ➼ `Name` - \:{emoji.name}:"
-            f"\n➼ `Guild` - {emoji.guild.name}"
-            f"\n➼ `ID`    - {emoji.id}"
-            f"\n➼ `Url`   - {emoji.url}"
-            f"\n➼ `Mention syntax` - ` {str(emoji)} `",
+            name=rf"\:{emoji.name}:",
+            value=(
+                rf">>> ➼ `Name` - \:{emoji.name}:"
+                f"\n➼ `Guild` - {emoji.guild.name}"
+                f"\n➼ `ID`    - {emoji.id}"
+                f"\n➼ `Url`   - {emoji.url}"
+                f"\n➼ `Mention syntax` - ` {str(emoji)} `"
+            ),
         )
         return embed
 
@@ -362,38 +358,38 @@ class EmojiView(BaseView):
             more_btn.disabled = False
 
     @select(placeholder="Choose an emoji...", custom_id="emoji_select")
-    async def choose_video(self, select: Select, interaction: BossInteraction):
-        self.emoji_index = int(select.values[0])  # the value is set to the index of the emoji
+    async def choose_video(self, sel: Select, interaction: BossInteraction):
+        self.emoji_index = int(sel.values[0])  # the value is set to the index of the emoji
         await self.update(interaction)
 
     @button(emoji="⏮️", style=ButtonStyle.blurple, custom_id="first", disabled=True)
-    async def first(self, button: Button, interaction: BossInteraction):
+    async def first(self, btn: Button, interaction: BossInteraction):
         self.emoji_index = 0
         await self.update(interaction)
 
     @button(emoji="◀️", style=ButtonStyle.blurple, disabled=True, custom_id="back")
-    async def back(self, button: Button, interaction: BossInteraction):
+    async def back(self, btn: Button, interaction: BossInteraction):
         self.emoji_index -= 1
         await self.update(interaction)
 
     @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
-    async def next(self, button: Button, interaction: BossInteraction):
+    async def next(self, btn: Button, interaction: BossInteraction):
         self.emoji_index += 1
         await self.update(interaction)
 
     @button(emoji="⏭️", style=ButtonStyle.blurple, custom_id="last")
-    async def last(self, button: Button, interaction: BossInteraction):
+    async def last(self, btn: Button, interaction: BossInteraction):
         self.emoji_index = len(self.displayed_emojis) - 1
         await self.update(interaction)
 
     @button(label="Previous list", style=ButtonStyle.gray, custom_id="less", row=2)
-    async def less(self, button: Button, interaction: BossInteraction):
+    async def less(self, btn: Button, interaction: BossInteraction):
         self.page -= 1
         self.emoji_index = 0  # reset the page because its a new page
         await self.update(interaction)
 
     @button(label="Next list", style=ButtonStyle.gray, custom_id="more", row=2)
-    async def more(self, button: Button, interaction: BossInteraction):
+    async def more(self, btn: Button, interaction: BossInteraction):
         self.page += 1
         self.emoji_index = 0  # reset the page because its a new page
         await self.update(interaction)

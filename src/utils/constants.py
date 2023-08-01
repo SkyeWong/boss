@@ -1,6 +1,5 @@
-import os
 import enum
-
+import os
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -12,7 +11,13 @@ COPPER_SCRAP_RATE = 500_000
 DEVS_SERVER_ID = 919223073054539858
 LOG_CHANNEL_ID = 988046548309016586
 
-ITEM_OTHER_ATTR = {"food_value_min": int, "food_value_max": int, "battlegear_type": str, "armour_protection": int}
+ITEM_OTHER_ATTR = {
+    "food_value_min": int,
+    "food_value_max": int,
+    "battlegear_type": str,
+    "armour_protection": int,
+    "weapon_damage": int,
+}
 
 
 class Enum(enum.Enum):
@@ -27,7 +32,8 @@ class Enum(enum.Enum):
 
     @classmethod
     def to_dict(cls):
-        """Returns a `dict` containing each attribute, with its name as the key and value as value. The name will be automatically converted to lowercase."""
+        """Returns a `dict` containing each attribute, with its name as the key and value as value.
+        The name will be automatically converted to lowercase."""
         return {i.name.lower(): i.value for i in cls}
 
 

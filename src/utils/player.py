@@ -1,22 +1,21 @@
 """Module providing an interface for commonly-used player actions with the database."""
 # default modules
-from typing import Literal
 import json
 from datetime import datetime
-
-# nextcord
-import nextcord
-from nextcord import Interaction, Embed
+from typing import Literal
 
 # database
 import asyncpg
 
+# nextcord
+import nextcord
+from nextcord import Embed, Interaction
 
 # my modules
 from utils import constants
+from utils.constants import SCRAP_METAL, EmbedColour
 from utils.helpers import BossItem
 from utils.postgres_db import Database
-from utils.constants import EmbedColour, SCRAP_METAL
 
 
 class Player:
@@ -66,8 +65,8 @@ class Player:
                 value,
                 self.user.id,
             )
-        except asyncpg.exceptions.CheckViolationError as e:
-            raise ValueError from e
+        except asyncpg.exceptions.CheckViolationError as exc:
+            raise ValueError from exc
 
     async def modify_scrap(self, value: int):
         """The shorthand function for `Player.modify_currency("scrap_metal", value)`."""
@@ -93,8 +92,8 @@ class Player:
                 value,
                 self.user.id,
             )
-        except asyncpg.exceptions.CheckViolationError as e:
-            raise ValueError from e
+        except asyncpg.exceptions.CheckViolationError as exc:
+            raise ValueError from exc
 
     async def set_scrap(self, value: int):
         """The shorthand function for `Player.set_currency("scrap_metal", value)`."""
@@ -148,7 +147,10 @@ class Player:
             await self.add_item(lost_item["item_id"], -lost_item["quantity"])
             # Remove all scrap_metal of the user
             lost_money = await self.set_scrap(0)
-            embed.description = f"You lost {SCRAP_METAL} **{lost_money:,}**, and you also lost {lost_item['quantity']} {lost_item['emoji']} **{lost_item['name']}**"
+            embed.description = (
+                f"You lost {SCRAP_METAL} **{lost_money:,}**, and you also lost"
+                f" {lost_item['quantity']} {lost_item['emoji']} **{lost_item['name']}**"
+            )
 
             embed.timestamp = datetime.now()
             await self.user.send(embed=embed)
@@ -252,13 +254,15 @@ class Player:
             embed = Embed(colour=EmbedColour.SUCCESS)
             embed.set_thumbnail("https://i.imgur.com/OzmCuvW.png")
             embed.description = "### You completed a mission!\n"
-            embed.description += f"- Mission: {cog.MISSION_TYPES[mission_id]['description'].format(quantity=mission['total_amount'])}\n"
+            embed.description += (
+                f"- Mission: {cog.MISSION_TYPES[mission_id]['description'].format(quantity=mission['total_amount'])}\n"
+            )
 
             # generate the "reward" string
             reward = json.loads(mission["reward"])
             if reward["type"] == "item":
                 item = BossItem(reward["id"], reward["amount"])
-                await self.add_item(item.id, item.quantity)
+                await self.add_item(item.item_id, item.quantity)
                 reward_msg = f"{reward['amount']}x {await item.get_emoji(self.db)} {await item.get_name(self.db)}"
             else:
                 # reward["type"] will be "scrap_metal" or "copper"

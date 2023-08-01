@@ -1,33 +1,31 @@
 # default modules
 import asyncio
+import logging
 import os
 import random
 import sys
-import logging
 from datetime import timezone
-from typing import Union, Optional
+from typing import Optional, Union
+
+import nest_asyncio
 
 # third-party
 import nextcord
+from cooldowns import CallableOnCooldown
 from nextcord import Embed, Interaction
 from nextcord.ext import commands
 
-from cooldowns import CallableOnCooldown
-
-import nest_asyncio
+# creates a flask app, which
+#   lets uptimerobot ping the app to make it stay up, and
+#   uploads the boss' website (https://boss-bot.onrender.com/) to the internet
+from keep_alive import keep_alive
+from modules.macro.run_macro import RunMacroView
 
 # my modules
 from utils import constants, helpers
 from utils.constants import EmbedColour
 from utils.helpers import BossInteraction
 from utils.postgres_db import Database
-from modules.macro.run_macro import RunMacroView
-
-# creates a flask app, which
-#   lets uptimerobot ping the app to make it stay up, and
-#   uploads the boss' website (https://boss-bot.onrender.com/) to the internet
-from keep_alive import keep_alive
-
 
 nest_asyncio.apply()
 
@@ -72,7 +70,10 @@ class BossBot(commands.Bot):
         self.has_connected_db.set()
 
         logging.info(
-            f"\033[1;36m{self.user.name} (ID: {self.user.id})\033[0m has connected to discord \033[0;34min {len(self.guilds)} servers!\033[0m"
+            "\033[1;36m%s (ID: %s)\033[0m has connected to discord \033[0;34min %s servers!\033[0m",
+            self.user.name,
+            self.user.id,
+            len(self.guilds),
         )
 
     async def on_disconnect(self):
@@ -83,7 +84,7 @@ class BossBot(commands.Bot):
         await self.db.disconnect()
         logging.info("Bot closed, event loop closing...")
 
-    def get_interaction(self, data, *, cls=nextcord.Interaction):
+    def get_interaction(self, data, *, cls=nextcord.Interaction):  # pylint: disable=useless-parent-delegation
         # tell the bot to use `BossInteraction`s instead of normal `nextcord.Interaction`s
         return super().get_interaction(data, cls=BossInteraction)
 
@@ -116,9 +117,7 @@ class BossBot(commands.Bot):
         logging.error("An error occured", exc_info=exc)
 
     @staticmethod
-    async def get_or_fetch_member(
-        guild: nextcord.Guild, member_id: int
-    ) -> Union[nextcord.Member, None]:
+    async def get_or_fetch_member(guild: nextcord.Guild, member_id: int) -> Union[nextcord.Member, None]:
         """Looks up a member in cache or fetches if not found. If the member is not in the guid, returns `None`."""
         member = guild.get_member(member_id)
         if member is not None:
@@ -178,7 +177,9 @@ def get_cooldown_embed(interaction: Interaction, error: CallableOnCooldown) -> E
     embed.title = random.choice(titles)
     command = interaction.application_command
     resets_at = error.resets_at.replace(tzinfo=timezone.utc).astimezone()
-    embed.description = f"You can use {command.get_mention(interaction.guild)} again <t:{int(resets_at.timestamp())}:R>!"
+    embed.description = (
+        f"You can use {command.get_mention(interaction.guild)} again <t:{int(resets_at.timestamp())}:R>!"
+    )
     embed.colour = EmbedColour.WARNING
     return embed
 

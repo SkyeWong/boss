@@ -1,56 +1,48 @@
 # default modules
-import datetime
-from PIL import Image
-from io import BytesIO
 import asyncio
-import os
 import base64
+import datetime
+import html
+import os
 from contextlib import suppress
+from io import BytesIO
 from typing import Optional
 
-# nextcord
-import nextcord
-from nextcord.ext import commands, application_checks
-from nextcord import Embed, Interaction, SlashOption, SelectOption
-from nextcord.ui import View, Button, Select
-
-# command cooldowns
-import cooldowns
-from cooldowns import SlashBucket
-
 import aiohttp
-
+import cooldowns
+import googleapiclient.discovery
+import nextcord
+import pytz
+from cooldowns import SlashBucket
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 from mazelib import Maze
 from mazelib.generate.Prims import Prims
 from mazelib.solve.BacktrackingSolver import BacktrackingSolver
-
-import googleapiclient.discovery
+from nextcord import Embed, Interaction, SelectOption, SlashOption
+from nextcord.ext import application_checks, commands
+from nextcord.ui import Button, Select, View
+from PIL import Image
 from pytube import Search
-
 from quickchart import QuickChart
 
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
-
-import pytz
+# command views
+from cogs.wasteland_workshop.views import (
+    LINE_STATION_CODES,
+    ChannelVideoView,
+    MtrLine,
+    NextTrainView,
+    Train,
+    Video,
+    VideoView,
+    WeatherView,
+)
 
 # my modules and constants
 from utils import constants
-from utils.template_views import BaseView
-from utils.helpers import check_if_not_dev_guild, TextEmbed, command_info
 from utils.constants import EmbedColour
-
-# command views
-from .views import (
-    WeatherView,
-    VideoView,
-    ChannelVideoView,
-    Video,
-    MtrLine,
-    LINE_STATION_CODES,
-    Train,
-    NextTrainView,
-)
+from utils.helpers import TextEmbed, check_if_not_dev_guild, command_info
+from utils.template_views import BaseView
 
 
 class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
@@ -60,14 +52,30 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.AES_KEY = os.urandom(32)
+        self.aes_key = os.urandom(32)
+        self.location_list = {}
 
-    @nextcord.slash_command(
-        name="generate-maze", description="Generate a maze using the Mazelib Python library"
-    )
+    async def cog_setup(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json", timeout=5) as response:
+                content = await response.json()
+        self.location_list = {}
+        for k, v in content.get("DYN_DAT_MINDS_RHRREAD").items():
+            if "LocationName" in k:
+                if not v["Val_Eng"] or not v["Val_Chi"]:
+                    self.location_list[k.replace("LocationName", "")] = k.replace("LocationName", "")
+                else:
+                    self.location_list[html.unescape(f"{v['Val_Eng']} - {v['Val_Chi']}")] = k.replace(
+                        "LocationName", ""
+                    )
+        self.location_list = dict(sorted(self.location_list.items()))
+
+    @nextcord.slash_command(name="generate-maze", description="Generate a maze using the Mazelib Python library")
     @command_info(
-        long_help="You can set multiple properties of the maze from its size, to difficulty and more!\n"
-        "> Note: this command takes a while to run, so be patient!",
+        long_help=(
+            "You can set multiple properties of the maze from its size, to difficulty and more!\n"
+            "> Note: this command takes a while to run, so be patient!"
+        ),
         examples={
             "generate-maze width:20": "Generates a maze with a width of 50 cells.",
             "generate-maze width:10 difficulty: 9": "Makes 10 mazes and choose the one with the longest solution",
@@ -115,17 +123,17 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         embed.description += "\n`1.` Generating maze... "
         await msg.edit(embed=embed)
 
-        m = self._generate_maze(width, height, difficulty / 10 if difficulty else None, start, end)
+        maze = self._generate_maze(width, height, difficulty / 10 if difficulty else None, start, end)
 
         embed.description += "**`Done`**!\n`2.` Generating the image... "
         await msg.edit(embed=embed)
 
-        maze_str = m.tostring(True, True)
-        solved_img = self._generate_solved_img(maze_str, len(m.grid[0]), len(m.grid))
+        maze_str = maze.tostring(True, True)
+        solved_img = self._generate_solved_img(maze_str, len(maze.grid[0]), len(maze.grid))
         unsolved_img = self._generate_unsolved_img(maze_str, self.SPRITE_WIDTH, solved_img)
 
-        embed.add_field(name="Solution length", value=f"`{len(m.solutions[0])}` cells")
-        embed.add_field(name="Start ➡ End", value=f"`{m.start[::-1]}` ➡ `{m.end[::-1]}`")
+        embed.add_field(name="Solution length", value=f"`{len(maze.solutions[0])}` cells")
+        embed.add_field(name="Start ➡ End", value=f"`{maze.start[::-1]}` ➡ `{maze.end[::-1]}`")
         if difficulty:
             embed.add_field(name="Difficulty", value=difficulty)
         embed.set_image("attachment://maze.png")
@@ -175,30 +183,29 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         await interaction.send(
             interaction.user.mention,
             embed=TextEmbed(
-                f"Your {width}x{height} maze requested at <t:{int_time}:R> | <t:{int_time}:f> has been successfully generated!"
+                f"Your {width}x{height} maze requested at <t:{int_time}:R> | <t:{int_time}:f> has been successfully"
+                " generated!"
             ),
             view=jump_view,
             ephemeral=True,
         )
 
-    def _generate_maze(
-        self, width: int, height: int, difficulty: float | None, start: bool, end: bool
-    ) -> Maze:
-        m = Maze()
-        m.generator = Prims(height, width)
-        m.solver = BacktrackingSolver()
+    def _generate_maze(self, width: int, height: int, difficulty: float | None, start: bool, end: bool) -> Maze:
+        maze = Maze()
+        maze.generator = Prims(height, width)
+        maze.solver = BacktrackingSolver()
 
         loop = asyncio.get_running_loop()
 
         if difficulty:
-            future = loop.run_in_executor(None, m.generate_monte_carlo, 10, 1, difficulty)
+            future = loop.run_in_executor(None, maze.generate_monte_carlo, 10, 1, difficulty)
         else:
-            m.generate()
-            m.generate_entrances(start_outer=start, end_outer=end)
-            future = loop.run_in_executor(None, m.solve)
+            maze.generate()
+            maze.generate_entrances(start_outer=start, end_outer=end)
+            future = loop.run_in_executor(None, maze.solve)
 
         loop.run_until_complete(future)
-        return m
+        return maze
 
     SPRITES = {
         "ground": Image.open("resources/maze/ground.png"),
@@ -235,9 +242,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         for y_i, y in enumerate(maze_str.splitlines()):
             for x_i, x in enumerate(y):
                 if x == "+":
-                    unsolved_img.paste(
-                        self.SPRITES["ground"], (x_i * sprite_width, y_i * sprite_width)
-                    )
+                    unsolved_img.paste(self.SPRITES["ground"], (x_i * sprite_width, y_i * sprite_width))
         return unsolved_img
 
     def _save_img(self, image: Image.Image) -> BytesIO:
@@ -247,19 +252,22 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         output.seek(0)
         return output
 
-    @nextcord.slash_command(
-        name="encrypt", description="Send (truly) private messages with your friend using AES!"
-    )
+    @nextcord.slash_command(name="encrypt", description="Send (truly) private messages with your friend using AES!")
     @command_info(
-        long_help="This performs a bit of complex magic that converts your human readable text into random characters, "
-        "which can be shown again using </decrypt:1100243607065219193>.",
+        long_help=(
+            "This performs a bit of complex magic that converts your human readable text into random characters, "
+            "which can be shown again using </decrypt:1100243607065219193>."
+        ),
         notes=[
-            "you can enter an optional `key` for the encryption. Be sure to only keep it between the people you are communicating with!"
+            "you can enter an optional `key` for the encryption. "
+            "Be sure to only keep it between the people you are communicating with!"
         ],
         examples={
             "encrypt plaintext:hello world": "Encrypts _hello world_ with a random generated key.",
-            "encrypt plaintext:hello world key:<key>": "Encrypts _hello world_ with the provided key. "
-            "If the same message is encrypted with the same key twice, it will yield the same results.",
+            "encrypt plaintext:hello world key:<key>": (
+                "Encrypts _hello world_ with the provided key. "
+                "If the same message is encrypted with the same key twice, it will yield the same results."
+            ),
         },
     )
     async def encrypt(
@@ -277,9 +285,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             try:
                 key = base64.b64decode(key)
             except ValueError:
-                await interaction.send(
-                    embed=TextEmbed("The key is not properly encoded in base64.")
-                )
+                await interaction.send(embed=TextEmbed("The key is not properly encoded in base64."))
                 return
 
         # Encrypt data with AES
@@ -309,15 +315,11 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         )
         for i in embed.fields:
             if len(i.value) > 1024:
-                await interaction.send(
-                    embed=TextEmbed("The message is too long!", EmbedColour.WARNING)
-                )
+                await interaction.send(embed=TextEmbed("The message is too long!", EmbedColour.WARNING))
                 return
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command(
-        name="decrypt", description="Decrypt that gibberish your friend just sent you!"
-    )
+    @nextcord.slash_command(name="decrypt", description="Decrypt that gibberish your friend just sent you!")
     @command_info(
         long_help="This turns the random characters produced from </encrypt:1100243604896759910> back to normal text.",
         notes=["you do need the key to work, so maybe ask your friend to send you it beforehand"],
@@ -339,9 +341,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             try:
                 data[k] = base64.b64decode(v)
             except ValueError:
-                await interaction.send(
-                    embed=TextEmbed(f"The {k} is not properly encoded in base64.", EmbedColour.FAIL)
-                )
+                await interaction.send(embed=TextEmbed(f"The {k} is not properly encoded in base64.", EmbedColour.FAIL))
                 return
 
         # Decrypt data with AES
@@ -384,7 +384,6 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
     @nextcord.slash_command(name="weather")
     async def weather(self, interaction: Interaction):
         """Get real-time weather forecasts from multiple providers."""
-        pass
 
     async def open_meteo_location_autocomplete(self, interaction: Interaction, data: str):
         if not data:
@@ -401,7 +400,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
                     # Encrypt location data with AES to prevent users from faking location
                     plaintext = f"{i['name']}&{i['latitude']}&{i['longitude']}".encode("UTF-8")
                     padded = pad(plaintext, AES.block_size)
-                    cipher = AES.new(self.AES_KEY, AES.MODE_ECB)
+                    cipher = AES.new(self.aes_key, AES.MODE_ECB)
                     ciphertext = cipher.encrypt(padded)
                     # convert the ciphertext (bytes) into base 64 text
                     ciphertext = base64.b64encode(ciphertext).decode()
@@ -452,12 +451,12 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         99: "Heavy thunderstorm with hail",
     }
 
-    @weather.subcommand(
-        name="global", description="Have a look at the current weather, anywhere in the world!"
-    )
+    @weather.subcommand(name="global", description="Have a look at the current weather, anywhere in the world!")
     @command_info(
-        long_help="This uses the [Open Meteo API](https://api.open-meteo.com) to shows the real-time, up-to-date weather around the globe.\n"
-        "Choose a location from the autocompleted results.",
+        long_help=(
+            "This uses the [Open Meteo API](https://api.open-meteo.com) to shows the real-time, up-to-date weather"
+            " around the globe.\nChoose a location from the autocompleted results."
+        ),
     )
     async def open_meteo_weather(
         self,
@@ -468,7 +467,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             autocomplete_callback=open_meteo_location_autocomplete,
         ),
     ):
-        cipher = AES.new(self.AES_KEY, AES.MODE_ECB)
+        cipher = AES.new(self.aes_key, AES.MODE_ECB)
         try:
             encrypted_location = base64.b64decode(encrypted_location)
             data = cipher.decrypt(encrypted_location)
@@ -489,9 +488,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             timezone="auto",
         )
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                "https://api.open-meteo.com/v1/forecast", params=params
-            ) as response:
+            async with session.get("https://api.open-meteo.com/v1/forecast", params=params) as response:
                 data = await response.json()
 
         weather = data["current_weather"]
@@ -514,14 +511,14 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         embed.description += f"\n(at <t:{int(data_time.timestamp())}:f>)"
 
         # Create the chart
-        qc = QuickChart()
-        qc.version = 4
-        qc.width = 600
-        qc.height = 360
-        qc.background_color = "#282B30"
+        chart = QuickChart()
+        chart.version = 4
+        chart.width = 600
+        chart.height = 360
+        chart.background_color = "#282B30"
 
-        FONT_FAMILY = "Noto Sans"
-        qc.config = {
+        font_family = "Noto Sans"
+        chart.config = {
             "type": "line",
             "data": {
                 "labels": data["hourly"]["time"],
@@ -569,7 +566,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
                         "position": "bottom",
                         "labels": {
                             "font": {
-                                "family": FONT_FAMILY,
+                                "family": font_family,
                                 "size": 16,
                             },
                         },
@@ -601,13 +598,13 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
                             "display": True,
                             "text": "Temperature (°C)",
                             "font": {
-                                "family": FONT_FAMILY,
+                                "family": font_family,
                                 "size": 20,
                             },
                         },
                         "ticks": {
                             "font": {
-                                "family": FONT_FAMILY,
+                                "family": font_family,
                                 "size": 12,
                             },
                             "beginAtZero": False,
@@ -622,13 +619,13 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
                             "display": True,
                             "text": "Humidity (%)",
                             "font": {
-                                "family": FONT_FAMILY,
+                                "family": font_family,
                                 "size": 20,
                             },
                         },
                         "ticks": {
                             "font": {
-                                "family": FONT_FAMILY,
+                                "family": font_family,
                                 "size": 12,
                             },
                             "beginAtZero": False,
@@ -641,13 +638,13 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
                             "display": True,
                             "text": f"Time ({data['timezone_abbreviation']})",
                             "font": {
-                                "family": FONT_FAMILY,
+                                "family": font_family,
                                 "size": 18,
                             },
                         },
                         "ticks": {
                             "font": {
-                                "family": FONT_FAMILY,
+                                "family": font_family,
                                 "size": 16,
                             },
                         },
@@ -655,33 +652,27 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
                 },
             },
         }
-        embed.set_image(qc.get_short_url())
+        embed.set_image(chart.get_short_url())
 
         await interaction.send(embed=embed)
 
     async def hko_location_autocomplete(self, interaction: Interaction, data: str):
         if not data:
             # return full list
-            await interaction.response.send_autocomplete(
-                dict(sorted(self.location_list.items())[:25])
-            )
+            await interaction.response.send_autocomplete(dict(sorted(self.location_list.items())[:25]))
         else:
             # send a list of nearest matches from the list of item
             near_locations = {
-                k: v
-                for k, v in self.location_list.items()
-                if data.lower() in k.lower() or data.lower() in v.lower()
+                k: v for k, v in self.location_list.items() if data.lower() in k.lower() or data.lower() in v.lower()
             }
             await interaction.response.send_autocomplete(dict(sorted(near_locations.items())[:25]))
 
     async def get_temperature(self, location: str, language="Val_Eng"):
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                "https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json"
-            ) as response:
-                html = await response.json()
+            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_RHRREAD.json") as response:
+                content = await response.json()
 
-        temp_list: dict[dict] = html.get("DYN_DAT_MINDS_RHRREAD")
+        temp_list: dict[dict] = content.get("DYN_DAT_MINDS_RHRREAD")
 
         date = temp_list.get("BulletinDate")[language]
         time = temp_list.get("BulletinTime")[language]
@@ -717,22 +708,20 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
 
     async def _get_hko_weather_forecast(self, language="Val_Eng"):
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                "https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json"
-            ) as response:
-                html = await response.json()
+            async with session.get("https://www.hko.gov.hk/json/DYN_DAT_MINDS_FLW.json") as response:
+                content: dict[dict] = await response.json()
 
-        response: dict[dict] = html.get("DYN_DAT_MINDS_FLW")
-        date = response.get("BulletinDate")[language]
-        time = response.get("BulletinTime")[language]
+        content: dict[dict] = content.get("DYN_DAT_MINDS_FLW")
+        date = content.get("BulletinDate")[language]
+        time = content.get("BulletinTime")[language]
         hk_tz = pytz.timezone("Asia/Hong_Kong")
         forecast_time = datetime.datetime.strptime(date + time, "%Y%m%d%H%M").replace(tzinfo=hk_tz)
 
-        situation = response.get("FLW_WxForecastGeneralSituation")[language]
+        situation = content.get("FLW_WxForecastGeneralSituation")[language]
         situation += "\n\n"
-        situation += response.get("FLW_WxForecastWxDesc")[language]
+        situation += content.get("FLW_WxForecastWxDesc")[language]
 
-        outlook = response.get("FLW_WxOutlookContent")[language]
+        outlook = content.get("FLW_WxOutlookContent")[language]
 
         return forecast_time, situation, outlook
 
@@ -772,7 +761,10 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
 
     @weather.subcommand(name="hong-kong", description="Show the latest weather from HK observatory")
     @command_info(
-        long_help="Displays the weather at Hong Kong using the API provided by [HK Observatory](https://www.hko.gov.hk/), along with a forecast and any warnings the HKO hoisted."
+        long_help=(
+            "Displays the weather at Hong Kong using the API provided by [HK Observatory](https://www.hko.gov.hk/),"
+            " along with a forecast and any warnings the HKO hoisted."
+        )
     )
     async def hko_weather(
         self,
@@ -790,11 +782,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             choices={"English": "Val_Eng", "Chinese": "Val_Chi"},
         ),
     ):
-        if (
-            location
-            and location not in self.location_list.keys()
-            and location not in self.location_list.values()
-        ):
+        if location and location not in self.location_list and location not in self.location_list.values():
             await interaction.send(f"District not found\n`{location=}`\n", ephemeral=True)
             return
 
@@ -811,8 +799,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             await interaction.response.send_autocomplete(["Searching..."])
             return
 
-        s = Search(data)
-        results = None
+        search = Search(data)
 
         with suppress(KeyError):
             # the pytube library sometimes raises
@@ -823,12 +810,9 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
 
             # when there are no errors, so we suppress it here
 
-            results = s.completion_suggestions
+            results = search.completion_suggestions or []
 
-        if results is None:
-            await interaction.response.send_autocomplete([data])
-        else:
-            await interaction.response.send_autocomplete([data] + results[:24])
+        await interaction.response.send_autocomplete([data] + results[:24])
 
     @nextcord.slash_command(name="youtube", guild_ids=[constants.DEVS_SERVER_ID])
     @application_checks.is_owner()
@@ -875,26 +859,18 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         api_service_name = "youtube"
         api_version = "v3"
         dev_key = os.getenv("GOOGLE_API_KEY")
-        youtube = googleapiclient.discovery.build(
-            api_service_name, api_version, developerKey=dev_key
-        )
+        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
 
+        # pylint: disable=no-member
         if limit_channel:
             # limit the responses to only 1 channel, here we search for the channels that match the name
-            channels = (
-                youtube.search()
-                .list(part="snippet", type="channel", q=query, maxResults=25)
-                .execute()["items"]
-            )
+            channels = youtube.search().list(part="snippet", type="channel", q=query, maxResults=25).execute()["items"]
             # let users select a channel through a select menu
             view = View()
             embed = TextEmbed("Choose a channel:")
             channel_select = Select(
                 # the value of the option is set to the channel id
-                options=[
-                    SelectOption(label=i["snippet"]["title"], value=i["id"]["channelId"])
-                    for i in channels
-                ]
+                options=[SelectOption(label=i["snippet"]["title"], value=i["id"]["channelId"]) for i in channels]
             )
 
             async def choose_channel(select_interaction: Interaction):
@@ -910,9 +886,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
                 )
                 playlist_id = channel["contentDetails"]["relatedPlaylists"]["uploads"]
                 playlist_response = (
-                    youtube.playlistItems()
-                    .list(part="contentDetails", playlistId=playlist_id, maxResults=25)
-                    .execute()
+                    youtube.playlistItems().list(part="contentDetails", playlistId=playlist_id, maxResults=25).execute()
                 )
 
                 # fetch the details of each video in the playlist
@@ -920,12 +894,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
                     youtube.videos()
                     .list(
                         part="snippet,contentDetails,statistics",
-                        id=",".join(
-                            [
-                                video["contentDetails"]["videoId"]
-                                for video in playlist_response["items"]
-                            ]
-                        ),
+                        id=",".join([video["contentDetails"]["videoId"] for video in playlist_response["items"]]),
                     )
                     .execute()
                 )
@@ -961,9 +930,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             video_ids = [i["id"]["videoId"] for i in search_response["items"]]
             # get more details on the videos
             videos_response = (
-                youtube.videos()
-                .list(part="snippet,contentDetails,statistics", id=",".join(video_ids))
-                .execute()
+                youtube.videos().list(part="snippet,contentDetails,statistics", id=",".join(video_ids)).execute()
             )
 
             videos = [Video.from_api_response(video) for video in videos_response["items"]]
@@ -979,6 +946,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             view.disable_buttons()
 
             view.msg = await interaction.send(embed=embed, view=view)
+        # pylint: enable=no-member
 
     @nextcord.slash_command(name="upload-imgur", guild_ids=[constants.DEVS_SERVER_ID])
     @application_checks.is_owner()
@@ -987,9 +955,7 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         interaction: Interaction,
         image: nextcord.Attachment = SlashOption(description="Image to upload", required=True),
         title: str = SlashOption(description="Title of image (optional)", required=False),
-        description: str = SlashOption(
-            description="Description of image (optional)", required=False
-        ),
+        description: str = SlashOption(description="Description of image (optional)", required=False),
     ):
         """Uploads an image to Imgur. Only available to owners."""
         payload = {
@@ -1002,12 +968,10 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         headers = {"Authorization": "Client-ID 826be6012a5dd28"}
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://api.imgur.com/3/image", headers=headers, data=payload
-            ) as response:
-                html = await response.json()
+            async with session.post("https://api.imgur.com/3/image", headers=headers, data=payload) as response:
+                content = await response.json()
 
-        if not html.get("success"):
+        if not content.get("success"):
             embed = Embed(title="Uploading image failed!", description="Please try again.")
             embed.add_field(
                 name="Causes",
@@ -1015,13 +979,13 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             )
             embed.add_field(
                 name="Error",
-                value=f"```py\n{html['data']['error']}```",
+                value=f"```py\n{content['data']['error']}```",
                 inline=False,
             )
             await interaction.send(embed=embed, ephemeral=True)
             return
 
-        data = html["data"]
+        data = content["data"]
         link = data["link"]
 
         embed = Embed()
@@ -1040,17 +1004,15 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         )
         embed.add_field(
             name="Image",
-            value=(
-                f"**`WIDTH`** - {data['width']}\n**`HEIGHT`** - {data['height']}\n**`TYPE`** - `{data['type']}`"
-            ),
+            value=f"**`WIDTH`** - {data['width']}\n**`HEIGHT`** - {data['height']}\n**`TYPE`** - `{data['type']}`",
         )
         await interaction.send(embed=embed)
 
-    @nextcord.slash_command(
-        name="next-train", description="View information about the HK MTR train system."
-    )
+    @nextcord.slash_command(name="next-train", description="View information about the HK MTR train system.")
     @command_info(
-        long_help="With this command, you can get the real-time info of when trains are departing/arriving at a station!\n",
+        long_help=(
+            "With this command, you can get the real-time info of when trains are departing/arriving at a station!\n"
+        ),
         notes=[
             "not all railway lines are supported yet, we hope that MTR will update their API soon.",
             "when using this command, make sure to choose the `line` first before you choose a `station`.",
@@ -1096,17 +1058,13 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
             view.update_view()
             await interaction.send(embed=embed, view=view)
         else:  # neither up or down directions are available --> no trains will come
-            station_name = [
-                name for name, code in LINE_STATION_CODES[line].items() if code == station
-            ][0]
+            station_name = [name for name, code in LINE_STATION_CODES[line].items() if code == station][0]
             embed = Embed()
             embed.description = f"No trains will arrive at **{station_name}** in the near future."
             await interaction.send(embed=embed)
 
     @next_train.on_autocomplete("station")
-    async def station_autocomplete(
-        self, interaction: Interaction, station: str, line: Optional[str] = None
-    ):
+    async def station_autocomplete(self, interaction: Interaction, station: str, line: Optional[str] = None):
         """
         If `line` is empty, tell users to choose a line first.
         Otherwise, search for a specifc station.
@@ -1129,15 +1087,14 @@ class WastelandWorkshop(commands.Cog, name="Wasteland Workshop"):
         # search for stations
         near_stations = dict(
             sorted(
-                [
-                    (name, code)
-                    for name, code in LINE_STATION_CODES[line].items()
-                    if station.lower() in name.lower()
-                ]
+                [(name, code) for name, code in LINE_STATION_CODES[line].items() if station.lower() in name.lower()]
             )[:25]
         )
         await interaction.response.send_autocomplete(near_stations)
 
 
-def setup(bot: commands.Bot):
-    bot.add_cog(WastelandWorkshop(bot))
+async def setup(bot: commands.Bot):
+    cog = WastelandWorkshop(bot)
+    bot.add_cog(cog)
+    await bot.wait_until_ready()
+    await cog.cog_setup()

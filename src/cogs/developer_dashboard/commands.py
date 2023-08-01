@@ -1,29 +1,27 @@
 # default modules
 from typing import Union
 
-# nextcord
-import nextcord
-from nextcord.ext import commands
-from nextcord import (
-    SlashOption,
-    ButtonStyle,
-    SlashApplicationCommand as SlashCmd,
-    SlashApplicationSubcommand as SlashSubcmd,
-)
-from nextcord.ui import Button
-
-
 # database
 import asyncpg
-from utils.postgres_db import Database
+
+# nextcord
+import nextcord
+from nextcord import ButtonStyle
+from nextcord import SlashApplicationCommand as SlashCmd
+from nextcord import SlashApplicationSubcommand as SlashSubcmd
+from nextcord import SlashOption
+from nextcord.ext import commands
+from nextcord.ui import Button
+
+from cogs.developer_dashboard.views import ConfirmItemDelete, EditItemView, EmojiView, check_input
 
 # my modules and constants
 from utils import constants, helpers
-from utils.template_views import BaseView
 from utils.constants import EmbedColour
-from utils.player import Player
 from utils.helpers import BossInteraction, command_info
-from .views import EditItemView, ConfirmItemDelete, EmojiView, check_input
+from utils.player import Player
+from utils.postgres_db import Database
+from utils.template_views import BaseView
 
 
 class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
@@ -60,9 +58,7 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
     async def modify_user(self, interaction: BossInteraction):
         """Edit a user's profile."""
 
-    @modify_user.subcommand(
-        name="currency", description="Modify or set a user's scrap metal and coppers"
-    )
+    @modify_user.subcommand(name="currency", description="Modify or set a user's scrap metal and coppers")
     async def modify_currency(
         self,
         interaction: BossInteraction,
@@ -91,12 +87,15 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
 
         if set_or_modify == "set":
             new_scrap = await player.set_currency(currency_type, amount)
-            msg = f"{interaction.user.mention} set `{player.name}`'s {currency_type} to **`{new_scrap:,}`**"
+            msg = f"{interaction.user.mention} set `{user.name}`'s {currency_type} to **`{new_scrap:,}`**"
         else:
             new_scrap = await player.modify_currency(currency_type, amount)
-            msg = f"{interaction.user.mention} set `{player.name}`'s {currency_type} to **`{new_scrap:,}`**, modified by {amount:,}"
+            msg = (
+                f"{interaction.user.mention} set `{user.name}`'s {currency_type} to"
+                f" **`{new_scrap:,}`**, modified by {amount:,}"
+            )
 
-        embed = interaction.TextEmbed(msg, show_macro_msg=False)
+        embed = interaction.text_embed(msg, show_macro_msg=False)
         await interaction.send(embed=embed)
         await interaction.guild.get_channel(constants.LOG_CHANNEL_ID).send(embed=embed)
 
@@ -119,7 +118,7 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
             experience,
             player.id,
         )
-        embed = interaction.TextEmbed(
+        embed = interaction.text_embed(
             f"{interaction.user.mention} set `{player.name}`'s experience to `{experience}`!",
             show_macro_msg=False,
         )
@@ -130,9 +129,7 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
     async def modify_hunger(
         self,
         interaction: BossInteraction,
-        hunger: int = SlashOption(
-            description="Hunger to set to.", required=True, min_value=0, max_value=100
-        ),
+        hunger: int = SlashOption(description="Hunger to set to.", required=True, min_value=0, max_value=100),
         player: nextcord.User = SlashOption(required=False),
     ):
         if not player:
@@ -147,7 +144,7 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
             hunger,
             player.id,
         )
-        embed = interaction.TextEmbed(
+        embed = interaction.text_embed(
             f"{interaction.user.mention} set `{player.name}`'s hunger to `{hunger}`!",
             show_macro_msg=False,
         )
@@ -158,9 +155,7 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
     async def modify_health(
         self,
         interaction: BossInteraction,
-        health: int = SlashOption(
-            description="Health to set to", required=True, min_value=0, max_value=100
-        ),
+        health: int = SlashOption(description="Health to set to", required=True, min_value=0, max_value=100),
         player: nextcord.User = SlashOption(required=False),
     ):
         if not player:
@@ -175,7 +170,7 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
             health,
             player.id,
         )
-        embed = interaction.TextEmbed(
+        embed = interaction.text_embed(
             f"{interaction.user.mention} set `{player.name}`'s health to `{health}`!",
             show_macro_msg=False,
         )
@@ -227,17 +222,20 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
                     # moves item to to_place
                     quantities = await conn.fetchrow(
                         """
-                            INSERT INTO players.inventory As inv (player_id, inv_type, item_id, quantity)
-                            VALUES ($1, $2, $3, $4)
-                            ON CONFLICT(player_id, inv_type, item_id) DO UPDATE
-                                SET quantity = inv.quantity + excluded.quantity
-                            RETURNING 
-                                quantity As new, 
-                                COALESCE(
-                                    (SELECT quantity As old_quantity FROM players.inventory WHERE player_id=$1 AND inv_type=$2 AND item_id=$3), 
-                                    0
-                                ) As old 
-                            """,
+                        INSERT INTO players.inventory As inv 
+                            (player_id, inv_type, item_id, quantity)
+                        VALUES ($1, $2, $3, $4)
+                        ON CONFLICT(player_id, inv_type, item_id) DO UPDATE
+                            SET quantity = inv.quantity + excluded.quantity
+                        RETURNING 
+                            quantity As new, 
+                            COALESCE(
+                                (SELECT quantity As old_quantity 
+                                FROM players.inventory 
+                                WHERE player_id=$1 AND inv_type=$2 AND item_id=$3), 
+                                0
+                            ) As old 
+                        """,
                         player.id,
                         inv_type,
                         item["item_id"],
@@ -264,11 +262,11 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
                         if inv_type == vault and inventory[vault]["items"] >= 5:
                             raise MoveItemException("Vaults only have 5 slots!")
 
-        except MoveItemException as e:
-            await interaction.send_text(e.text)
+        except MoveItemException as exc:
+            await interaction.send_text(exc.text)
             return
 
-        embed = interaction.Embed(
+        embed = interaction.embed(
             title=f"{interaction.user.name} **UPDATED** `{player.name}'s {constants.InventoryType(inv_type)}`",
             show_macro_msg=False,
         )
@@ -285,7 +283,6 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
     @modify.subcommand(name="item")
     async def modify_item(self, interaction: BossInteraction):
         """Add, edit, or delete an item."""
-        pass
 
     @modify_item.subcommand(name="add", description="Add a new item into the game")
     async def add_item(
@@ -294,24 +291,12 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
         name: str = SlashOption(required=True, min_length=2),
         description: str = SlashOption(required=True, min_length=2),
         emoji_id: str = SlashOption(required=True),
-        rarity: str = SlashOption(
-            choices=[i.name for i in constants.ItemRarity], required=False, default=0
-        ),
-        item_type: str = SlashOption(
-            choices=[i.name for i in constants.ItemType], required=False, default=1
-        ),
-        buy_price: str = SlashOption(
-            required=False, default="0", description="0 --> unable to be bought"
-        ),
-        sell_price: str = SlashOption(
-            required=False, default="0", description="0 --> unable to be sold"
-        ),
-        trade_price: str = SlashOption(
-            required=False, default="0", description="0 --> unknown value"
-        ),
-        other_attributes: str = SlashOption(
-            required=False, default="", description="in JSON format"
-        ),
+        rarity: str = SlashOption(choices=[i.name for i in constants.ItemRarity], required=False, default=0),
+        item_type: str = SlashOption(choices=[i.name for i in constants.ItemType], required=False, default=1),
+        buy_price: str = SlashOption(required=False, default="0", description="0 --> unable to be bought"),
+        sell_price: str = SlashOption(required=False, default="0", description="0 --> unable to be sold"),
+        trade_price: str = SlashOption(required=False, default="0", description="0 --> unknown value"),
+        other_attributes: str = SlashOption(required=False, default="", description="in JSON format"),
     ):
         errors = []
         values = {}
@@ -329,12 +314,12 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
             try:
                 if (value := check_input(column, user_input)) is not None:
                     values[column] = value
-            except ValueError as e:
-                errors.append(e.args[0])
+            except ValueError as exc:
+                errors.append(exc.args[0])
 
         # if it is an invalid value send a message and leave the function
         if errors:
-            embed = interaction.Embed(description="")
+            embed = interaction.embed(description="")
             embed.set_author(name="The following error(s) occured:")
             for index, error in enumerate(errors):
                 embed.description += f"{index + 1}. {error}\n"
@@ -355,23 +340,30 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
                 + ") RETURNING *"
             )  # add each column into the query
             item = await db.fetchrow(sql, *values.values())
-        except asyncpg.Exe as e:
-            # only devs will be able to run this command, so it is safe to show the complete error message to them
-            await interaction.send_text(f"{e.__class__.__name__}: {e}", EmbedColour.WARNING)
+        except asyncpg.PostgresError as exc:
+            # only devs will be able to run this command,
+            # so it is safe to show the complete error message to them
+            await interaction.send_text(f"{exc.__class__.__name__}: {exc}", EmbedColour.WARNING)
             return
 
         embed = helpers.get_item_embed(item)
         view = BaseView(interaction)
 
         async def send_edit_item(btn_inter: BossInteraction):
+            # invoke_callback will be added with `nextcord.slash_command` decorator
+            # pylint: disable=no-member
             await self.edit_item.invoke_callback(btn_inter, itemname=item["name"])
+            # pylint: enable=no-member
 
         edit_btn = Button(label="Edit", style=ButtonStyle.blurple)
         edit_btn.callback = send_edit_item
         view.add_item(edit_btn)
 
         async def send_delete_item(btn_inter: BossInteraction):
+            # invoke_callback will be added with `nextcord.slash_command` decorator
+            # pylint: disable=no-member
             await self.delete_item.invoke_callback(btn_inter, item=item["name"])
+            # pylint: enable=no-member
 
         delete_btn = Button(label="Delete", style=ButtonStyle.blurple)
         delete_btn.callback = send_delete_item
@@ -448,18 +440,14 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
         """Get the application ID of a slash command."""
         client: nextcord.Client = interaction.client
         cmds = client.get_all_application_commands()
-        command = [
-            cmd for cmd in cmds if cmd.qualified_name == command_name and isinstance(cmd, SlashCmd)
-        ]
+        command = [cmd for cmd in cmds if cmd.qualified_name == command_name and isinstance(cmd, SlashCmd)]
         if not command:
             await interaction.send_text("The command is not found")
             return
         command = command[0]
 
         command_id = list(command.command_ids.values())[0]
-        embed = interaction.Embed(
-            title=command.get_mention(interaction.guild), description=f"> ID: `{command_id}`\n"
-        )
+        embed = interaction.embed(title=command.get_mention(interaction.guild), description=f"> ID: `{command_id}`\n")
 
         if not command.children:
             embed.description += f"> Mention syntax: \\{command.get_mention(interaction.guild)}"
@@ -504,9 +492,7 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
 
         if not data:
             # return full list
-            await interaction.response.send_autocomplete(
-                sorted([emoji.name for emoji in emojis])[:25]
-            )
+            await interaction.response.send_autocomplete(sorted([emoji.name for emoji in emojis])[:25])
             return
         # send a list of nearest matches from the list of item
         near_emojis = sorted([emoji.name for emoji in emojis if data.lower() in emoji.name.lower()])
@@ -535,15 +521,7 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
     ):
         bot_emojis = [emoji for guild in self.bot.guilds for emoji in guild.emojis]
         if not emoji_name:  # send full list
-            view = EmojiView(interaction, sorted(bot_emojis, key=lambda emoji: emoji.name))
-            embed = view._get_embed()
-            view.disable_buttons()
-
-            await interaction.send(
-                f"There are `{len(bot_emojis)}` emojis.",
-                embed=embed,
-                view=view,
-            )
+            await EmojiView.send(interaction, sorted(bot_emojis, key=lambda emoji: emoji.name))
             return
 
         if len(emoji_name) < 2:
@@ -553,25 +531,20 @@ class DeveloperDashboard(commands.Cog, name="Developer Dashboard"):
         emoji_name = emoji_name.lower()
         # perform a search on emojis
         emojis_found = [
-            emoji
-            for emoji in bot_emojis
-            if emoji_name in emoji.name.lower() or emoji_name == str(emoji.id)
+            emoji for emoji in bot_emojis if emoji_name in emoji.name.lower() or emoji_name == str(emoji.id)
         ]
 
         emojis_found.sort(key=lambda emoji: emoji.name)
 
-        if emojis_found:
-            view = EmojiView(interaction, emojis_found)
-            embed = view._get_embed()
-            view.disable_buttons()
-
-            await interaction.send(
-                f"There are `{len(emojis_found)}` results for `{emoji_name}`.",
-                embed=embed,
-                view=view,
-            )
-        else:
+        if not emojis_found:
             await interaction.send_text(f"No emojis are found for `{emoji_name}`.")
+            return
+
+        await EmojiView.send(
+            interaction,
+            emojis_found,
+            f"There are `{len(emojis_found)}` results for `{emoji_name}`.",
+        )
 
 
 class MoveItemException(Exception):

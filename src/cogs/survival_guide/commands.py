@@ -3,25 +3,23 @@ from typing import Union
 
 # nextcord
 import nextcord
+from nextcord import SlashApplicationCommand as SlashCmd
+from nextcord import SlashApplicationSubcommand as SlashSubcmd
+from nextcord import SlashOption
 from nextcord.ext import commands
 from nextcord.ui import Button
-from nextcord import (
-    SlashOption,
-    SlashApplicationCommand as SlashCmd,
-    SlashApplicationSubcommand as SlashSubcmd,
-)
 
-# database
-from utils.postgres_db import Database
+from cogs.survival_guide.views import GuideView, HelpView
+from modules.macro.record_macro import RecordMacroView
+from modules.macro.run_macro import RunMacroView
+from modules.macro.show_macro import ShowMacrosView
 
 # my modules and constants
 from utils.constants import EmbedColour
 from utils.helpers import BossInteraction, command_info
-from modules.macro.run_macro import RunMacroView
-from modules.macro.show_macro import ShowMacrosView
-from modules.macro.record_macro import RecordMacroView
 
-from .views import HelpView, GuideView
+# database
+from utils.postgres_db import Database
 
 
 class SurvivalGuide(commands.Cog, name="Survival Guide"):
@@ -42,9 +40,7 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
                 cmd_names.append(subcmd)
         return cmd_names
 
-    async def choose_command_autocomplete(
-        self, interaction: BossInteraction, data: str
-    ) -> list[str]:
+    async def choose_command_autocomplete(self, interaction: BossInteraction, data: str) -> list[str]:
         """
         Return every command and subcommand in the bot.
         Returns command that match `data` if it is provided.
@@ -135,9 +131,7 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
                 full_desc += f"\n- {note}"
         if cmd.children:
             # this command has subcommands, send a list of the subcommands
-            view = HelpView(
-                interaction, cmd_list=self.get_all_subcommands(cmd), with_select_menu=False
-            )
+            view = HelpView(interaction, cmd_list=self.get_all_subcommands(cmd), with_select_menu=False)
             await view.send(
                 description=f"{full_desc}\n\n",
                 author_name=f"Subcommands of /{name}",
@@ -148,10 +142,8 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
             embed = self._get_command_embed(interaction, cmd, full_desc)
             await interaction.send(embed=embed)
 
-    def _get_command_embed(
-        self, interaction: BossInteraction, cmd: Union[SlashCmd, SlashSubcmd], full_desc: str
-    ):
-        embed = interaction.Embed(with_url=False)
+    def _get_command_embed(self, interaction: BossInteraction, cmd: Union[SlashCmd, SlashSubcmd], full_desc: str):
+        embed = interaction.embed(with_url=False)
         embed.title = cmd.get_mention(interaction.guild)
         embed.description = full_desc
         embed.colour = EmbedColour.INFO
@@ -179,7 +171,10 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
 
     @nextcord.slash_command(description="Get help navigating the wasteland with BOSS's guide.")
     @command_info(
-        long_help="New to the bot? This command introduces you to the apocalyptic world BOSS sets in, and shows you a step-by-step guide on how to become one of the most supreme survivalists!"
+        long_help=(
+            "New to the bot? This command introduces you to the apocalyptic world BOSS sets in, and shows you a"
+            " step-by-step guide on how to become one of the most supreme survivalists!"
+        )
     )
     async def guide(
         self,
@@ -189,7 +184,7 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
             required=False,
             default=0,
             choices={
-                f"{page._title} ({index + 1}/{len(GuideView.pages)})": index
+                f"{page.title} ({index + 1}/{len(GuideView.pages)})": index
                 for index, page in enumerate(GuideView.pages)
             },
         ),
@@ -210,20 +205,14 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
         value: bool = SlashOption(description="The value to change to"),
     ):
         db: Database = self.bot.db
-        await db.execute(
-            """
-                UPDATE players.settings
-                SET {column} = $1
-            """.format(
-                column=setting
-            ),
-            value,
-        )
+        await db.execute(f"UPDATE players.settings SET {setting} = $1 WHERE player_id = $2", value, interaction.user.id)
         await interaction.send_text("Updated your settings!")
 
     @nextcord.slash_command(description="Manage your macros - tools to run commands automatically.")
     @command_info(
-        long_help="To see more info on how to use macros, use </guide:1102561144327127201> and select the page about macros."
+        long_help=(
+            "To see more info on how to use macros, use </guide:1102561144327127201> and select the page about macros."
+        )
     )
     async def macro(self, interaction: BossInteraction):
         # The parent command of a subcommand will never be called
@@ -252,9 +241,7 @@ class SurvivalGuide(commands.Cog, name="Survival Guide"):
     async def start(
         self,
         interaction: BossInteraction,
-        macro: str = SlashOption(
-            description="The macro to run.", autocomplete_callback=choose_macro_autocomplete
-        ),
+        macro: str = SlashOption(description="The macro to run.", autocomplete_callback=choose_macro_autocomplete),
     ):
         await RunMacroView.start(interaction, macro_name=macro)
 

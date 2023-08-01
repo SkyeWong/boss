@@ -1,97 +1,53 @@
 # default modules
 import datetime
-from typing import Optional, Literal
 import enum
 import os
 import re
+from typing import Literal, Optional
 
-# nextcord
-import nextcord
-from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import View, Button, button, Select, select
-
-from numerize import numerize
-import pytz
 import googleapiclient.discovery
+import nextcord
+import pytz
+from nextcord import ButtonStyle, Embed, SelectOption
+from nextcord.ui import Button, Select, View, button, select
+from numerize import numerize
 
-# my modules
+from utils.helpers import BossInteraction
 from utils.template_views import BaseView
 
 
-def get_weather_view(self, forecast):
-    view = View()
-
-    situation_btn = Button(label="Current Situation")
-
-    async def send_situation(interaction: Interaction):
-        await interaction.send(
-            embed=Embed(
-                title=f"Current Situation - <t:{int(forecast[0].timestamp())}:f>",
-                description=forecast[1],
-            ),
-            ephemeral=True,
-        )
-
-    situation_btn.callback = send_situation
-    view.add_item(situation_btn)
-
-    outlook_btn = Button(label="Future Outlook")
-
-    async def send_outlook(interaction: Interaction):
-        await interaction.send(
-            embed=Embed(
-                title=f"Future Outlook - <t:{int(forecast[0].timestamp())}:f>",
-                description=forecast[2],
-            ),
-            ephemeral=True,
-        )
-
-    outlook_btn.callback = send_outlook
-    view.add_item(outlook_btn)
-
-    return view
-
-
-async def send_situation(interaction: Interaction, forecast):
-    await interaction.send(
-        embed=Embed(
-            title=f"Current Situation - <t:{int(forecast[0].timestamp())}:f>",
-            description=forecast[1],
-        ),
-        ephemeral=True,
-    )
-
-
-async def send_outlook(interaction: Interaction, forecast):
-    await interaction.send(
-        embed=Embed(
-            title=f"Future Outlook - <t:{int(forecast[0].timestamp())}:f>",
-            description=forecast[2],
-        ),
-        ephemeral=True,
-    )
-
-
 class WeatherView(View):
-    """#### A view for displaying weather information in a slash command which is `NOT` persistent."""
+    """A view for displaying weather information in a slash command."""
 
     def __init__(self, forecast):
         super().__init__(timeout=30)
         self.forecast = forecast
+        self.msg: nextcord.PartialInteractionMessage | nextcord.WebhookMessage = None
 
     @button(label="Current Situation")
-    async def send_situation(self, button: Button, interaction: Interaction):
-        await send_situation(interaction, self.forecast)
+    async def send_situation(self, btn: Button, interaction: BossInteraction):
+        await interaction.send(
+            embed=Embed(
+                title=f"Current Situation - <t:{int(self.forecast[0].timestamp())}:f>",
+                description=self.forecast[1],
+            ),
+            ephemeral=True,
+        )
 
     @button(label="Future Outlook")
-    async def send_outlook(self, button: Button, interaction: Interaction):
-        await send_outlook(interaction, self.forecast)
+    async def send_outlook(self, btn: Button, interaction: BossInteraction):
+        await interaction.send(
+            embed=Embed(
+                title=f"Future Outlook - <t:{int(self.forecast[0].timestamp())}:f>",
+                description=self.forecast[2],
+            ),
+            ephemeral=True,
+        )
 
     async def on_timeout(self) -> None:
         for item in self.children:
             item.disabled = True
-        msg: nextcord.Message = self.msg
-        await msg.edit(view=self)
+        await self.msg.edit(view=self)
 
 
 class Video:
@@ -150,9 +106,7 @@ class Video:
 
         link = f"https://www.youtube.com/watch?v={video_response['id']}"
         published_time = int(
-            datetime.datetime.strptime(
-                video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ"
-            )
+            datetime.datetime.strptime(video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
             .replace(tzinfo=datetime.timezone.utc)
             .astimezone(tz=None)
             .timestamp()
@@ -206,7 +160,7 @@ class VideoView(BaseView):
     A custom view to display a list of YouTube videos and their details.
 
     Attributes:
-        slash_interaction (Interaction): The interaction object for the slash command.
+        slash_interaction (BossInteraction): The interaction object for the slash command.
         videos (list[Video]): A list of Video objects.
         query (str): The search query used to find the videos.
         prev_page_token (str): The token for the previous page of videos.
@@ -216,7 +170,7 @@ class VideoView(BaseView):
 
     def __init__(
         self,
-        slash_interaction: Interaction,
+        slash_interaction: BossInteraction,
         videos: list[Video],
         query: str,
         prev_page_token: str = None,
@@ -258,7 +212,7 @@ class VideoView(BaseView):
             if len(description) > 200:
                 embed.add_field(
                     name="Description",
-                    value=f"\n>>> {description[:200]}" "\n - _To view more, press the 📃 button._",
+                    value=f"\n>>> {description[:200]}\n - _To view more, press the 📃 button._",
                     inline=False,
                 )
             else:
@@ -299,15 +253,15 @@ class VideoView(BaseView):
         more_btn.disabled = not bool(self.next_page_token)
 
     @select(placeholder="Choose a video...", custom_id="video_select")
-    async def choose_video(self, select: Select, interaction: Interaction):
-        self.video_page = int(select.values[0])  # the value is set to the index of the video
+    async def choose_video(self, sel: Select, interaction: BossInteraction):
+        self.video_page = int(sel.values[0])  # the value is set to the index of the video
 
         self.disable_buttons()
         embed = self.get_embed()
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="⏮️", style=ButtonStyle.blurple, custom_id="first", disabled=True)
-    async def first(self, button: Button, interaction: Interaction):
+    async def first(self, btn: Button, interaction: BossInteraction):
         self.video_page = 0
 
         self.disable_buttons()
@@ -315,7 +269,7 @@ class VideoView(BaseView):
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="◀️", style=ButtonStyle.blurple, disabled=True, custom_id="back")
-    async def back(self, button: Button, interaction: Interaction):
+    async def back(self, btn: Button, interaction: BossInteraction):
         self.video_page -= 1
 
         self.disable_buttons()
@@ -323,7 +277,7 @@ class VideoView(BaseView):
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
-    async def next(self, button: Button, interaction: Interaction):
+    async def next(self, btn: Button, interaction: BossInteraction):
         self.video_page += 1
 
         self.disable_buttons()
@@ -331,7 +285,7 @@ class VideoView(BaseView):
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="⏭️", style=ButtonStyle.blurple, custom_id="last")
-    async def last(self, button: Button, interaction: Interaction):
+    async def last(self, btn: Button, interaction: BossInteraction):
         self.video_page = len(self.videos) - 1
 
         self.disable_buttons()
@@ -339,11 +293,11 @@ class VideoView(BaseView):
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="📽️", style=ButtonStyle.grey, custom_id="video", row=2)
-    async def show_video(self, button: Button, interaction: Interaction):
+    async def show_video(self, btn: Button, interaction: BossInteraction):
         await interaction.send(self.videos[self.video_page].link, ephemeral=True)
 
     @button(emoji="📃", style=ButtonStyle.grey, custom_id="description", row=2)
-    async def show_description(self, button: Button, interaction: Interaction):
+    async def show_description(self, btn: Button, interaction: BossInteraction):
         embed = Embed()
         video = self.videos[self.video_page]
 
@@ -352,21 +306,19 @@ class VideoView(BaseView):
         embed.description = video.description[:4096]  # upper limit for description length is 4096.
         await interaction.send(embed=embed, ephemeral=True)
 
-    async def show_video_list(self, interaction: Interaction, type: Literal["prev", "next"]):
+    async def show_video_list(self, interaction: BossInteraction, action: Literal["prev", "next"]):
         api_service_name = "youtube"
         api_version = "v3"
         dev_key = os.getenv("GOOGLE_API_KEY")
 
-        youtube = googleapiclient.discovery.build(
-            api_service_name, api_version, developerKey=dev_key
-        )
+        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
         search_response = (
-            youtube.search()
+            youtube.search()  # pylint: disable=no-member
             .list(
                 part="snippet",
                 type="video",
                 q=self.query,
-                pageToken=self.next_page_token if type == "next" else self.prev_page_token,
+                pageToken=self.next_page_token if action == "next" else self.prev_page_token,
                 maxResults=25,
             )
             .execute()
@@ -374,7 +326,7 @@ class VideoView(BaseView):
         video_ids = [i["id"]["videoId"] for i in search_response["items"]]
 
         videos_response = (
-            youtube.videos()
+            youtube.videos()  # pylint: disable=no-member
             .list(part="snippet,contentDetails,statistics", id=",".join(video_ids))
             .execute()
         )
@@ -386,59 +338,52 @@ class VideoView(BaseView):
             self.query,
             prev_page_token=search_response.get("prevPageToken"),
             next_page_token=search_response.get("nextPageToken"),
-            list_index=self.list_index + (+1 if type == "next" else -1),
+            list_index=self.list_index + (+1 if action == "next" else -1),
         )
 
         embed = view.get_embed()
         view.disable_buttons()
-        msg = await interaction.response.edit_message(embed=embed, view=view)
-        view.msg = msg
+        await interaction.response.edit_message(embed=embed, view=view)
 
     @button(label="Prev", style=ButtonStyle.grey, custom_id="less", row=2)
-    async def show_less_videos(self, button: Button, interaction: Interaction):
+    async def show_less_videos(self, btn: Button, interaction: BossInteraction):
         await self.show_video_list(interaction, "prev")
 
     @button(label="Next", style=ButtonStyle.grey, custom_id="more", row=2)
-    async def show_more_videos(self, button: Button, interaction: Interaction):
+    async def show_more_videos(self, btn: Button, interaction: BossInteraction):
         await self.show_video_list(interaction, "next")
 
 
 class ChannelVideoView(VideoView):
     def __init__(
         self,
-        slash_interaction: Interaction,
+        slash_interaction: BossInteraction,
         videos: list[Video],
         playlist_id: str,
         prev_page_token: str = None,
         next_page_token: str = None,
         list_index: int = 1,
     ):
-        super().__init__(
-            slash_interaction, videos, "", prev_page_token, next_page_token, list_index
-        )
+        super().__init__(slash_interaction, videos, "", prev_page_token, next_page_token, list_index)
         self.playlist_id = playlist_id
 
-    async def show_video_list(self, interaction: Interaction, type: Literal["prev", "next"]):
+    async def show_video_list(self, interaction: BossInteraction, action: Literal["prev", "next"]):
         api_service_name = "youtube"
         api_version = "v3"
         dev_key = os.getenv("GOOGLE_API_KEY")
 
-        youtube = googleapiclient.discovery.build(
-            api_service_name, api_version, developerKey=dev_key
-        )
+        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
         playlist_response = (
-            youtube.playlistItems()
+            youtube.playlistItems()  # pylint: disable=no-member
             .list(part="contentDetails", playlistId=self.playlist_id, maxResults=25)
             .execute()
         )
 
         videos_response = (
-            youtube.videos()
+            youtube.videos()  # pylint: disable=no-member
             .list(
                 part="snippet,contentDetails,statistics",
-                id=",".join(
-                    [video["contentDetails"]["videoId"] for video in playlist_response["items"]]
-                ),
+                id=",".join([video["contentDetails"]["videoId"] for video in playlist_response["items"]]),
             )
             .execute()
         )
@@ -451,18 +396,18 @@ class ChannelVideoView(VideoView):
             next_page_token=playlist_response.get("nextPageToken"),
         )
         embed = view.get_embed()
-        msg = await interaction.response.edit_message(embed=embed, view=view)
-        view.msg = msg
+        view.disable_buttons()
+        await interaction.response.edit_message(embed=embed, view=view)
 
 
 class MtrLine(enum.Enum):
-    Airport_Express = "AEL"
-    Tung_Chung_Line = "TCL"
-    Tuen_Ma_Line = "TML"
-    Tseung_Kwan_O_Line = "TKL"
-    East_Rail_Line = "EAL"
-    South_Island_Line = "SIL"
-    Tseung_Wan_Line = "TWL"
+    AIRPORT_EXPRESS = "AEL"
+    TUNG_CHUNG_LINE = "TCL"
+    TUEN_MA_LINE = "TML"
+    TSEUNG_KWAN_O_LINE = "TKL"
+    EAST_RAIL_LINE = "EAL"
+    SOUTH_ISLAND_LINE = "SIL"
+    TSUEN_WAN_LINE = "TWL"
 
 
 LINE_STATION_CODES = {
@@ -617,7 +562,7 @@ class Train:
         }  # use empty list for default in case station is at either end of line
 
         hk_tz = pytz.timezone("Asia/Hong_Kong")
-        for train_type, trains_res in trains.items():
+        for trains_res in trains.values():
             for index, train in enumerate(trains_res):
                 destination_code = train["dest"]
                 sequence = train["seq"]
@@ -626,7 +571,7 @@ class Train:
                 arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S")
                 arrival_time = hk_tz.localize(arrival_time)
 
-                trains[train_type][index] = cls(
+                trains_res[index] = cls(
                     line,
                     arriving_station,
                     arrival_time,
@@ -646,12 +591,12 @@ class NextTrainView(BaseView):
     `Paginating buttons`: automated (which disable themselves) according to the current page
     `Type Switching`: Can be switched between "UP" and "DOWN" trains
     # Parameters
-    `slash_interaction`: `nextcord.Interaction` from the slash command.
+    `slash_interaction`: `nextcord.BossInteraction` from the slash command.
     Used for identifying the user and timing out the view.
     `trains`: a `dict` containing "UP" and "DOWN" trains
     """
 
-    def __init__(self, slash_interaction: Interaction, trains: dict[str, list[Train]]):
+    def __init__(self, slash_interaction: BossInteraction, trains: dict[str, list[Train]]):
         super().__init__(slash_interaction, timeout=60)
         self.trains = trains
 
@@ -672,19 +617,17 @@ class NextTrainView(BaseView):
         train = self.trains[self.type][self.page]
 
         colours = {
-            MtrLine.Airport_Express: 0x02838A,
-            MtrLine.East_Rail_Line: 0x5EB9E6,
-            MtrLine.South_Island_Line: 0xCBCD00,
-            MtrLine.Tseung_Kwan_O_Line: 0x863E90,
-            MtrLine.Tuen_Ma_Line: 0x952E07,
-            MtrLine.Tung_Chung_Line: 0xF39131,
+            MtrLine.AIRPORT_EXPRESS: 0x02838A,
+            MtrLine.EAST_RAIL_LINE: 0x5EB9E6,
+            MtrLine.SOUTH_ISLAND_LINE: 0xCBCD00,
+            MtrLine.TSEUNG_KWAN_O_LINE: 0x863E90,
+            MtrLine.TUEN_MA_LINE: 0x952E07,
+            MtrLine.TUNG_CHUNG_LINE: 0xF39131,
         }
         embed.colour = colours.get(train.line, None)  # black for default
 
         arriving_station = [
-            name
-            for name, code in LINE_STATION_CODES[train.line.value].items()
-            if code == train.arriving_station
+            name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.arriving_station
         ][0]
         embed.title = f"Trains arriving at {arriving_station}"
 
@@ -693,9 +636,7 @@ class NextTrainView(BaseView):
         )  # + 1 because self.page uses zero-indexing
 
         destination_name = [
-            name
-            for name, code in LINE_STATION_CODES[train.line.value].items()
-            if code == train.destination
+            name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.destination
         ][0]
         embed.add_field(
             name="Destination",
@@ -708,9 +649,7 @@ class NextTrainView(BaseView):
         arrival_timestamp = int(train.arrival_time.timestamp())
         hk_tz = pytz.timezone("Asia/Hong_Kong")
         embed.add_field(
-            name="Arrival time"
-            if train.arrival_time > datetime.datetime.now(tz=hk_tz)
-            else "Departure time",
+            name="Arrival time" if train.arrival_time > datetime.datetime.now(tz=hk_tz) else "Departure time",
             value=f"<t:{arrival_timestamp}:t> • <t:{arrival_timestamp}:R>",
             inline=False,
         )
@@ -736,7 +675,7 @@ class NextTrainView(BaseView):
             type_button.emoji = "🔼"
 
     @button(emoji="◀️", style=ButtonStyle.blurple, disabled=True, custom_id="back")
-    async def back(self, button: Button, interaction: Interaction):
+    async def back(self, btn: Button, interaction: BossInteraction):
         self.page -= 1
 
         self.update_view()
@@ -744,7 +683,7 @@ class NextTrainView(BaseView):
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="▶️", style=ButtonStyle.blurple, custom_id="next")
-    async def next(self, button: Button, interaction: Interaction):
+    async def next(self, btn: Button, interaction: BossInteraction):
         self.page += 1
 
         self.update_view()
@@ -752,7 +691,7 @@ class NextTrainView(BaseView):
         await interaction.response.edit_message(view=self, embed=embed)
 
     @button(emoji="🔼", style=ButtonStyle.grey, custom_id="type")
-    async def change_type(self, button: Button, interaction: Interaction):
+    async def change_type(self, btn: Button, interaction: BossInteraction):
         self.page = 0
         if self.type == "UP":
             self.type = "DOWN"

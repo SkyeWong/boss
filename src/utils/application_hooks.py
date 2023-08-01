@@ -4,9 +4,9 @@ import random
 from nextcord import Embed
 from nextcord.ext import commands
 
-from utils.player import Player
-from utils.helpers import BossInteraction
 from utils.constants import EmbedColour
+from utils.helpers import BossInteraction
+from utils.player import Player
 
 
 async def cmd_check(interaction: BossInteraction):
@@ -28,7 +28,7 @@ async def cmd_check(interaction: BossInteraction):
         await bot.db.connect()
 
         await msg.edit(
-            embed=interaction.TextEmbed(
+            embed=interaction.text_embed(
                 f"We have successfully connected to the database! Use {cmd.get_mention(interaction.guild)} again.",
                 EmbedColour.SUCCESS,
                 show_macro_msg=False,
@@ -42,7 +42,7 @@ async def cmd_check(interaction: BossInteraction):
     if not await player.is_present():
         await player.create_profile()
 
-        embed = interaction.Embed(
+        embed = interaction.embed(
             title="Welcome to BOSS!",
             description=f"Hi, {interaction.user.mention}! BOSS is a bot for set in the post-apocalyptic world after World War III, where everything is tarnished and resources are scarce. "
             "The currency system is based on a variety of items that have value in this new world, including scrap metals, coppers, and other valuable resources. "

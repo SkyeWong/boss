@@ -1,28 +1,30 @@
 # default modules
-from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
-import pytz
+import math
 import re
 from collections import Counter
 from datetime import datetime
-import math
+from io import BytesIO
 from string import ascii_uppercase
-
-# nextcord
-import nextcord
-from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import Button, button, Select, select
 
 # database
 import asyncpg
-from utils.postgres_db import Database
+
+# nextcord
+import nextcord
+import pytz
+from nextcord import ButtonStyle, Embed, Interaction, SelectOption
+from nextcord.ui import Button, Select, button, select
+from PIL import Image, ImageDraw, ImageFont
 
 # my modules and constants
 from utils import constants, helpers
-from utils.template_views import BaseView
-from utils.player import Player
-from utils.helpers import TextEmbed
 from utils.constants import EmbedColour
+from utils.helpers import TextEmbed
+from utils.player import Player
+from utils.postgres_db import Database
+from utils.template_views import BaseView
+
+TILE_SIZE = 128  # width, height of tiles
 
 
 async def _get_farm_embed_and_img(
@@ -63,8 +65,6 @@ async def _get_farm_embed_and_img(
         """
     )
 
-    TILE_SIZE = 128  # width, height of tiles
-
     embed.description = ""
     farm_img = Image.new("RGBA", (farm_width * TILE_SIZE, farm_height * TILE_SIZE))
 
@@ -75,9 +75,7 @@ async def _get_farm_embed_and_img(
     for index, crop in enumerate(farm):
         if crop:
             # find the relevant crop type
-            crop_type = [
-                crop_type for crop_type in crop_types if crop_type["crop_type_id"] == crop["type"]
-            ][0]
+            crop_type = [crop_type for crop_type in crop_types if crop_type["crop_type_id"] == crop["type"]][0]
 
             planted_at: datetime = crop["planted_at"]
             ready_at: datetime = planted_at + crop_type["growth_period"]
@@ -120,12 +118,12 @@ async def _get_farm_embed_and_img(
             font = ImageFont.truetype("resources/font/font.ttf", 24)
             txt_width, txt_height = font.getsize(label)
 
-            # draw a background rectangle
+            # draw a background rectangle with 5px padding around the text
             crop_draw.rounded_rectangle(
                 (
                     (TILE_SIZE - 5 - txt_width - 5, TILE_SIZE - 5 - txt_height - 5),
                     (TILE_SIZE - 5, TILE_SIZE - 5),
-                ),  # top-left and bottom-right coords for the rectangle, create a rectangle with 5px padding around the text
+                ),
                 fill="#1e130e",
                 radius=5,
             )
@@ -213,9 +211,7 @@ class FarmView(BaseView):
         # Check if the player exists
         if not await self.player.is_present():
             await interaction.send(
-                embed=TextEmbed(
-                    "The user hasn't started playing BOSS yet! Maybe invite them over?"
-                ),
+                embed=TextEmbed("The user hasn't started playing BOSS yet! Maybe invite them over?"),
                 ephemeral=True,
             )
             return
@@ -235,25 +231,21 @@ class FarmView(BaseView):
         self.msg = await interaction.send(**msg)
 
     @button(label="Plant", style=ButtonStyle.blurple)
-    async def plant(self, button: Button, interaction: Interaction):
+    async def plant(self, btn: Button, interaction: Interaction):
         """Turn to a new page, `PlantView`, which allows users to plant the crops."""
-        view = PlantView(
-            self.interaction, self.player, self.farm, self.farm_width, self.farm_height
-        )
+        view = PlantView(self.interaction, self.player, self.farm, self.farm_width, self.farm_height)
         await view.update_components()
         await interaction.response.edit_message(**await view.get_msg())
 
     @button(label="Harvest", style=ButtonStyle.blurple)
-    async def harvest(self, button: Button, interaction: Interaction):
+    async def harvest(self, btn: Button, interaction: Interaction):
         """Turn to a new page, `HarvestView`, which allows users to harvest the crops."""
-        view = HarvestView(
-            self.interaction, self.player, self.farm, self.farm_width, self.farm_height
-        )
+        view = HarvestView(self.interaction, self.player, self.farm, self.farm_width, self.farm_height)
         await view.update_components()
         await interaction.response.edit_message(**await view.get_msg())
 
     @button(label="Progress")
-    async def progress(self, button: Button, interaction: Interaction):
+    async def progress(self, btn: Button, interaction: Interaction):
         crop_types = await self.player.db.fetch(
             """
             SELECT crop_type_id AS id, name, growth_period, CONCAT('<:_:', grown_emoji_id, '>') AS emoji
@@ -272,9 +264,7 @@ class FarmView(BaseView):
         for index, crop in enumerate(self.farm):
             if crop:
                 # find the relevant crop type
-                crop_type = [
-                    crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]
-                ][0]
+                crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
 
                 planted_at: datetime = crop["planted_at"]
                 ready_at: datetime = planted_at + crop_type["growth_period"]
@@ -282,10 +272,16 @@ class FarmView(BaseView):
                 # update the embed description to show the crop's progress (i.e. when it will be ready)
                 if now < ready_at:
                     # crop has not fully grown
-                    unready_msg += f"` {index + 1: >{max_tile_length}} ` {crop_type['emoji']} **{crop_type['name'].capitalize()}** ready <t:{int(ready_at.timestamp())}:R>\n"
+                    unready_msg += (
+                        f"` {index + 1: >{max_tile_length}} ` {crop_type['emoji']} **{crop_type['name'].capitalize()}**"
+                        f" ready <t:{int(ready_at.timestamp())}:R>\n"
+                    )
                 else:
                     # crop has fully grown
-                    ready_msg += f"_` {index + 1: >{max_tile_length}} `_ {crop_type['emoji']} **{crop_type['name'].capitalize()}** ready to harvest!\n"
+                    ready_msg += (
+                        f"_` {index + 1: >{max_tile_length}} `_"
+                        f" {crop_type['emoji']} **{crop_type['name'].capitalize()}** ready to harvest!\n"
+                    )
 
         if not (ready_msg or unready_msg):
             embed.description = "No crops are planted!"
@@ -298,7 +294,7 @@ class FarmView(BaseView):
         await interaction.send(embed=embed, ephemeral=True)
 
     @button(label="Upgrade")
-    async def upgrade_farm_btn(self, button: Button, interaction: Interaction):
+    async def upgrade_farm_btn(self, btn: Button, interaction: Interaction):
         """Increase the user's farm size."""
         # TODO: make upgrade requirements
 
@@ -335,14 +331,12 @@ class FarmView(BaseView):
         await interaction.response.edit_message(**await view.get_msg())
 
         await interaction.send(
-            embed=TextEmbed(
-                f"Farm size is now increased to `{view.farm_width}x{view.farm_height}`!"
-            ),
+            embed=TextEmbed(f"Farm size is now increased to `{view.farm_width}x{view.farm_height}`!"),
             ephemeral=True,
         )
 
     @button(emoji="🔄")
-    async def refresh_view(self, button: Button, interaction: Interaction):
+    async def refresh_view(self, btn: Button, interaction: Interaction):
         """Refresh the page."""
         view = FarmView(interaction, self.player)
         await view.set_up()
@@ -473,20 +467,18 @@ class PlantView(BaseView):
         await self.interaction.edit_original_message(**msg)
 
     @select(placeholder="Choose the tiles...", custom_id="crops_select", min_values=1)
-    async def choose_tiles(self, select: Select, interaction: Interaction):
-        self.crops_to_plant = [int(value) for value in select.values]
+    async def choose_tiles(self, sel: Select, interaction: Interaction):
+        self.crops_to_plant = [int(value) for value in sel.values]
 
         await self.update_components()
 
         # make the select menu "sticky"
-        for option in select.options:
+        for option in sel.options:
             option.default = False
-            if str(option.value) in select.values:
+            if str(option.value) in sel.values:
                 option.default = True
 
-        await interaction.response.edit_message(
-            **await self.get_msg(selected_crops=self.crops_to_plant)
-        )
+        await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_plant))
 
     @select(
         placeholder="Choose the crops to plant...",
@@ -494,30 +486,28 @@ class PlantView(BaseView):
         min_values=1,
         max_values=1,
     )
-    async def choose_crop_type(self, select: Select, interaction: Interaction):
-        self.type_to_plant = int(select.values[0])
+    async def choose_crop_type(self, sel: Select, interaction: Interaction):
+        self.type_to_plant = int(sel.values[0])
 
         embed = Embed()
 
         await self.update_components()
 
         # make the select menu "sticky"
-        for option in select.options:
+        for option in sel.options:
             option.default = False
-            if str(option.value) in select.values:
+            if str(option.value) in sel.values:
                 option.default = True
                 embed.add_field(name="Planting", value=f"{option.emoji} **{option.label}**")
 
-        await interaction.response.edit_message(
-            **await self.get_msg(embed, selected_crops=self.crops_to_plant)
-        )
+        await interaction.response.edit_message(**await self.get_msg(embed, selected_crops=self.crops_to_plant))
 
     @button(
         label="Select all empty tiles",
         style=ButtonStyle.blurple,
         custom_id="select_all",
     )
-    async def choose_all_empty_tiles(self, button: Button, interaction: Interaction):
+    async def choose_all_empty_tiles(self, btn: Button, interaction: Interaction):
         if self.crops_to_plant:  # deselect all
             self.crops_to_plant = []
         else:  # select all
@@ -537,12 +527,10 @@ class PlantView(BaseView):
 
         await self.update_components()
 
-        await interaction.response.edit_message(
-            **await self.get_msg(selected_crops=self.crops_to_plant)
-        )
+        await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_plant))
 
     @button(label="Go Back", row=3)
-    async def return_to_main_view(self, button: Button, interaction: Interaction):
+    async def return_to_main_view(self, btn: Button, interaction: Interaction):
         """Return to the main `FarmView` page."""
         view = FarmView(interaction, self.player)
         await view.set_up()
@@ -556,7 +544,7 @@ class PlantView(BaseView):
         row=3,
         disabled=True,
     )
-    async def plant_crops(self, button: Button, interaction: Interaction):
+    async def plant_crops(self, btn: Button, interaction: Interaction):
         """Plant the crops and update the database."""
         # If this button is not disabled,
         # then both `self.crops_to_plant` and `self.type_to_plant` should be filled by values.
@@ -610,9 +598,7 @@ class PlantView(BaseView):
         # find the name and emoji of the crop type
         # the default option is the one the user chose, so here we fetch that and get its label and emoji
         type_select = [i for i in self.children if i.custom_id == "type_select"][0]
-        type_name, type_emoji = [
-            (option.label, option.emoji) for option in type_select.options if option.default == True
-        ][0]
+        type_name, type_emoji = [(option.label, option.emoji) for option in type_select.options if option.default][0]
         # `type_name` will now be "Carrot (0:30:00)"
         type_name = re.sub(r" \(.+\)", "", type_name)
         # `type_name` will now be "Carrot"
@@ -683,9 +669,7 @@ class HarvestView(BaseView):
         for index, crop in enumerate(self.farm):
             if crop is not None:
                 # find the relevant crop type
-                crop_type = [
-                    crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]
-                ][0]
+                crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
 
                 # check if it has passed the `ready_at` time, which means the crop is ready to be harvested.
                 ready_at: datetime = crop["planted_at"] + crop_type["growth_period"]
@@ -741,21 +725,19 @@ class HarvestView(BaseView):
         await self.interaction.edit_original_message(**msg)
 
     @select(placeholder="Choose the tiles...", custom_id="crops_select", min_values=1)
-    async def choose_tiles(self, select: Select, interaction: Interaction):
-        self.crops_to_harvest = [int(value) for value in select.values]
+    async def choose_tiles(self, sel: Select, interaction: Interaction):
+        self.crops_to_harvest = [int(value) for value in sel.values]
 
         await self.update_components()
 
-        await interaction.response.edit_message(
-            **await self.get_msg(selected_crops=self.crops_to_harvest)
-        )
+        await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_harvest))
 
     @button(
         label="Select all ready tiles",
         style=ButtonStyle.blurple,
         custom_id="select_all_ready",
     )
-    async def choose_all_ready_tiles(self, button: Button, interaction: Interaction):
+    async def choose_all_ready_tiles(self, btn: Button, interaction: Interaction):
         if self.crops_to_harvest:  # deselect all
             self.crops_to_harvest = []
         else:  # select all
@@ -773,9 +755,7 @@ class HarvestView(BaseView):
             for index, crop in enumerate(self.farm):
                 if crop is not None:
                     # find the relevant crop type
-                    crop_type = [
-                        crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]
-                    ][0]
+                    crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
 
                     # check if it has passed the `ready_at` time, which means the crop is ready to be harvested.
                     ready_at: datetime = crop["planted_at"] + crop_type["growth_period"]
@@ -794,12 +774,10 @@ class HarvestView(BaseView):
 
         await self.update_components()
 
-        await interaction.response.edit_message(
-            **await self.get_msg(selected_crops=self.crops_to_harvest)
-        )
+        await interaction.response.edit_message(**await self.get_msg(selected_crops=self.crops_to_harvest))
 
     @button(label="Go Back", row=3)
-    async def return_to_main_view(self, button: Button, interaction: Interaction):
+    async def return_to_main_view(self, btn: Button, interaction: Interaction):
         """Return to the main `FarmView` page."""
         view = FarmView(interaction, self.player)
         await view.set_up()
@@ -813,7 +791,7 @@ class HarvestView(BaseView):
         row=3,
         disabled=True,
     )
-    async def harvest_crops(self, button: Button, interaction: Interaction):
+    async def harvest_crops(self, btn: Button, interaction: Interaction):
         """Harvest the crops and update the database."""
         # If this button is not disabled,
         # then both `self.crops_to_harvest` should be filled by values.
@@ -823,7 +801,12 @@ class HarvestView(BaseView):
 
         crop_types = await self.player.db.fetch(
             """
-            SELECT crop_type_id AS id, name, growth_period, CONCAT('<:_:', grown_emoji_id, '>') AS emoji, grown_item_id AS item
+            SELECT 
+                crop_type_id AS id, 
+                name, 
+                growth_period, 
+                CONCAT('<:_:', grown_emoji_id, '>') AS emoji, 
+                grown_item_id AS item
             FROM utility.crop_types
             """
         )
@@ -838,9 +821,7 @@ class HarvestView(BaseView):
         for index, crop in enumerate(self.farm):
             if index in self.crops_to_harvest and crop is not None:
                 # find the relevant crop type
-                crop_type = [
-                    crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]
-                ][0]
+                crop_type = [crop_type for crop_type in crop_types if crop_type["id"] == crop["type"]][0]
 
                 # harvest the crop and make the tile empty
                 self.farm[index] = None
@@ -908,10 +889,13 @@ class InventoryView(BaseView):
         self.page = page
         self.items_per_page = 6
 
+        self.inv = []
         self.items = []
         self.item_types = []
 
         self.message: nextcord.Message = None
+
+        self.old_selected_values = []
 
     def _get_types_options(self) -> list[SelectOption]:
         """Gets a list of SelectOption objects for the item categories. Should be run *after* get_inv_embed() is run
@@ -925,16 +909,12 @@ class InventoryView(BaseView):
         # Add an option for every category
         for i in constants.ItemType:
             if next((j for j in self.inv if j["type"] == i.value), None):
-                options.append(
-                    SelectOption(label=i.name.capitalize(), value=str(i.value), default=False)
-                )
+                options.append(SelectOption(label=i.name.capitalize(), value=str(i.value), default=False))
 
         # Sort the options by label.
         options.sort(key=lambda x: x.label)
 
-        options.insert(
-            0, SelectOption(label="All", default=True)
-        )  # Add an "All" option to select every category
+        options.insert(0, SelectOption(label="All", default=True))  # Add an "All" option to select every category
 
         return options
 
@@ -972,7 +952,9 @@ class InventoryView(BaseView):
                 ON inv.item_id = i.item_id
             WHERE inv.player_id = $1 AND inv.inv_type = $2
             ORDER BY 
-                (CASE WHEN (SELECT inv_worth_sort FROM players.settings WHERE player_id = $1) is True THEN i.trade_price END) DESC NULLS LAST, 
+                (CASE WHEN 
+                    (SELECT inv_worth_sort FROM players.settings WHERE player_id = $1) is True THEN i.trade_price 
+                END) DESC NULLS LAST, 
                 i.name ASC
             """,
             self.user.id,
@@ -987,9 +969,7 @@ class InventoryView(BaseView):
 
         inv_type = str(constants.InventoryType(self.inv_type))
 
-        embed = self.interaction.Embed(
-            description="", colour=EmbedColour.INFO, show_macro_msg=False
-        )
+        embed = self.interaction.embed(description="", colour=EmbedColour.INFO, show_macro_msg=False)
         embed.set_author(
             name=f"{user.name}'s {inv_type}",
             icon_url=user.display_avatar.url,
@@ -1023,7 +1003,10 @@ class InventoryView(BaseView):
                 embed.description += f"➸ `{item_rarity} {item_type}`\n\n".replace("_", " ").title()
         total_items = sum(i["quantity"] for i in self.items)
         embed.set_footer(
-            text=f"Page {self.page}/{math.ceil(len(self.items) / self.items_per_page)} • {len(self.items)} unique items • total {total_items} items"
+            text=(
+                f"Page {self.page}/{math.ceil(len(self.items) / self.items_per_page)} • {len(self.items)} unique items"
+                f" • total {total_items} items"
+            )
         )
         return embed
 
@@ -1075,14 +1058,14 @@ class InventoryView(BaseView):
         max_values=1,
         custom_id="type_select",
     )
-    async def select_type(self, select: Select, interaction: Interaction):
+    async def select_type(self, sel: Select, interaction: Interaction):
         """
         Updates the commands displayed in the embed based on the selected cog.
 
         The selected cog is passed to the `get_embed()` method and the new embed is then displayed.
         """
         await interaction.response.defer()
-        selected_values = select.values
+        selected_values = sel.values
         if "All" in [i for i in selected_values if i not in self.old_selected_values]:
             selected_values = ["All"]
         elif "All" in [i for i in self.old_selected_values if i in selected_values]:
@@ -1098,7 +1081,7 @@ class InventoryView(BaseView):
         embed = await self.get_inv_embed()
         self.disable_buttons()
         # disable the buttons, and make the select menu "sticky"
-        for option in select.options:
+        for option in sel.options:
             option.default = False
             if option.value in selected_values:
                 option.default = True
@@ -1106,7 +1089,7 @@ class InventoryView(BaseView):
         self.old_selected_values = selected_values
 
     @button(emoji="⏮️", style=nextcord.ButtonStyle.blurple, custom_id="first", disabled=True)
-    async def first(self, button: Button, interaction: Interaction):
+    async def first(self, btn: Button, interaction: Interaction):
         await interaction.response.defer()
         self.page = 1
         self.disable_buttons()
@@ -1114,7 +1097,7 @@ class InventoryView(BaseView):
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="◀️", style=nextcord.ButtonStyle.blurple, custom_id="back", disabled=True)
-    async def back(self, button: Button, interaction: Interaction):
+    async def back(self, btn: Button, interaction: Interaction):
         await interaction.response.defer()
         self.page -= 1
         self.disable_buttons()
@@ -1122,7 +1105,7 @@ class InventoryView(BaseView):
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="🔄", style=nextcord.ButtonStyle.blurple, custom_id="refresh_msg")
-    async def refresh_msg(self, button: Button, interaction: Interaction):
+    async def refresh_msg(self, btn: Button, interaction: Interaction):
         await interaction.response.defer()
 
         await self.get_inv_content()
@@ -1131,7 +1114,7 @@ class InventoryView(BaseView):
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="▶️", style=nextcord.ButtonStyle.blurple, custom_id="next")
-    async def next(self, button: Button, interaction: Interaction):
+    async def next(self, btn: Button, interaction: Interaction):
         await interaction.response.defer()
         self.page += 1
         self.disable_buttons()
@@ -1139,7 +1122,7 @@ class InventoryView(BaseView):
         await self.message.edit(embed=embed, view=self)
 
     @button(emoji="⏭️", style=nextcord.ButtonStyle.blurple, custom_id="last")
-    async def last(self, button: Button, interaction: Interaction):
+    async def last(self, btn: Button, interaction: Interaction):
         await interaction.response.defer()
         self.page = math.ceil(len(self.items) / self.items_per_page)
         self.disable_buttons()

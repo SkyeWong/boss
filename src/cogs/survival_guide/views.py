@@ -1,16 +1,16 @@
 # default modules
-from typing import Optional, Union
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
+from typing import Optional, Union
 
 # nextcord
 import nextcord
-from nextcord import Embed, Interaction, ButtonStyle, SelectOption
-from nextcord.ui import Button, button, Select, select
+from nextcord import ButtonStyle, Embed, Interaction, SelectOption
+from nextcord.ui import Button, Select, button, select
 
 # my modules
 from utils import constants
-from utils.constants import SCRAP_METAL, COPPER, EmbedColour
+from utils.constants import COPPER, SCRAP_METAL, EmbedColour
 from utils.template_views import BaseView
 
 
@@ -102,9 +102,7 @@ class HelpView(BaseView):
 
         return options
 
-    def help_embed(
-        self, description: Optional[str] = "", author_name: Optional[str] = "Commands"
-    ) -> Embed:
+    def help_embed(self, description: Optional[str] = "", author_name: Optional[str] = "Commands") -> Embed:
         """Creates an embed with a list of all the commands in the bot."""
 
         embed = Embed(description=description, colour=EmbedColour.INFO)
@@ -141,7 +139,10 @@ class HelpView(BaseView):
 
         # Set the footer of the embed with the current page number and the total number of pages.
         embed.set_footer(
-            text=f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)} • {len(command_list)} commands in total"
+            text=(
+                f"Page {self.page}/{math.ceil(len(self.cmd_list) / self.cmd_per_page)} • {len(command_list)} commands"
+                " in total"
+            )
         )
 
         return embed
@@ -288,7 +289,7 @@ class GuidePage(Embed):
 
         super().__init__(description=description, colour=EmbedColour.INFO)
 
-        self._title = title
+        self.title = title
         if not images:
             images = []
         self.images = images
@@ -298,11 +299,14 @@ class GuideView(BaseView):
     pages: list[GuidePage] = [
         GuidePage(
             title="Introduction",
-            description="Welcome to BOSS, the bot for a **post-apocalyptic wasteland following World War III**. \n"
-            "Scavenge for resources, complete missions, and participate in events to earn **valuable currency**. \n\n"
-            "To start playing, use </help:964753444164501505> to view a list of available commands. "
-            "You can also use this handy </guide:1102561144327127201>, which teaches you the basics on surviving. "
-            "Turn to different pages by the select menu or buttons. Some pages have images, which you can view by clicking the 🖼️ button.",
+            description=(
+                "Welcome to BOSS, the bot for a **post-apocalyptic wasteland following World War III**. \nScavenge for"
+                " resources, complete missions, and participate in events to earn **valuable currency**. \n\nTo start"
+                " playing, use </help:964753444164501505> to view a list of available commands. You can also use this"
+                " handy </guide:1102561144327127201>, which teaches you the basics on surviving. Turn to different"
+                " pages by the select menu or buttons. Some pages have images, which you can view by clicking the 🖼️"
+                " button."
+            ),
         ),
         GuidePage(
             title="Currency System",
@@ -310,19 +314,26 @@ class GuideView(BaseView):
             fields=[
                 EmbedField(
                     f"Scrap Metal {SCRAP_METAL}",
-                    "- The __basic currency__.\n"
-                    "- Easy to find and earn, but has a relatively low value. \n"
-                    "- All of your items are valued with scrap metals.",
+                    (
+                        "- The __basic currency__.\n"
+                        "- Easy to find and earn, but has a relatively low value. \n"
+                        "- All of your items are valued with scrap metals."
+                    ),
                 ),
                 EmbedField(
                     f"Copper {COPPER}",
-                    f"- The __valuable and versatile currency__.\n"
-                    f"- 1 copper is worth {constants.COPPER_SCRAP_RATE:,} scrap metals.\n"
-                    f"- Some rarer resources can only be obtained using copper.",
+                    (
+                        "- The __valuable and versatile currency__.\n"
+                        f"- 1 copper is worth {constants.COPPER_SCRAP_RATE:,} scrap metals.\n"
+                        "- Some rarer resources can only be obtained using copper."
+                    ),
                 ),
                 EmbedField(
                     "Exchanging currencies",
-                    "You can exchange the currencies using /exchange, but keep in mind that you will lose some value of your money.",
+                    (
+                        "You can exchange the currencies using /exchange, but keep in mind that you will lose some"
+                        " value of your money."
+                    ),
                 ),
             ],
             images={
@@ -336,26 +347,37 @@ class GuideView(BaseView):
             fields=[
                 EmbedField(
                     "Health and hunger system",
-                    "You can check your health and hunger values with </profile:1005865383191916564>.\n"
-                    "When your **hunger** is **below 30**, you will have a **slight delay** and lose 5 points of health in most grind commands. "
-                    "If your **health** is **below 0**, you **die**. You lose all your scrap metals in the pocket, and a random item in your backpack.",
+                    (
+                        "You can check your health and hunger values with </profile:1005865383191916564>.\nWhen your"
+                        " **hunger** is **below 30**, you will have a **slight delay** and lose 5 points of health in"
+                        " most grind commands. If your **health** is **below 0**, you **die**. You lose all your scrap"
+                        " metals in the pocket, and a random item in your backpack."
+                    ),
                 ),
                 EmbedField(
                     "Your cash stash",
-                    "Use </balance:1100243620033994752> or </profile:1005865383191916564> to check your current cash. "
-                    "You can store at most 20% of your scrap metals in your safe to prevent losing it from dying. "
-                    "Use </deposit:1125636252373364806> and </withdraw:1125636656557465600> to change your safe balance!",
+                    (
+                        "Use </balance:1100243620033994752> or </profile:1005865383191916564> to check your current"
+                        " cash. You can store at most 20% of your scrap metals in your safe to prevent losing it from"
+                        " dying. Use </deposit:1125636252373364806> and </withdraw:1125636656557465600> to change your"
+                        " safe balance!"
+                    ),
                 ),
                 EmbedField(
                     "Scavenging for resources",
-                    "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410>, </scavenge:1107319706681098291>, </scout:1125354337162493972> and more!\n"
-                    "They have different rewards to help you grind.",
+                    (
+                        "Use </hunt:1079601533215330415>, </dig:1079644728921948230>, </mine:1102561135988838410>,"
+                        " </scavenge:1107319706681098291>, </scout:1125354337162493972> and more!\nThey have different"
+                        " rewards to help you grind."
+                    ),
                 ),
                 EmbedField(
                     "Completing tasks and challenges",
-                    "You can also earn currency by completing tasks and challenges. "
-                    "Use the </missions:1107319711944941638> command to view available missions and track their progress.\n"
-                    "Missions update every day.",
+                    (
+                        "You can also earn currency by completing tasks and challenges. Use the"
+                        " </missions:1107319711944941638> command to view available missions and track their"
+                        " progress.\nMissions update every day."
+                    ),
                 ),
             ],
             images={
@@ -370,60 +392,80 @@ class GuideView(BaseView):
             fields=[
                 EmbedField(
                     "</backpack:1008017263540047872> 🎒",
-                    "- The **every-day rucksack** that you carry wherever you go. You sell, trade and do almost everything else with the items in it.\n"
-                    "- It only has **32 slots**.\n"
-                    "- When you die, you lose a random item in your backpack.",
+                    (
+                        "- The **every-day rucksack** that you carry wherever you go. You sell, trade and do almost"
+                        " everything else with the items in it.\n- It only has **32 slots**.\n- When you die, you lose"
+                        " a random item in your backpack."
+                    ),
                 ),
                 EmbedField(
                     "</chest:1008017264118874112> 🧰",
-                    "- The **crate** that you store at home. You store most of your items in it and never really care about them.\n"
-                    "- It has **infinite slots**.\n"
-                    "- You may lose items in your chest if your base gets raided.",
+                    (
+                        "- The **crate** that you store at home. You store most of your items in it and never really"
+                        " care about them.\n- It has **infinite slots**.\n- You may lose items in your chest if your"
+                        " base gets raided."
+                    ),
                 ),
                 EmbedField(
                     "</vault:1008017264936755240> 🔒",
-                    "- Your secret **safe**. Only your most valuable items own a place in it.\n"
-                    "- It only has **5 slots**.\n"
-                    "- Only you can view the contents of your own vault, and you will never lose any of them.",
+                    (
+                        "- Your secret **safe**. Only your most valuable items own a place in it.\n"
+                        "- It only has **5 slots**.\n"
+                        "- Only you can view the contents of your own vault, and you will never lose any of them."
+                    ),
                 ),
                 EmbedField(
                     "Transferring items",
-                    "You can move items from 1 inventory type to other by </move-item:1008017265901437088>.\n"
-                    "Keep note that it uses a few seconds and it is intentional.",
+                    (
+                        "You can move items from 1 inventory type to other by </move-item:1008017265901437088>.\n"
+                        "Keep note that it uses a few seconds and it is intentional."
+                    ),
                 ),
             ],
             images={"Viewing your inventory": "https://i.imgur.com/hPuwxb4.gif"},
         ),
         GuidePage(
             title="Manage your wealth",
-            description="Use your currency to purchase goods and services. \n\n"
-            "Use the </trade:1102561137893056563> command to trade currency with virtual villagers. Trades update every hour. "
-            "Each type of villagers buys and sells different items, and they may be selling the same stuff, but with different prices. So make sure you checked the prices before buying things!",
+            description=(
+                "Use your currency to purchase goods and services. \n\nUse the </trade:1102561137893056563> command to"
+                " trade currency with virtual villagers. Trades update every hour. Each type of villagers buys and"
+                " sells different items, and they may be selling the same stuff, but with different prices. So make"
+                " sure you checked the prices before buying things!"
+            ),
             images={"Trading with villagers": "https://i.imgur.com/FyrT5Qy.gif"},
         ),
         GuidePage(
             title="Advanced: macros",
-            description="You can run commands automatically (by clicking buttons, not by typing them in the chat) using a macro.",
+            description=(
+                "You can run commands automatically (by clicking buttons, not by typing them in the chat) using a"
+                " macro."
+            ),
             fields=[
                 EmbedField(
                     "Adding a macro",
-                    "**You can add a macro using </macro record:1124712041307979827>.**\n"
-                    "- Then you can run commands as usual and they will be recorded!\n"
-                    "- When you have finished running all the commands, stop the recording. Then enter a name for it.\n"
-                    "- ⚠️ Note that you could not rename or edit the macro afterwards.\n"
-                    "**You can also add a macro by importing one in </macro list:1124712041307979827>.**\n"
-                    "- Click the 'import' button then a modal will show up.\n"
-                    "- Enter the ID of the macro. It should be 6 characters long and can have letters and digits.",
+                    (
+                        "**You can add a macro using </macro record:1124712041307979827>.**\n- Then you can run"
+                        " commands as usual and they will be recorded!\n- When you have finished running all the"
+                        " commands, stop the recording. Then enter a name for it.\n- ⚠️ Note that you could not rename"
+                        " or edit the macro afterwards.\n**You can also add a macro by importing one in </macro"
+                        " list:1124712041307979827>.**\n- Click the 'import' button then a modal will show up.\n- Enter"
+                        " the ID of the macro. It should be 6 characters long and can have letters and digits."
+                    ),
                 ),
                 EmbedField(
                     "Viewing your macros",
-                    "Use </macro list:1124712041307979827>. A list of your macros will be shown. You can also remove them or import new ones.",
+                    (
+                        "Use </macro list:1124712041307979827>. A list of your macros will be shown. You can also"
+                        " remove them or import new ones."
+                    ),
                 ),
                 EmbedField(
                     "Running your macros",
-                    "Run the command </macro start:1124712041307979827> and choose the macro to start, or "
-                    "turn to the page with your macro in </macro list:1124712041307979827> and press the 'run' button.\n"
-                    "You can then run the commands one by one by clicking the buttons.",
+                    (
+                        "Run the command </macro start:1124712041307979827> and choose the macro to start, or turn to"
+                        " the page with your macro in </macro list:1124712041307979827> and press the 'run'"
+                        " button.\nYou can then run the commands one by one by clicking the buttons."
+                    ),
                 ),
             ],
             images={
@@ -443,7 +485,7 @@ class GuideView(BaseView):
         for index, page in enumerate(self.pages):
             self.choose_page.options.append(
                 SelectOption(
-                    label=f"{page._title} ({index + 1}/{len(self.pages)})",
+                    label=f"{page.title} ({index + 1}/{len(self.pages)})",
                     value=index,
                     default=index == self.current_page,
                 )

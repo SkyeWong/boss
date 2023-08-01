@@ -1,16 +1,16 @@
-# nextcord
-import nextcord
-from nextcord import Interaction, ButtonStyle
-from nextcord.ui import Button
-
-# my modules
-from utils.helpers import TextEmbed, EmbedColour, Embed
-from utils.template_views import BaseView
-
 # default modules
 import html
 import random
 from dataclasses import dataclass
+
+# nextcord
+import nextcord
+from nextcord import ButtonStyle
+from nextcord.ui import Button
+
+# my modules
+from utils.helpers import BossInteraction, EmbedColour, TextEmbed
+from utils.template_views import BaseView
 
 
 @dataclass
@@ -51,14 +51,14 @@ class TriviaAnswerButton(Button):
     def __init__(self, label: str):
         super().__init__(label=label)
 
-    async def callback(self, interaction: Interaction):
+    async def callback(self, interaction: BossInteraction):
         await interaction.response.defer()
 
         view: TriviaView = self.view
         embed = view.message.embeds[0]
 
         if self.label == view.question.correct_answer:  # the user got the question correct
-            embed.colour = EmbedColour.GREEN
+            embed.colour = EmbedColour.SUCCESS
             self.style = ButtonStyle.green
 
             msgs = (
@@ -73,12 +73,15 @@ class TriviaAnswerButton(Button):
                 "Luck was clearly on your side today. Maybe you should consider buying a lottery ticket.",
                 "Impressive win, I had no idea that guessing could be such a valuable skill in a trivia game.",
                 "I'm sure your, uh, extensive knowledge of the topic had nothing to do with it",
-                "You must have a sixth sense for this kind of thing. Or maybe you just got lucky. \nThe latter is far more likely.",
+                (
+                    "You must have a sixth sense for this kind of thing. Or maybe you just got lucky. \nThe latter is"
+                    " far more likely."
+                ),
                 "You just closed your eyes and picked an answer at random, it's pure luck.",
             )
             msg = random.choice(msgs)  # choose a random msg
         else:  # the user got the question wrong
-            embed.colour = EmbedColour.RED
+            embed.colour = EmbedColour.FAIL
             self.style = ButtonStyle.red
 
             msgs = (
@@ -97,7 +100,9 @@ class TriviaAnswerButton(Button):
                 "I'm sure your participation trophy is in the mail. Keep an eye out for it!",
                 "Better luck next time, champ. Or maybe just bring a lifeline or two.",
             )
-            msg = f"{random.choice(msgs)}\nThe correct answer was _{view.question.correct_answer}_."  # choose a random msg and append it with the correct answer
+            msg = (  # choose a random msg and append it with the correct answer
+                f"{random.choice(msgs)}\nThe correct answer was _{view.question.correct_answer}_."
+            )
 
             # set the correct answer's button to green
             correct_btn = [i for i in view.children if i.label == view.question.correct_answer][0]
@@ -114,7 +119,7 @@ class TriviaAnswerButton(Button):
 
 
 class TriviaView(BaseView):
-    def __init__(self, interaction: Interaction, question: TriviaQuestion):
+    def __init__(self, interaction: BossInteraction, question: TriviaQuestion):
         timeouts = {
             "easy": 15,
             "medium": 12,
@@ -136,8 +141,7 @@ class TriviaView(BaseView):
         self.is_done = False
 
     def _get_embed(self):
-        embed = Embed()
-        embed.colour = EmbedColour.GREY
+        embed = self.interaction.embed()
         embed.title = self.question.question
         embed.description = f"_You have {self.timeout} seconds to answer._"
 

@@ -1,15 +1,16 @@
 # default modules
-from typing import Optional, Callable, Literal
 from contextlib import suppress
+from typing import Callable, Literal, Optional
 
 # nextcord
 import nextcord
-from nextcord import Embed, ButtonStyle
-from nextcord.ui import View, Button, button, Modal, TextInput
+from nextcord import ButtonStyle, Embed
+from nextcord.ui import Button, Modal, TextInput, View, button
+
+from utils.helpers import BossInteraction
 
 # my modules and constants
 from utils.player import Player
-from utils.helpers import BossInteraction
 
 
 class BaseView(View):
@@ -27,15 +28,16 @@ class BaseView(View):
             await self.interaction.edit_original_message(view=self)
 
     async def interaction_check(self, interaction: BossInteraction) -> bool:
-        if interaction.user != self.interaction.user:
-            msg = "This is not for you, sorry."
-
-            if command := self.interaction.application_command:
-                msg += f"\nUse {command.get_mention(interaction.guild)}"
-            await interaction.send_text(msg, ephemeral=True)
-            return False
-        else:
+        if interaction.user == self.interaction.user:
             return True
+        # If the interaction is triggered by a command, include the command in the message as well.
+        if command := self.interaction.application_command:
+            cmd_mention = command.get_mention(interaction.guild) + " "
+        else:
+            cmd_mention = ""
+        msg = f"This {cmd_mention}menu is controlled by {self.interaction.user.mention}. Run the command yourself."
+        await interaction.send_text(msg, ephemeral=True)
+        return False
 
 
 class ConfirmView(BaseView):
