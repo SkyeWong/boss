@@ -428,7 +428,7 @@ class PlantView(BaseView):
                 SelectOption(
                     label=f"{crop_type['name'].capitalize()} ({crop_type['growth_period']})",
                     value=crop_type["id"],
-                    emoji=f"<:_:{crop_type['emoji_id']}>",
+                    emoji=f"<:_:{crop_type['emoji']}>",
                     default=crop_type["id"] == self.type_to_plant,
                 )
             )
