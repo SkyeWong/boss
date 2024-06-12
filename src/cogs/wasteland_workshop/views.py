@@ -51,7 +51,6 @@ class WeatherView(View):
 
 
 class Video:
-
     """A helper class that is designed to represent a Youtube video and be displayed in VideoView."""
 
     def __init__(
@@ -106,7 +105,9 @@ class Video:
 
         link = f"https://www.youtube.com/watch?v={video_response['id']}"
         published_time = int(
-            datetime.datetime.strptime(video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
+            datetime.datetime.strptime(
+                video_response["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ"
+            )
             .replace(tzinfo=datetime.timezone.utc)
             .astimezone(tz=None)
             .timestamp()
@@ -115,13 +116,7 @@ class Video:
 
         duration_str = video_response["contentDetails"]["duration"][2:]
 
-        separators = (
-            "W",
-            "D",
-            "H",
-            "M",
-            "S",
-        )
+        separators = ("W", "D", "H", "M", "S")
         duration_vals = {}
         for sep in separators:
             partitioned = duration_str.partition(sep)
@@ -138,7 +133,9 @@ class Video:
                 # No match for this unit: it's absent
                 duration_vals.update({sep.lower(): 0})
 
-        duration = " ".join([f"{value}{unit}" for unit, value in duration_vals.items()])
+        duration = " ".join(
+            f"{value}{unit}" for unit, value in duration_vals.items() if value != 0
+        )
 
         views = video_response["statistics"].get("viewCount", 0)
         likes = video_response["statistics"].get("likeCount", 0)
@@ -187,7 +184,9 @@ class VideoView(BaseView):
 
         video_select = [i for i in self.children if i.custom_id == "video_select"][0]
         video_select.options = [
-            SelectOption(label=video.title[:100], description=video.channel_title, value=index)
+            SelectOption(
+                label=video.title[:100], description=video.channel_title, value=index
+            )
             for index, video in enumerate(self.videos)
         ]
 
@@ -216,7 +215,9 @@ class VideoView(BaseView):
                     inline=False,
                 )
             else:
-                embed.add_field(name="Description", value=f"\n>>> {description}", inline=False)
+                embed.add_field(
+                    name="Description", value=f"\n>>> {description}", inline=False
+                )
 
         embed.add_field(
             name="Publish time",
@@ -254,7 +255,9 @@ class VideoView(BaseView):
 
     @select(placeholder="Choose a video...", custom_id="video_select")
     async def choose_video(self, sel: Select, interaction: BossInteraction):
-        self.video_page = int(sel.values[0])  # the value is set to the index of the video
+        self.video_page = int(
+            sel.values[0]
+        )  # the value is set to the index of the video
 
         self.disable_buttons()
         embed = self.get_embed()
@@ -303,22 +306,30 @@ class VideoView(BaseView):
 
         embed.set_author(name=video.title)
         embed.set_thumbnail(url=video.thumbnail_url)
-        embed.description = video.description[:4096]  # upper limit for description length is 4096.
+        embed.description = video.description[
+            :4096
+        ]  # upper limit for description length is 4096.
         await interaction.send(embed=embed, ephemeral=True)
 
-    async def show_video_list(self, interaction: BossInteraction, action: Literal["prev", "next"]):
+    async def show_video_list(
+        self, interaction: BossInteraction, action: Literal["prev", "next"]
+    ):
         api_service_name = "youtube"
         api_version = "v3"
         dev_key = os.getenv("GOOGLE_API_KEY")
 
-        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+        youtube = googleapiclient.discovery.build(
+            api_service_name, api_version, developerKey=dev_key
+        )
         search_response = (
             youtube.search()  # pylint: disable=no-member
             .list(
                 part="snippet",
                 type="video",
                 q=self.query,
-                pageToken=self.next_page_token if action == "next" else self.prev_page_token,
+                pageToken=(
+                    self.next_page_token if action == "next" else self.prev_page_token
+                ),
                 maxResults=25,
             )
             .execute()
@@ -364,15 +375,21 @@ class ChannelVideoView(VideoView):
         next_page_token: str = None,
         list_index: int = 1,
     ):
-        super().__init__(slash_interaction, videos, "", prev_page_token, next_page_token, list_index)
+        super().__init__(
+            slash_interaction, videos, "", prev_page_token, next_page_token, list_index
+        )
         self.playlist_id = playlist_id
 
-    async def show_video_list(self, interaction: BossInteraction, action: Literal["prev", "next"]):
+    async def show_video_list(
+        self, interaction: BossInteraction, action: Literal["prev", "next"]
+    ):
         api_service_name = "youtube"
         api_version = "v3"
         dev_key = os.getenv("GOOGLE_API_KEY")
 
-        youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=dev_key)
+        youtube = googleapiclient.discovery.build(
+            api_service_name, api_version, developerKey=dev_key
+        )
         playlist_response = (
             youtube.playlistItems()  # pylint: disable=no-member
             .list(part="contentDetails", playlistId=self.playlist_id, maxResults=25)
@@ -383,7 +400,12 @@ class ChannelVideoView(VideoView):
             youtube.videos()  # pylint: disable=no-member
             .list(
                 part="snippet,contentDetails,statistics",
-                id=",".join([video["contentDetails"]["videoId"] for video in playlist_response["items"]]),
+                id=",".join(
+                    [
+                        video["contentDetails"]["videoId"]
+                        for video in playlist_response["items"]
+                    ]
+                ),
             )
             .execute()
         )
@@ -408,6 +430,8 @@ class MtrLine(enum.Enum):
     EAST_RAIL_LINE = "EAL"
     SOUTH_ISLAND_LINE = "SIL"
     TSUEN_WAN_LINE = "TWL"
+    ISLAND_LINE = "ISL"
+    KWUN_TONG_LINE = "KTL"
 
 
 LINE_STATION_CODES = {
@@ -510,11 +534,48 @@ LINE_STATION_CODES = {
         "Tai Wo Hau": "TWH",
         "Tsuen Wan": "TSW",
     },
+    "ISL": {
+        "Kennedy Town": "KET",
+        "HKU": "HKU",
+        "Sai Ying Pun": "SYP",
+        "Sheung Wan": "SHW",
+        "Central": "CEN",
+        "Admiralty": "ADM",
+        "Wan Chai": "WAC",
+        "Causeway Bay": "CAB",
+        "Tin Hau": "TIH",
+        "Fortress Hill": "FOH",
+        "North Point": "NOP",
+        "Quarry Bay": "QUB",
+        "Tai Koo": "TAK",
+        "Sai Wan Ho": "SWH",
+        "Shau Kei Wan": "SKW",
+        "Heng Fa Chuen": "HFC",
+        "Chai Wan": "CHW",
+    },
+    "KTL": {
+        "Whampoa": "WHA",
+        "Ho Man Tin": "HOM",
+        "Yau Ma Tei": "YMT",
+        "Mong Kok": "MOK",
+        "Prince Edward": "PRE",
+        "Shek Kip Mei": "SKM",
+        "Kowloon Tong": "KOT",
+        "Lok Fu": "LOF",
+        "Wong Tai Sin": "WTS",
+        "Diamond Hill": "DIH",
+        "Choi Hung": "CHH",
+        "Kowloon Bay": "KOB",
+        "Ngau Tau Kok": "NTK",
+        "Kwun Tong": "KWT",
+        "Lam Tin": "LAT",
+        "Yau Tong": "YAT",
+        "Tiu Keng Leng": "TIK",
+    },
 }
 
 
 class Train:
-
     """A helper class that is designed to represent a MTR Train and be represented in `NextTrainView`."""
 
     def __init__(
@@ -568,7 +629,9 @@ class Train:
                 sequence = train["seq"]
                 platform = train["plat"]
                 via_racecourse = bool(train.get("route"))
-                arrival_time = datetime.datetime.strptime(train["time"], "%Y-%m-%d %H:%M:%S")
+                arrival_time = datetime.datetime.strptime(
+                    train["time"], "%Y-%m-%d %H:%M:%S"
+                )
                 arrival_time = hk_tz.localize(arrival_time)
 
                 trains_res[index] = cls(
@@ -596,15 +659,21 @@ class NextTrainView(BaseView):
     `trains`: a `dict` containing "UP" and "DOWN" trains
     """
 
-    def __init__(self, slash_interaction: BossInteraction, trains: dict[str, list[Train]]):
+    def __init__(
+        self, slash_interaction: BossInteraction, trains: dict[str, list[Train]]
+    ):
         super().__init__(slash_interaction, timeout=60)
         self.trains = trains
 
         type_button = [i for i in self.children if i.custom_id == "type"][0]
-        if not self.trains["UP"]:  # only down directions are available, disable the type button
+        if not self.trains[
+            "UP"
+        ]:  # only down directions are available, disable the type button
             self.type = "DOWN"
             type_button.disabled = True
-        elif not self.trains["DOWN"]:  # only up directions are available, disable the type button
+        elif not self.trains[
+            "DOWN"
+        ]:  # only up directions are available, disable the type button
             self.type = "UP"
             type_button.disabled = True
         else:  # both directions are available.
@@ -623,11 +692,15 @@ class NextTrainView(BaseView):
             MtrLine.TSEUNG_KWAN_O_LINE: 0x863E90,
             MtrLine.TUEN_MA_LINE: 0x952E07,
             MtrLine.TUNG_CHUNG_LINE: 0xF39131,
+            MtrLine.ISLAND_LINE: 0x007DC5,
+            MtrLine.KWUN_TONG_LINE: 0x00AB4E,
         }
         embed.colour = colours.get(train.line, None)  # black for default
 
         arriving_station = [
-            name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.arriving_station
+            name
+            for name, code in LINE_STATION_CODES[train.line.value].items()
+            if code == train.arriving_station
         ][0]
         embed.title = f"Trains arriving at {arriving_station}"
 
@@ -636,7 +709,9 @@ class NextTrainView(BaseView):
         )  # + 1 because self.page uses zero-indexing
 
         destination_name = [
-            name for name, code in LINE_STATION_CODES[train.line.value].items() if code == train.destination
+            name
+            for name, code in LINE_STATION_CODES[train.line.value].items()
+            if code == train.destination
         ][0]
         embed.add_field(
             name="Destination",
@@ -649,7 +724,11 @@ class NextTrainView(BaseView):
         arrival_timestamp = int(train.arrival_time.timestamp())
         hk_tz = pytz.timezone("Asia/Hong_Kong")
         embed.add_field(
-            name="Arrival time" if train.arrival_time > datetime.datetime.now(tz=hk_tz) else "Departure time",
+            name=(
+                "Arrival time"
+                if train.arrival_time > datetime.datetime.now(tz=hk_tz)
+                else "Departure time"
+            ),
             value=f"<t:{arrival_timestamp}:t> • <t:{arrival_timestamp}:R>",
             inline=False,
         )
